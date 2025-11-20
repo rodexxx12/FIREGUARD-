@@ -1,0 +1,1252 @@
+:root {
+    --primary-color: #ff8c00;
+    --secondary-color: #e67e00;
+    --light-color: #f8f9fa;
+    --dark-color: #212529;
+    --success-color: #4bb543;
+    --warning-color: #f8961e;
+    --danger-color: #f94144;
+    --info-color: #ff8c00;
+    --glass-blur: 12px;
+    --glass-opacity: 0.2;
+    --shadow-intensity: 0.25;
+  }
+  
+  /* Modern 3D Typography */
+  .navbar-brand {
+    font-weight: 800;
+    color: var(--primary-color) !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    letter-spacing: -0.5px;
+    font-size: 1.5rem;
+  }
+  
+  /* Enhanced 3D Cards with Glass Effect */
+  .card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 
+      0 8px 32px rgba(0, 0, 0, calc(0.1 * var(--shadow-intensity))),
+      0 4px 16px rgba(0, 0, 0, calc(0.08 * var(--shadow-intensity)));
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1);
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    margin-bottom: 1rem;
+    transform: perspective(1000px) translateZ(0);
+    overflow: hidden;
+  }
+
+  /* Larger card for registration form */
+  #registrationForm {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0 0.75rem;
+    display: block;
+  }
+
+  #registrationForm .card,
+  #registrationForm .x_panel {
+    width: 100%;
+  }
+
+  #registrationForm .card-body {
+    padding: 1.5rem;
+  }
+
+  /* Responsive card sizing */
+  @media (min-width: 1200px) {
+    #registrationForm {
+      padding: 0 1.5rem;
+    }
+    
+    #registrationForm .card-body {
+      padding: 1.75rem;
+    }
+  }
+
+  @media (min-width: 1400px) {
+    #registrationForm {
+      padding: 0 2rem;
+    }
+    
+    #registrationForm .card-body {
+      padding: 2rem;
+    }
+  }
+
+  @media (max-width: 992px) {
+    #registrationForm {
+      padding: 0 0.5rem;
+    }
+    
+    #registrationForm .card-body {
+      padding: 1.25rem;
+    }
+  }
+
+  @media (max-width: 768px) {
+    #registrationForm {
+      padding: 0 0.25rem;
+    }
+    
+    #registrationForm .card-body {
+      padding: 0.75rem;
+    }
+  }
+
+  @media (max-width: 576px) {
+    #registrationForm {
+      padding: 0;
+    }
+    
+    #registrationForm .card-body {
+      padding: 0.5rem;
+    }
+  }
+  
+  .card:hover {
+    transform: perspective(1000px) translateZ(20px);
+    box-shadow: 
+      0 12px 40px rgba(0, 0, 0, calc(0.15 * var(--shadow-intensity))),
+      0 6px 20px rgba(0, 0, 0, calc(0.12 * var(--shadow-intensity)));
+  }
+  
+  
+  /* Modern Form Controls */
+  .form-control, .form-select, input, textarea, select {
+    padding: 6px 10px;
+    border: 1px solid #ced4da;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+    font-size: 0.9rem;
+  }
+  
+  .form-control:focus, .form-select:focus, input:focus, textarea:focus, select:focus {
+    border-color: #86b7fe;
+    box-shadow: 
+      0 0 0 0.25rem rgba(13, 110, 253, 0.25),
+      inset 0 1px 3px rgba(0, 0, 0, 0.05);
+    background: white;
+    transform: translateZ(5px);
+  }
+  
+  /* 3D Buttons with Depth */
+  .btn-primary {
+    background-color: #ff8c00;
+    border-color: #ff8c00;
+    padding: 6px 12px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border-radius: 10px;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: 
+      0 4px 6px rgba(0, 0, 0, 0.1),
+      0 2px 4px rgba(0, 0, 0, 0.06);
+    position: relative;
+    overflow: hidden;
+    transform: perspective(500px) translateZ(0);
+  }
+  
+  .btn-primary:hover {
+    background-color: #e67e00;
+    border-color: #e67e00;
+    transform: perspective(500px) translateZ(10px);
+    box-shadow: 
+      0 10px 15px rgba(0, 0, 0, 0.1),
+      0 4px 6px rgba(0, 0, 0, 0.05);
+  }
+  
+  .btn-primary:active {
+    transform: perspective(500px) translateZ(5px);
+  }
+  
+  .btn-primary::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.3) 0%,
+      rgba(255, 255, 255, 0.1) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    pointer-events: none;
+  }
+  
+  /* Modern Glass Sidebar */
+  .sidebar {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border-radius: 10px;
+    box-shadow: 
+      4px 0 20px rgba(0, 0, 0, 0.05),
+      2px 0 10px rgba(0, 0, 0, 0.03);
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    border-right: 1px solid rgba(255, 255, 255, 0.3);
+    z-index: 100;
+  }
+  
+  .sidebar .nav-link {
+    color: #495057;
+    padding: 10px 18px;
+    margin-bottom: 6px;
+    font-weight: 500;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .sidebar .nav-link:hover, .sidebar .nav-link.active {
+    background: linear-gradient(
+      to right,
+      rgba(255, 140, 0, 0.1),
+      rgba(255, 140, 0, 0.05)
+    );
+    color: var(--primary-color);
+    transform: perspective(500px) translateZ(10px);
+    box-shadow: 
+      0 4px 12px rgba(255, 140, 0, 0.1),
+      0 2px 6px rgba(255, 140, 0, 0.05);
+  }
+  
+  .sidebar .nav-link i {
+    margin-right: 12px;
+    width: 20px;
+    text-align: center;
+    font-size: 1.1rem;
+  }
+  
+  /* Modern Badges */
+  .badge {
+    padding: 4px 8px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .badge-residential {
+    background-color: #ff8c00;
+    color: white;
+  }
+  
+  .badge-commercial {
+    background-color: #e67e00;
+    color: white;
+  }
+  
+  .badge-industrial {
+    background-color: #cc6600;
+    color: white;
+  }
+  
+  .badge-institutional {
+    background-color: #ffa500;
+    color: white;
+  }
+  
+  /* 3D Map Container */
+  .map-container {
+    height: 250px;
+    overflow: hidden;
+    background-color: #f8f9fa;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    box-shadow: 
+      0 8px 16px rgba(0, 0, 0, 0.1),
+      0 4px 8px rgba(0, 0, 0, 0.05);
+    transform: perspective(1000px) translateZ(0);
+    transition: all 0.3s ease;
+  }
+  
+  .map-container:hover {
+    transform: perspective(1000px) translateZ(10px);
+  }
+  
+  /* Map Styles */
+  #map {
+    height: 300px !important;
+    width: 100% !important;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    position: relative;
+    cursor: crosshair;
+    min-height: 250px;
+    max-height: 400px;
+  }
+  
+  /* Responsive map styles */
+  @media (max-width: 768px) {
+    #map {
+      height: 300px !important;
+      min-height: 250px;
+      max-height: 350px;
+    }
+  }
+  
+  @media (max-width: 576px) {
+    #map {
+      height: 250px !important;
+      min-height: 200px;
+      max-height: 300px;
+    }
+  }
+  
+  /* Ensure map tiles load properly */
+  .leaflet-container {
+    height: 100% !important;
+    width: 100% !important;
+  }
+  
+  .leaflet-tile-container {
+    width: 100% !important;
+    height: 100% !important;
+  }
+  
+  /* Gentelella Form Wizard Styles */
+  .x_panel {
+    background: #fff;
+    border: 1px solid #e6e9ed;
+    padding: 10px 17px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+  }
+  
+  .x_title {
+    border-bottom: 2px solid #e6e9ed;
+    padding: 1px 5px 6px;
+    margin-bottom: 10px;
+  }
+  
+  .x_title h2 {
+    margin: 5px 0 6px;
+    float: left;
+    display: block;
+    font-size: 18px;
+    font-weight: 400;
+  }
+  
+  .x_title h2 small {
+    margin-left: 10px;
+  }
+  
+  .x_title .clearfix {
+    clear: both;
+  }
+  
+  .x_content {
+    padding: 0 5px 6px;
+    position: relative;
+    width: 100%;
+    float: left;
+    clear: both;
+    margin-top: 5px;
+  }
+  
+  .form_wizard .wizard_steps {
+    display: table;
+    width: 100%;
+    position: relative;
+    margin: 20px 0;
+  }
+  
+  .form_wizard .wizard_steps li {
+    display: table-cell;
+    text-align: center;
+    position: relative;
+  }
+  
+  .form_wizard .wizard_steps li a,
+  .form_wizard .wizard_steps li a:hover {
+    display: block;
+    position: relative;
+    -moz-opacity: 1;
+    filter: alpha(opacity=100);
+    opacity: 1;
+    color: #666;
+  }
+  
+  .form_wizard .wizard_steps li a:before {
+    content: "";
+    position: absolute;
+    height: 4px;
+    background: #ccc;
+    top: 20px;
+    width: 100%;
+    z-index: 4;
+    left: 0;
+    right: 0;
+  }
+  
+  .form_wizard .wizard_steps li:first-child a:before {
+    left: 50%;
+  }
+  
+  .form_wizard .wizard_steps li:last-child a:before {
+    right: 50%;
+    width: 50%;
+    left: auto;
+  }
+  
+  .form_wizard .wizard_steps li a .step_no {
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+    border-radius: 100% !important;
+    display: block;
+    margin: 0 auto 5px;
+    font-size: 16px;
+    text-align: center;
+    position: relative;
+    z-index: 5;
+    background-color: #fff;
+    border: 2px solid #ccc;
+    color: #ccc;
+  }
+  
+  .form_wizard .wizard_steps li a.selected .step_no,
+  .form_wizard .wizard_steps li a.done .step_no {
+    background: #26B99A;
+    border: 2px solid #26B99A;
+    color: #fff;
+  }
+  
+  .form_wizard .wizard_steps li a.selected:before,
+  .form_wizard .wizard_steps li a.done:before {
+    background: #26B99A;
+  }
+  
+  .form_wizard .wizard_steps li a .step_descr {
+    font-size: 13px;
+    color: #666;
+  }
+  
+  .form_wizard .wizard_steps li a.selected .step_descr,
+  .form_wizard .wizard_steps li a.done .step_descr {
+    color: #26B99A;
+    font-weight: 600;
+  }
+  
+  .form_wizard .wizard_steps li a.disabled {
+    cursor: default;
+  }
+  
+  .form_wizard .wizard_steps li a.disabled .step_no {
+    background-color: #fff;
+    border-color: #ccc;
+    color: #ccc;
+  }
+  
+  .form_wizard .wizard_steps li a.disabled .step_descr {
+    color: #999;
+  }
+  
+  .StepTitle {
+    margin-top: 0;
+    margin-bottom: 5px;
+    font-size: 16px;
+    font-weight: 400;
+  }
+  
+  /* Responsive wizard steps */
+  @media (max-width: 768px) {
+    .form_wizard .wizard_steps {
+      display: block;
+    }
+    
+    .form_wizard .wizard_steps li {
+      display: block;
+      margin-bottom: 20px;
+    }
+    
+    .form_wizard .wizard_steps li a:before {
+      display: none;
+    }
+    
+    .form_wizard .wizard_steps li a .step_no {
+      width: 50px;
+      height: 50px;
+      line-height: 50px;
+      font-size: 18px;
+    }
+    
+    .form_wizard .wizard_steps li a .step_descr {
+      font-size: 12px;
+    }
+  }
+  
+  /* Modern Empty State */
+  .empty-state {
+    padding: 2rem 0;
+    text-align: center;
+  }
+  
+  .empty-state i {
+    font-size: 3rem;
+    color: #adb5bd;
+    margin-bottom: 1rem;
+    opacity: 0.7;
+  }
+  
+  .empty-state h4 {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 1rem;
+  }
+  
+  .empty-state p {
+    color: #6c757d;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+  
+  /* Responsive Adjustments */
+  @media (max-width: 992px) {
+    .sidebar {
+      height: auto;
+      position: relative;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+    
+    .step-title {
+      font-size: 12px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .step-indicator {
+      flex-wrap: wrap;
+    }
+    
+    .step {
+      flex: 0 0 50%;
+      margin-bottom: 20px;
+    }
+    
+    .card {
+      margin-bottom: 1rem;
+    }
+  }
+
+  /* Enhanced responsive form layout */
+  @media (max-width: 1200px) {
+    .col-md-4 {
+      flex: 0 0 50%;
+      max-width: 50%;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .col-md-4 {
+      flex: 0 0 100%;
+      max-width: 100%;
+    }
+    
+    .col-md-6 {
+      flex: 0 0 100%;
+      max-width: 100%;
+    }
+  }
+
+  /* Responsive step indicator */
+  @media (max-width: 576px) {
+    .step-indicator {
+      margin-bottom: 30px;
+    }
+    
+    .step-number {
+      width: 50px;
+      height: 50px;
+      font-size: 16px;
+    }
+    
+    .step-title {
+      font-size: 11px;
+    }
+  }
+  
+  /* Enhanced Animations */
+  .fade-in {
+    animation: fadeIn 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  }
+  
+  @keyframes fadeIn {
+    from { 
+      opacity: 0; 
+      transform: perspective(1000px) translateY(20px) rotateX(-5deg);
+    }
+    to { 
+      opacity: 1; 
+      transform: perspective(1000px) translateY(0) rotateX(0);
+    }
+  }
+  
+  
+  /* Floating Action Button (FAB) - Additional element */
+  .fab {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(
+      to bottom right,
+      var(--primary-color),
+      var(--secondary-color)
+    );
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    box-shadow: 
+      0 6px 20px rgba(255, 140, 0, 0.3),
+      0 3px 10px rgba(255, 140, 0, 0.2);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    z-index: 1000;
+    cursor: pointer;
+    transform: perspective(500px) translateZ(0);
+  }
+  
+  .fab:hover {
+    transform: perspective(500px) translateZ(20px);
+    box-shadow: 
+      0 10px 25px rgba(255, 140, 0, 0.4),
+      0 5px 15px rgba(255, 140, 0, 0.3);
+  }
+  
+  .fab i {
+    font-size: 1.5rem;
+  }
+
+  /* Orange Button Variants */
+  .btn-outline-primary {
+    color: #ff8c00;
+    border-color: #ff8c00;
+    background-color: transparent;
+    padding: 6px 12px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border-radius: 10px;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: 
+      0 4px 6px rgba(0, 0, 0, 0.1),
+      0 2px 4px rgba(0, 0, 0, 0.06);
+    position: relative;
+    overflow: hidden;
+    transform: perspective(500px) translateZ(0);
+  }
+
+  .btn-outline-primary:hover {
+    color: white;
+    background-color: #ff8c00;
+    border-color: #ff8c00;
+    transform: perspective(500px) translateZ(10px);
+    box-shadow: 
+      0 10px 15px rgba(0, 0, 0, 0.1),
+      0 4px 6px rgba(0, 0, 0, 0.05);
+  }
+
+  .btn-outline-secondary {
+    color: #ff8c00;
+    border-color: #ff8c00;
+    background-color: transparent;
+    padding: 6px 12px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border-radius: 10px;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: 
+      0 4px 6px rgba(0, 0, 0, 0.1),
+      0 2px 4px rgba(0, 0, 0, 0.06);
+    position: relative;
+    overflow: hidden;
+    transform: perspective(500px) translateZ(0);
+  }
+
+  .btn-outline-secondary:hover {
+    color: white;
+    background-color: #ff8c00;
+    border-color: #ff8c00;
+    transform: perspective(500px) translateZ(10px);
+    box-shadow: 
+      0 10px 15px rgba(0, 0, 0, 0.1),
+      0 4px 6px rgba(0, 0, 0, 0.05);
+  }
+
+  .btn-outline-info {
+    color: #ff8c00;
+    border-color: #ff8c00;
+    background-color: transparent;
+    padding: 6px 12px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border-radius: 10px;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: 
+      0 4px 6px rgba(0, 0, 0, 0.1),
+      0 2px 4px rgba(0, 0, 0, 0.06);
+    position: relative;
+    overflow: hidden;
+    transform: perspective(500px) translateZ(0);
+  }
+
+  .btn-outline-info:hover {
+    color: white;
+    background-color: #ff8c00;
+    border-color: #ff8c00;
+    transform: perspective(500px) translateZ(10px);
+    box-shadow: 
+      0 10px 15px rgba(0, 0, 0, 0.1),
+      0 4px 6px rgba(0, 0, 0, 0.05);
+  }
+
+  .btn-success {
+    background-color: #ff8c00;
+    border-color: #ff8c00;
+    padding: 6px 12px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border-radius: 10px;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: 
+      0 4px 6px rgba(0, 0, 0, 0.1),
+      0 2px 4px rgba(0, 0, 0, 0.06);
+    position: relative;
+    overflow: hidden;
+    transform: perspective(500px) translateZ(0);
+  }
+
+  .btn-success:hover {
+    background-color: #e67e00;
+    border-color: #e67e00;
+    transform: perspective(500px) translateZ(10px);
+    box-shadow: 
+      0 10px 15px rgba(0, 0, 0, 0.1),
+      0 4px 6px rgba(0, 0, 0, 0.05);
+  }
+
+  .btn-outline-danger {
+    color: #ff8c00;
+    border-color: #ff8c00;
+    background-color: transparent;
+    padding: 6px 12px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border-radius: 10px;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: 
+      0 4px 6px rgba(0, 0, 0, 0.1),
+      0 2px 4px rgba(0, 0, 0, 0.06);
+    position: relative;
+    overflow: hidden;
+    transform: perspective(500px) translateZ(0);
+  }
+
+  .btn-outline-danger:hover {
+    color: white;
+    background-color: #ff8c00;
+    border-color: #ff8c00;
+    transform: perspective(500px) translateZ(10px);
+    box-shadow: 
+      0 10px 15px rgba(0, 0, 0, 0.1),
+      0 4px 6px rgba(0, 0, 0, 0.05);
+  }
+
+  /* Reduced Checkbox and Switch Sizes */
+  .form-check-input {
+    width: 1rem;
+    height: 1rem;
+    margin-top: 0.125rem;
+    border: 1px solid #ced4da;
+    border-radius: 10px;
+  }
+
+  .form-check-input[type="checkbox"] {
+    border: 1px solid #ced4da;
+    border-radius: 10px;
+  }
+
+  .form-check-input:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+  }
+
+  .form-check-label {
+    font-size: 0.9rem;
+    margin-left: 0.5rem;
+  }
+
+  /* Form Switch Styling */
+  .form-switch .form-check-input {
+    width: 2rem;
+    height: 1rem;
+    border-radius: 10px;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%280, 0, 0, 0.25%29'/%3e%3c/svg%3e");
+    background-position: left center;
+    transition: background-position 0.15s ease-in-out;
+  }
+
+  .form-switch .form-check-input:checked {
+    background-position: right center;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e");
+  }
+
+  /* Reduced Form Label Sizes */
+  .form-label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+  }
+
+  .form-label.required-field::after {
+    content: " *";
+    color: var(--danger-color);
+    font-weight: bold;
+  }
+
+  /* Responsive adjustments for reduced sizes */
+  @media (max-width: 768px) {
+    .form-control, .form-select {
+      padding: 5px 8px;
+      font-size: 0.85rem;
+    }
+    
+    .btn-primary, .btn-outline-primary, .btn-outline-secondary, 
+    .btn-outline-info, .btn-success, .btn-outline-danger {
+      padding: 5px 10px;
+      font-size: 0.85rem;
+    }
+    
+    .form-label {
+      font-size: 0.85rem;
+    }
+    
+    .form-check-label {
+      font-size: 0.85rem;
+    }
+  }
+
+  @media (max-width: 576px) {
+    .form-control, .form-select {
+      padding: 4px 6px;
+      font-size: 0.8rem;
+    }
+    
+    .btn-primary, .btn-outline-primary, .btn-outline-secondary, 
+    .btn-outline-info, .btn-success, .btn-outline-danger {
+      padding: 4px 8px;
+      font-size: 0.8rem;
+    }
+    
+    .form-label {
+      font-size: 0.8rem;
+    }
+    
+    .form-check-label {
+      font-size: 0.8rem;
+    }
+  }
+
+  /* Typography override: black text inside the registration form only */
+  #registrationForm, #registrationForm *:not(.btn) {
+    color: #000 !important;
+  }
+
+  /* Ensure placeholders in form are also black */
+  #registrationForm .form-control::placeholder,
+  #registrationForm .form-select::placeholder {
+    color: #000;
+    opacity: 1;
+  }
+
+  /* All buttons should have white text and border radius */
+  .btn, .btn:hover, .btn:focus, .btn:active,
+  .btn-outline-primary, .btn-outline-secondary, .btn-outline-info,
+  .btn-primary, .btn-success, .btn-outline-danger {
+    color: #fff !important;
+    border-radius: 10px;
+  }
+
+  /* Force orange theme for "My" buttons in @building */
+  #viewBuildingsBtn {
+    color: #fff !important;
+    background-color: #ff8c00 !important;
+    border-color: #ff8c00 !important;
+  }
+
+  #viewBuildingsBtn:hover,
+  #viewBuildingsBtn:focus {
+    background-color: #e67e00 !important;
+    border-color: #e67e00 !important;
+    color: #fff !important;
+  }
+
+  /* Force Add New Building button to orange as primary */
+  #addBuildingBtn {
+    color: #fff !important;
+    background-color: #ff8c00 !important;
+    border-color: #ff8c00 !important;
+  }
+  #addBuildingBtn:hover,
+  #addBuildingBtn:focus {
+    background-color: #e67e00 !important;
+    border-color: #e67e00 !important;
+    color: #fff !important;
+  }
+
+  /* Use My Current Location buttons */
+  #getLocationBtnTop,
+  #getLocationBtn {
+    background-color: #ff8c00;
+    border-color: #ff8c00;
+    color: #fff !important;
+  }
+
+  #getLocationBtnTop:hover,
+  #getLocationBtnTop:focus,
+  #getLocationBtn:hover,
+  #getLocationBtn:focus {
+    background-color: #e67e00;
+    border-color: #e67e00;
+  }
+
+  /* Force black text color inside tables in @building */
+  .table,
+  .table th,
+  .table td,
+  .table thead th,
+  .table tbody td {
+    color: #000 !important;
+  }
+
+  /* Keep badge text white for contrast inside tables */
+  .table .badge {
+    color: #fff !important;
+  }
+
+  /* Icon-only buttons: make icons white, background via btn variant */
+  .btn-icon-lg i { color: #fff !important; }
+
+  /* Larger icon-only action buttons */
+  .btn-icon-lg {
+    padding: 4px 8px;
+    line-height: 1;
+  }
+  .btn-icon-lg i {
+    font-size: 1.1rem;
+    display: inline-block;
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  /* Slight spacing between action buttons */
+  td.text-end .btn + .btn { margin-left: 6px; }
+
+  /* Custom scrollbar styling for Building Details modal */
+  .swal2-html-container::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .swal2-html-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+  }
+
+  .swal2-html-container::-webkit-scrollbar-thumb {
+    background: #ff8c00;
+    border-radius: 3px;
+  }
+
+  .swal2-html-container::-webkit-scrollbar-thumb:hover {
+    background: #e67e00;
+  }
+
+  /* Firefox scrollbar styling */
+  .swal2-html-container {
+    scrollbar-width: thin;
+    scrollbar-color: #ff8c00 #f1f1f1;
+  }
+
+  /* Compact modal styling */
+  .swal2-popup {
+    font-size: 0.9rem;
+  }
+
+  .swal2-title {
+    font-size: 1.2rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .swal2-html-container {
+    font-size: 0.85rem;
+    line-height: 1.4;
+  }
+
+  /* Compact Building Details Card */
+  .building-detail-card {
+    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px;
+    color: #111827;
+    font-size: 0.85rem;
+    line-height: 1.35;
+    max-height: 65vh;
+    overflow-y: auto;
+  }
+
+  .building-detail-card::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .building-detail-card::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-radius: 999px;
+  }
+
+  .building-detail-card::-webkit-scrollbar-thumb {
+    background: #cbd5f5;
+    border-radius: 999px;
+  }
+
+  .building-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .building-detail-header h4 {
+    font-size: 1.05rem;
+    margin: 0;
+    font-weight: 600;
+    color: #0f172a;
+  }
+
+  .building-detail-header .detail-meta {
+    margin: 4px 0 0;
+    font-size: 0.78rem;
+    color: #4b5563;
+  }
+
+  .detail-label {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.7rem;
+    color: #6b7280;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .detail-type-badge {
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: #eef2ff;
+    color: #1d4ed8;
+  }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .detail-item {
+    border: 1px solid #f1f5f9;
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: #f8fafc;
+  }
+
+  .detail-item-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #0f172a;
+    display: block;
+  }
+
+  .detail-section + .detail-section {
+    margin-top: 18px;
+  }
+
+  .detail-divider {
+    border-top: 1px solid #e5e7eb;
+    margin: 16px 0;
+  }
+
+  .safety-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .safety-badge {
+    padding: 5px 12px;
+    border-radius: 999px;
+    border: 1px solid #e5e7eb;
+    font-size: 0.75rem;
+    color: #6b7280;
+    background: #fff;
+  }
+
+  .safety-badge.active {
+    border-color: #bbf7d0;
+    background: #f0fdf4;
+    color: #166534;
+  }
+
+  .location-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  /* Clean white modal styling */
+  .modal-content {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    background-color: #ffffff;
+  }
+
+  /* Enhanced modal-xl styling for better content display */
+  .modal-xl .modal-content {
+    min-height: 60vh;
+  }
+
+  .modal-xl .modal-body {
+    padding: 1.5rem;
+    max-height: 75vh;
+  }
+
+  .modal-header {
+    border-bottom: 1px solid #e9ecef;
+    background-color: #ffffff;
+    border-radius: 10px 10px 0 0;
+  }
+
+  .modal-title {
+    color: #000 !important;
+    font-weight: 600;
+    font-size: 1.1rem;
+  }
+
+  .modal-body {
+    padding: 0.75rem;
+    background-color: #ffffff;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  .modal-footer {
+    border-top: 1px solid #e9ecef;
+    background-color: #ffffff;
+    border-radius: 0 0 10px 10px;
+  }
+
+  /* Button styling */
+  .modal-footer .btn {
+    border-radius: 10px;
+    font-weight: 500;
+    padding: 8px 20px;
+  }
+
+  .modal-footer .btn-primary {
+    background-color: #ff8c00;
+    border-color: #ff8c00;
+    color: #fff;
+  }
+
+  .modal-footer .btn-primary:hover {
+    background-color: #e67e00;
+    border-color: #e67e00;
+  }
+
+  .modal-footer .btn-secondary {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: #fff;
+  }
+
+  .modal-footer .btn-secondary:hover {
+    background-color: #5a6268;
+    border-color: #5a6268;
+  }
+
+  /* Fix close button styling and accessibility */
+  .btn-close {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    font-weight: bold;
+    line-height: 1;
+    color: #000;
+    text-shadow: 0 1px 0 #fff;
+    opacity: 0.5;
+    cursor: pointer;
+    padding: 0;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .btn-close:hover {
+    color: #000;
+    text-decoration: none;
+    opacity: 0.75;
+  }
+
+  .btn-close:focus {
+    outline: 2px solid #ff8c00;
+    outline-offset: 2px;
+    opacity: 1;
+  }
+
+  .btn-close::before {
+    content: "×";
+    font-size: 1.5rem;
+    line-height: 1;
+  }
+
+  /* Ensure modal is properly accessible */
+  .modal {
+    z-index: 1055;
+  }
+
+  .modal-backdrop {
+    z-index: 1050;
+  }
+
+  /* Fix focus management */
+  .modal.show {
+    display: block !important;
+  }
+
+  .modal.show[aria-hidden="true"] {
+    display: none !important;
+  }

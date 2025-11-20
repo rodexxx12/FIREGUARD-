@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chart Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .chart-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .chart-wrapper {
+            height: 400px;
+            position: relative;
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chart Test Page</h1>
+    
+    <div class="chart-container">
+        <h3>Monthly Incidents Chart</h3>
+        <div class="chart-wrapper">
+            <canvas id="testMonthlyChart"></canvas>
+        </div>
+        <button class="test-button" onclick="testMonthlyData()">Test Monthly Data</button>
+        <div id="monthlyStatus"></div>
+    </div>
+    
+    <div class="chart-container">
+        <h3>Building Type Chart</h3>
+        <div class="chart-wrapper">
+            <canvas id="testBuildingChart"></canvas>
+        </div>
+        <button class="test-button" onclick="testBuildingData()">Test Building Data</button>
+        <div id="buildingStatus"></div>
+    </div>
+    
+    <div class="chart-container">
+        <h3>Severity Chart</h3>
+        <div class="chart-wrapper">
+            <canvas id="testSeverityChart"></canvas>
+        </div>
+        <button class="test-button" onclick="testSeverityData()">Test Severity Data</button>
+        <div id="severityStatus"></div>
+    </div>
+    
+    <div class="chart-container">
+        <h3>Real-time Stats</h3>
+        <button class="test-button" onclick="testRealTimeStats()">Test Real-time Stats</button>
+        <div id="statsStatus"></div>
+        <div id="statsData"></div>
+    </div>
+
+    <script>
+        let testMonthlyChart = null;
+        let testBuildingChart = null;
+        let testSeverityChart = null;
+
+        // Initialize test charts
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeTestCharts();
+        });
+
+        function initializeTestCharts() {
+            // Monthly chart
+            const monthlyCtx = document.getElementById('testMonthlyChart');
+            if (monthlyCtx) {
+                testMonthlyChart = new Chart(monthlyCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Total Incidents',
+                            data: [],
+                            backgroundColor: '#007bff',
+                            borderColor: '#007bff',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+
+            // Building type chart
+            const buildingCtx = document.getElementById('testBuildingChart');
+            if (buildingCtx) {
+                testBuildingChart = new Chart(buildingCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            data: [],
+                            backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+
+            // Severity chart
+            const severityCtx = document.getElementById('testSeverityChart');
+            if (severityCtx) {
+                testSeverityChart = new Chart(severityCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            data: [],
+                            backgroundColor: ['#dc3545', '#ffc107', '#17a2b8', '#28a745']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+        }
+
+        function testMonthlyData() {
+            const statusEl = document.getElementById('monthlyStatus');
+            statusEl.innerHTML = '<div class="status">Loading...</div>';
+            
+            fetch('php/chart_data.php?action=monthly_data')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Monthly data:', data);
+                    
+                    if (testMonthlyChart && data.length > 0) {
+                        const labels = data.map(item => {
+                            const date = new Date(item.month + '-01');
+                            return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                        }).reverse();
+
+                        const totalData = data.map(item => parseInt(item.incident_count)).reverse();
+
+                        testMonthlyChart.data.labels = labels;
+                        testMonthlyChart.data.datasets[0].data = totalData;
+                        testMonthlyChart.update();
+                    }
+                    
+                    statusEl.innerHTML = `<div class="status success">Success! Loaded ${data.length} data points</div>`;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    statusEl.innerHTML = `<div class="status error">Error: ${error.message}</div>`;
+                });
+        }
+
+        function testBuildingData() {
+            const statusEl = document.getElementById('buildingStatus');
+            statusEl.innerHTML = '<div class="status">Loading...</div>';
+            
+            fetch('php/chart_data.php?action=building_type_data')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Building data:', data);
+                    
+                    if (testBuildingChart && data.length > 0) {
+                        const labels = data.map(item => item.building_type);
+                        const values = data.map(item => parseInt(item.incident_count));
+
+                        testBuildingChart.data.labels = labels;
+                        testBuildingChart.data.datasets[0].data = values;
+                        testBuildingChart.update();
+                    }
+                    
+                    statusEl.innerHTML = `<div class="status success">Success! Loaded ${data.length} building types</div>`;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    statusEl.innerHTML = `<div class="status error">Error: ${error.message}</div>`;
+                });
+        }
+
+        function testSeverityData() {
+            const statusEl = document.getElementById('severityStatus');
+            statusEl.innerHTML = '<div class="status">Loading...</div>';
+            
+            fetch('php/chart_data.php?action=severity_data')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Severity data:', data);
+                    
+                    if (testSeverityChart && data.length > 0) {
+                        const labels = data.map(item => item.severity_level);
+                        const values = data.map(item => parseInt(item.incident_count));
+
+                        testSeverityChart.data.labels = labels;
+                        testSeverityChart.data.datasets[0].data = values;
+                        testSeverityChart.update();
+                    }
+                    
+                    statusEl.innerHTML = `<div class="status success">Success! Loaded ${data.length} severity levels</div>`;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    statusEl.innerHTML = `<div class="status error">Error: ${error.message}</div>`;
+                });
+        }
+
+        function testRealTimeStats() {
+            const statusEl = document.getElementById('statsStatus');
+            const dataEl = document.getElementById('statsData');
+            statusEl.innerHTML = '<div class="status">Loading...</div>';
+            
+            fetch('php/chart_data.php?action=real_time_stats')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Real-time stats:', data);
+                    
+                    dataEl.innerHTML = `
+                        <div class="status success">
+                            <strong>Real-time Statistics:</strong><br>
+                            Total Incidents: ${data.total_incidents || 0}<br>
+                            Last 24h: ${data.incidents_24h || 0}<br>
+                            Last 7 days: ${data.incidents_7d || 0}<br>
+                            Flame Incidents: ${data.flame_incidents || 0}<br>
+                            Smoke Incidents: ${data.smoke_incidents || 0}<br>
+                            Avg Temperature: ${parseFloat(data.avg_temperature || 0).toFixed(1)}°C<br>
+                            Avg Smoke Level: ${parseFloat(data.avg_smoke_level || 0).toFixed(0)} ppm
+                        </div>
+                    `;
+                    
+                    statusEl.innerHTML = `<div class="status success">Success! Loaded real-time statistics</div>`;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    statusEl.innerHTML = `<div class="status error">Error: ${error.message}</div>`;
+                });
+        }
+    </script>
+</body>
+</html> 

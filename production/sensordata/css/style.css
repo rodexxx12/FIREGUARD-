@@ -1,0 +1,360 @@
+/* Modern clean white theme for Sensor Data */
+
+:root {
+	--bg: #ffffff;
+	--card-bg: #ffffff;
+	--text: #111827;
+	--muted: #6b7280;
+	--border: #e5e7eb;
+	--ring: #3b82f6;
+	--table-header: #f8fafc;
+	--table-hover: #f3f4f6;
+}
+
+html, body {
+	background: var(--bg);
+	color: var(--text);
+}
+
+/* Container spacing */
+.container-fluid {
+	max-width: 1500px;
+}
+
+/* Top bar */
+.dt-top-filters select.form-select,
+.dt-top-filters input.form-control {
+	border-color: var(--border);
+	background-color: #fff;
+	color: var(--text);
+	box-shadow: none;
+}
+.dt-top-filters select.form-select:focus,
+.dt-top-filters input.form-control:focus {
+	border-color: var(--border);
+	box-shadow: none;
+}
+
+#resetFilters.btn {
+	border-color: var(--border);
+	color: var(--muted);
+}
+#resetFilters.btn:hover {
+	background: transparent;
+	color: var(--muted);
+}
+
+/* Card styling */
+.card {
+	border: 1px solid var(--border);
+}
+
+.card-body {
+	padding: 1.25rem 1.25rem;
+}
+
+/* Table aesthetics */
+table.table {
+	border-color: var(--border);
+}
+table.table thead th {
+	background: var(--table-header);
+	border-bottom: 1px solid var(--border);
+	color: var(--muted);
+	font-weight: 600;
+}
+table.table tbody tr:hover {
+	background: transparent;
+}
+table.table td, table.table th {
+	vertical-align: middle;
+}
+
+/* DataTables tweaks */
+.dataTables_length select,
+.dataTables_filter input {
+	border: 1px solid var(--border) !important;
+	box-shadow: none !important;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+	border: 1px solid var(--border) !important;
+	margin: 0 .125rem !important;
+	color: var(--text) !important;
+	background: #fff !important;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+	border-color: var(--ring) !important;
+	color: var(--ring) !important;
+}
+
+/* Headings */
+h3 {
+	font-weight: 700;
+	letter-spacing: .2px;
+}
+
+/* Badge polish */
+.badge {
+	font-weight: 600;
+	padding: .35rem .5rem;
+}
+
+/* Gauge card styling */
+.card-modern {
+	/* No animations */
+}
+
+.gauge-icon {
+	/* No animations */
+}
+
+.gauge-value {
+	/* No animations */
+}
+
+.gauge-legend {
+	/* No animations */
+}
+
+/* Smooth gauge arc animations */
+.gauge-arc-value {
+	transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.3s ease;
+	transform-origin: center;
+}
+
+.gauge-arc-track {
+	transition: stroke 0.3s ease;
+}
+
+/* Gauge card entrance animation */
+@keyframes slideInUp {
+	from {
+		opacity: 0;
+		transform: translateY(20px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.card-modern {
+	animation: slideInUp 0.6s ease-out;
+	animation-fill-mode: both;
+}
+
+.card-modern:nth-child(1) { animation-delay: 0.1s; }
+.card-modern:nth-child(2) { animation-delay: 0.2s; }
+.card-modern:nth-child(3) { animation-delay: 0.3s; }
+.card-modern:nth-child(4) { animation-delay: 0.4s; }
+
+/* Gauge card hover effect */
+.card-modern:hover {
+	transform: translateY(-4px);
+	box-shadow: 0 8px 24px rgba(16, 24, 40, 0.12) !important;
+	transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Gauge SVG entrance animation */
+@keyframes gaugeDraw {
+	from {
+		stroke-dashoffset: 180;
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+.gauge-svg {
+	animation: gaugeDraw 1s ease-out;
+}
+
+.gauge-svg path.gauge-arc-value {
+	animation: gaugeDraw 1.2s ease-out;
+}
+
+/* Pulse animation for critical values */
+@keyframes criticalPulse {
+	0%, 100% {
+		opacity: 1;
+		filter: drop-shadow(0 0 4px currentColor);
+	}
+	50% {
+		opacity: 0.85;
+		filter: drop-shadow(0 0 8px currentColor);
+	}
+}
+
+.gauge-arc-value.critical {
+	animation: criticalPulse 2s ease-in-out infinite;
+}
+
+/* Glow effect for gauge icons */
+@keyframes iconGlow {
+	0%, 100% {
+		box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
+	}
+	50% {
+		box-shadow: 0 0 16px rgba(59, 130, 246, 0.5);
+	}
+}
+
+.gauge-icon {
+	transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.gauge-icon:hover {
+	transform: scale(1.1) rotate(5deg);
+}
+
+.gauge-icon.critical {
+	animation: iconGlow 2s ease-in-out infinite;
+}
+
+/* Number counting animation */
+@keyframes numberPop {
+	0% {
+		transform: scale(1);
+	}
+	50% {
+		transform: scale(1.15);
+		color: #3b82f6;
+	}
+	100% {
+		transform: scale(1);
+	}
+}
+
+.gauge-value span {
+	transition: all 0.3s ease;
+	display: inline-block;
+}
+
+.gauge-value {
+	transition: opacity 0.3s ease;
+}
+
+.gauge-value.updating span {
+	animation: numberPop 0.5s ease-out;
+}
+
+/* Legend animation */
+@keyframes legendFade {
+	from {
+		opacity: 0;
+		transform: translateX(-10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+.gauge-legend {
+	animation: legendFade 0.5s ease-out;
+	transition: color 0.3s ease, opacity 0.3s ease;
+}
+
+.legend-dot {
+	transition: transform 0.3s ease, box-shadow 0.3s ease;
+	display: inline-block;
+}
+
+.legend-dot:hover {
+	transform: scale(1.3);
+	box-shadow: 0 0 8px currentColor;
+}
+
+/* Button styling */
+.btn {
+	transition: all 0.3s ease;
+}
+
+.btn:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.btn:active {
+	transform: translateY(0);
+}
+
+/* Form control styling */
+.form-control, .form-select {
+	transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+	transform: translateY(-1px);
+	box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+/* Table row styling */
+table.table tbody tr {
+	transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+table.table tbody tr:hover {
+	background: var(--table-hover);
+	transform: translateX(4px);
+}
+
+/* DataTables pagination styling */
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+	transition: all 0.3s ease;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Loading animation for gauge updates */
+@keyframes pulse {
+	0% { 
+		opacity: 1;
+		transform: scale(1);
+	}
+	50% { 
+		opacity: 0.7;
+		transform: scale(1.02);
+	}
+	100% { 
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+
+.gauge-updating {
+	animation: pulse 0.8s ease-in-out;
+}
+
+/* Smooth gauge fill animation */
+@keyframes gaugeFill {
+	from {
+		stroke-dashoffset: 180;
+	}
+}
+
+.gauge-arc-value.animating {
+	animation: gaugeFill 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Shimmer effect for updating values */
+@keyframes shimmer {
+	0% {
+		background-position: -1000px 0;
+	}
+	100% {
+		background-position: 1000px 0;
+	}
+}
+
+.gauge-value.shimmer {
+	background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.1), transparent);
+	background-size: 200% 100%;
+	animation: shimmer 1.5s infinite;
+}
+
+

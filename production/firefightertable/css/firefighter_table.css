@@ -1,0 +1,735 @@
+/* Firefighter Table Styles - Based on building_table.css design */
+
+/* Black font color for tables, search, and modals only */
+.table, .table th, .table td, .table thead th, .table tbody td,
+.modal, .modal-title, .modal-body, .modal-footer, .modal h1, .modal h2, .modal h3, .modal h4, .modal h5, .modal h6, .modal p, .modal span, .modal div, .modal label, .modal input, .modal select, .modal textarea,
+#customSearch, .form-control, .form-select, .form-label,
+.card-header, .card-body, .input-group-text,
+.dataTables_wrapper, .dataTables_filter, .dataTables_length, .dataTables_info, .dataTables_paginate {
+    color: #000000 !important;
+}
+
+.container-fluid {
+    max-width: 2000px;
+    margin: 0 auto;
+}
+
+/* Page Title */
+.page-title {
+    padding: 20px 0;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #ddd;
+}
+
+.page-title h3 {
+    color: #000000;
+    font-weight: normal;
+    margin: 0;
+    font-size: 24px;
+}
+
+.page-title h3 i {
+    color: #000000;
+    margin-right: 10px;
+}
+
+/* Main Panel */
+.x_panel {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.x_title {
+    border-bottom: 1px solid #ddd;
+    padding: 15px 20px;
+}
+
+.x_title h2 {
+    color: #000000;
+    font-weight: normal;
+    margin: 0;
+    font-size: 18px;
+}
+
+.x_title h2 i {
+    color: #000000;
+    margin-right: 8px;
+}
+
+.x_content {
+    padding: 20px;
+}
+
+/* Simple Filter Panel */
+.card {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.card-header {
+    border-bottom: 1px solid #ddd;
+    padding: 15px 20px;
+}
+
+.card-header h5 {
+    margin: 0;
+    font-weight: normal;
+    color: #000000;
+    font-size: 16px;
+}
+
+.card-header h5 i {
+    margin-right: 8px;
+    color: #000000;
+}
+
+.card-body {
+    padding: 20px;
+}
+
+/* Simple Form Elements */
+.form-label {
+    font-weight: normal;
+    color: #000000;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+.form-select, .form-control {
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: #000000;
+    width: 100%;
+}
+
+.form-select:focus, .form-control:focus {
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.form-select-sm, .form-control-sm {
+    font-size: 13px;
+    padding: 6px 10px;
+}
+
+/* Simple Buttons */
+.btn {
+    border-radius: 3px;
+    font-weight: normal;
+    padding: 8px 16px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    color: #000000;
+    cursor: pointer;
+}
+
+.btn:hover {
+    border-color: #999;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: #ffffff;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+}
+
+.btn-outline-secondary {
+    color: #666;
+    border-color: #ccc;
+}
+
+.btn-outline-secondary:hover {
+    border-color: #999;
+    color: #333;
+}
+
+.btn-outline-success {
+    color: #28a745;
+    border-color: #28a745;
+}
+
+.btn-outline-success:hover {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: white;
+}
+
+.btn-outline-warning {
+    color: #ffc107;
+    border-color: #ffc107;
+}
+
+.btn-outline-warning:hover {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #333;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+/* Simple Badges */
+.badge {
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-weight: normal;
+    display: inline-block;
+}
+
+.badge-danger {
+    background-color: #dc3545;
+    color: #ffffff;
+}
+
+.badge-primary {
+    background-color: #007bff;
+    color: #ffffff;
+}
+
+.badge-warning {
+    background-color: #ffc107;
+    color: #333;
+}
+
+.badge-info {
+    background-color: #17a2b8;
+    color: #ffffff;
+}
+
+.badge-secondary {
+    background-color: #6c757d;
+    color: #ffffff;
+}
+
+.badge-success {
+    background-color: #28a745;
+    color: #ffffff;
+}
+
+/* Filter Status */
+#filterStatus {
+    font-size: 13px;
+    color: #666;
+}
+
+#filterStatus .badge {
+    font-size: 11px;
+    padding: 3px 6px;
+}
+
+/* Export Buttons - Hidden but functionality preserved */
+.dt-buttons {
+    margin-bottom: 15px;
+    display: none !important; /* Hide the export buttons */
+}
+
+.dt-buttons .btn {
+    margin-right: 5px;
+}
+
+/* Table Styling */
+.table {
+    margin-bottom: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.table thead th {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+    color: #000000;
+    padding: 12px 8px;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.table tbody td {
+    padding: 12px 8px;
+    vertical-align: middle;
+    font-size: 0.8rem;
+    border-bottom: 1px solid #f1f3f4;
+    color: #000000;
+}
+
+.table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* Profile Image */
+.profile-image {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #dee2e6;
+}
+
+.profile-image-placeholder {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #f8f9fa;
+    border: 2px solid #dee2e6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    font-size: 16px;
+}
+
+/* Contact Info */
+.contact-info {
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
+.coordinates {
+    font-family: 'Courier New', monospace;
+    font-size: 0.7rem;
+    color: #6c757d;
+}
+
+/* Status Indicators */
+.status-indicator {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 4px;
+}
+
+.status-available {
+    background-color: #28a745;
+}
+
+.status-unavailable {
+    background-color: #dc3545;
+}
+
+.status-online {
+    background-color: #28a745;
+}
+
+.status-offline {
+    background-color: #ffc107;
+}
+
+
+/* DataTables Styling */
+.dataTables_wrapper {
+    margin-top: 20px;
+}
+
+.dataTables_filter {
+    margin-bottom: 15px;
+}
+
+.dataTables_filter input {
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin-left: 6px;
+    font-size: 0.8rem;
+}
+
+.dataTables_length {
+    margin-bottom: 15px;
+}
+
+.dataTables_length select {
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    padding: 4px 8px;
+    margin: 0 6px;
+    font-size: 0.8rem;
+}
+
+.dataTables_info {
+    margin-top: 12px;
+    color: #6c757d;
+    font-size: 0.8rem;
+}
+
+.dataTables_paginate {
+    margin-top: 12px;
+}
+
+.dataTables_paginate .paginate_button {
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin: 0 2px;
+    color: #495057;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.dataTables_paginate .paginate_button:hover {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.dataTables_paginate .paginate_button.current {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.dataTables_paginate .paginate_button.disabled {
+    color: #adb5bd;
+    cursor: not-allowed;
+}
+
+.dataTables_paginate .paginate_button.disabled:hover {
+    background-color: transparent;
+    color: #adb5bd;
+    border-color: #ced4da;
+}
+
+/* Filter Status */
+.filter-count-badge {
+    background-color: #007bff;
+    color: white;
+    border-radius: 50%;
+    padding: 2px 6px;
+    font-size: 0.7rem;
+    margin-left: 4px;
+}
+
+.shortcut-hint {
+    font-size: 0.7rem;
+    color: #6c757d;
+    margin-left: 4px;
+}
+
+/* Modal Styling */
+.modal-header {
+    border-bottom: 1px solid #dee2e6;
+    padding: 15px 20px;
+}
+
+.modal-title {
+    color: #000000;
+    font-weight: normal;
+    font-size: 18px;
+}
+
+.modal-title i {
+    color: #000000;
+    margin-right: 8px;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-footer {
+    border-top: 1px solid #dee2e6;
+    padding: 15px 20px;
+}
+
+/* Form Validation */
+.validation-icon {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+}
+
+.validation-icon.valid {
+    color: #28a745;
+}
+
+.validation-icon.invalid {
+    color: #dc3545;
+}
+
+.invalid-feedback {
+    color: #dc3545;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.input-group {
+    position: relative;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    
+    .card-body .col-md-3 {
+        margin-bottom: 15px;
+    }
+    
+    .btn-sm {
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+    
+    .table-responsive {
+        font-size: 0.75rem;
+    }
+    
+    .profile-image, .profile-image-placeholder {
+        width: 30px;
+        height: 30px;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .card,
+    .btn,
+    .dataTables_wrapper .dataTables_length,
+    .dataTables_wrapper .dataTables_filter,
+    .dataTables_wrapper .dataTables_paginate {
+        display: none !important;
+    }
+    
+    .x_panel {
+        border: 1px solid #000;
+    }
+    
+    .table {
+        font-size: 10px;
+    }
+}
+
+/* Loading States */
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.fa-spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* SweetAlert2 Customization */
+.swal2-popup {
+    font-family: inherit;
+}
+
+.swal2-title {
+    font-size: 1.5rem;
+    font-weight: normal;
+}
+
+.swal2-content {
+    font-size: 1rem;
+}
+
+/* Button Group Styling */
+.d-flex {
+    display: flex;
+}
+
+.justify-content-end {
+    justify-content: flex-end;
+}
+
+.justify-content-between {
+    justify-content: space-between;
+}
+
+.align-items-center {
+    align-items: center;
+}
+
+.gap-2 > * + * {
+    margin-left: 8px;
+}
+
+/* Search Input Group */
+.input-group {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    width: 100%;
+}
+
+.input-group-text {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #495057;
+    text-align: center;
+    white-space: nowrap;
+    background-color: #e9ecef;
+    border: 1px solid #ced4da;
+    border-left: 0;
+    border-radius: 0 3px 3px 0;
+}
+
+.input-group .form-control {
+    position: relative;
+    flex: 1 1 auto;
+    width: 1%;
+    min-width: 0;
+    border-radius: 3px 0 0 3px;
+}
+
+.input-group .form-control:focus {
+    z-index: 3;
+    border-color: #007bff;
+    outline: 0;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Card Header Improvements */
+.card-header.d-flex {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+}
+
+/* Enhanced Status Badge Styles */
+.status-badge-enhanced {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.status-badge-enhanced i {
+    font-size: 0.7rem;
+}
+
+/* Enhanced Badge Number Styles */
+.badge-number-enhanced {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    color: #495057;
+    background-color: #f8f9fa;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+}
+
+.badge-number-enhanced i {
+    font-size: 0.9rem;
+}
+
+.badge-number-enhanced strong {
+    color: #007bff;
+    font-weight: 600;
+}
+
+/* Enhanced Specialization Styles */
+.specialization-enhanced {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    color: #495057;
+    background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+    padding: 4px 10px;
+    border-radius: 8px;
+    border: 1px solid #b3e5fc;
+    font-weight: 500;
+}
+
+.specialization-enhanced i {
+    font-size: 0.8rem;
+}
+
+/* No Data Styling */
+.no-data {
+    font-size: 0.75rem;
+    font-style: italic;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.no-data i {
+    font-size: 0.7rem;
+    opacity: 0.6;
+}
+
+/* Text Color Utilities */
+.text-primary {
+    color: #007bff !important;
+}
+
+.text-info {
+    color: #17a2b8 !important;
+}
+
+/* Additional Firefighter-specific styles */
+.firefighter-name {
+    font-weight: 500;
+    color: #000000;
+}
+
+.firefighter-rank {
+    font-size: 0.75rem;
+    color: #000000;
+    font-style: italic;
+}
+
+.firefighter-specialization {
+    font-size: 0.75rem;
+    color: #000000;
+    background-color: #f8f9fa;
+    padding: 2px 6px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.badge-number {
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    color: #000000;
+}
+
+.phone-number {
+    font-family: 'Courier New', monospace;
+    color: #000000;
+}
+
+.email-address {
+    color: #000000;
+    text-decoration: none;
+}
+
+.email-address:hover {
+    text-decoration: underline;
+}

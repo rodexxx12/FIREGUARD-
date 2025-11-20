@@ -1,0 +1,107 @@
+:root {
+    --primary: #e63946;
+    --secondary: #457b9d;
+    --dark: #1d3557;
+    --light: #f1faee;
+    --warning: #ffbe0b;
+    --danger: #d90429;
+}
+
+#map {
+    height: 85vh;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    border: 1px solid #dee2e6;
+    z-index: 1;
+}
+
+.status-card {
+    border-left: 4px solid;
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.status-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+}
+
+.status-safe { border-color: #28a745; }
+.status-monitoring { border-color: var(--warning); }
+.status-pre-dispatch { border-color: #fd7e14; }
+.status-emergency { border-color: var(--danger); }
+
+.legend-indicator {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+.btn-emergency {
+    background-color: var(--danger);
+    color: white;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.btn-emergency:hover {
+    background-color: #b71c1c;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(217, 4, 41, 0.3);
+}
+
+.notification-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    font-size: 0.7rem;
+}
+
+.fire-icon {
+    filter: drop-shadow(0 0 4px rgba(0,0,0,0.3));
+}
+
+.user-location-icon {
+    position: relative;
+}
+
+.user-location-pulse {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #4285F4;
+    border: 2px solid white;
+    box-shadow: 0 0 0 0 rgba(66, 133, 244, 0.7);
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(66, 133, 244, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(66, 133, 244, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(66, 133, 244, 0); }
+}
+/* Building markers */
+.building-popup {
+  min-width: 250px;
+}
+
+.building-popup h5 {
+  color: #1a5276;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 5px;
+  margin-bottom: 10px;
+}
+
+/* Building icons */
+.leaflet-marker-icon.building-marker {
+  filter: drop-shadow(1px 1px 3px rgba(0,0,0,0.3));
+}
+
+/* Safety feature badges */
+.building-popup .badge {
+  font-size: 0.7em;
+  padding: 3px 6px;
+}

@@ -1,0 +1,734 @@
+
+.status-indicators {
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ffffff !important;
+    font-size: 1rem !important;
+    font-weight: 500 !important;
+}
+
+.status-item i {
+    color: #ffffff !important;
+    font-size: 1.1rem !important;
+}
+
+/* Chart card enhancements - Modern white cards with smooth animations */
+.chart-card {
+    background: #ffffff !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+    border-radius: 0 !important;
+    padding: 12px !important;
+    margin-bottom: 12px !important;
+    transition: none !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+.chart-card:focus,
+.chart-card:focus-within,
+.chart-card:active {
+    outline: none !important;
+    border: none !important;
+}
+
+/* Chart card hover effects removed */
+
+.chart-title {
+    color: #111827 !important;
+    font-weight: 600 !important;
+    font-size: 1rem !important;
+    margin-bottom: 12px !important;
+    line-height: 1.4 !important;
+}
+
+.chart-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-bottom: 12px !important;
+    padding-bottom: 8px !important;
+    border-bottom: 1px solid #f3f4f6 !important;
+}
+
+.chart-icon {
+    color: #6b7280 !important;
+    font-size: 1rem !important;
+}
+
+.chart-container {
+    margin-top: 12px !important;
+}
+
+/* Stat card enhancements - Modern compact design with smooth animations */
+.stat-card {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 8px 12px !important;
+    min-height: 50px !important;
+    border-radius: 0 !important;
+    border: none !important;
+    outline: none !important;
+    transition: none !important;
+    position: relative !important;
+    overflow: hidden !important;
+    cursor: pointer !important;
+}
+
+.stat-card:focus,
+.stat-card:focus-within,
+.stat-card:active {
+    outline: none !important;
+    border: none !important;
+}
+
+/* Stat card hover effects removed */
+
+.stat-card .stat-number {
+    transition: all 0.3s ease !important;
+}
+
+/* Stat card hover number effects removed */
+
+.stat-card .stat-icon i {
+    transition: all 0.3s ease !important;
+}
+
+/* Stat card hover icon effects removed */
+
+.stat-card.alarms {
+    background: #e74c3c !important;
+}
+
+.stat-card.heat {
+    background: #f39c12 !important;
+}
+
+.stat-card.fire {
+    background: #27ae60 !important;
+}
+
+.stat-card.responses {
+    background: #3498db !important;
+}
+
+.stat-content {
+    flex: 1 !important;
+    text-align: left !important;
+}
+
+.stat-number {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
+    font-size: 1.8rem !important;
+    line-height: 1 !important;
+    filter: brightness(1.1) !important;
+}
+
+.stat-subtitle {
+    color: #ffffff !important;
+    font-weight: 400 !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
+    font-size: 0.7rem !important;
+    margin-top: 2px !important;
+    opacity: 0.9 !important;
+    filter: brightness(1.1) !important;
+}
+
+.stat-icon {
+    flex-shrink: 0 !important;
+    margin-left: 8px !important;
+}
+
+.stat-icon i {
+    font-size: 1.8rem !important;
+    color: #ffffff !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
+    opacity: 0.9 !important;
+    filter: brightness(1.1) !important;
+}
+
+/* Filter enhancements - Modern compact design with smooth animations */
+.filter-label {
+    color: #374151 !important;
+    font-weight: 500 !important;
+    font-size: 0.875rem !important;
+    margin-bottom: 6px !important;
+    transition: all 0.3s ease !important;
+}
+
+.filter-select, .filter-input {
+    background: #ffffff !important;
+    color: #111827 !important;
+    border: 1px solid #d1d5db !important;
+    font-weight: 400 !important;
+    font-size: 0.875rem !important;
+    padding: 8px 12px !important;
+    border-radius: 0 !important;
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+.filter-select::before, .filter-input::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.1), transparent);
+    transition: left 0.5s ease;
+    z-index: 1;
+}
+
+/* Filter hover effects removed */
+
+.filter-select:hover::before, .filter-input:hover::before {
+    left: 100%;
+}
+
+/* Filter focus effects removed */
+
+.filter-select:focus::before, .filter-input:focus::before {
+    left: 100%;
+}
+
+.filters-container {
+    display: flex !important;
+    gap: 12px !important;
+    flex-wrap: wrap !important;
+    margin-bottom: 12px !important;
+    padding: 12px !important;
+    background: #f9fafb !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 0 !important;
+}
+
+.filter-group {
+    display: flex !important;
+    flex-direction: column !important;
+    min-width: 120px !important;
+}
+
+/* Enhanced smooth animations and effects */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(40px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes slideInFromLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideInFromRight {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes bounceIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.3);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+    70% {
+        transform: scale(0.9);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200px 0;
+    }
+    100% {
+        background-position: calc(200px + 100%) 0;
+    }
+}
+
+/* Enhanced entrance animations */
+.chart-card, .stat-card, .page-header {
+    animation: fadeInUp 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    animation-fill-mode: both;
+}
+
+.chart-card:nth-child(1) { animation-delay: 0.1s; }
+.chart-card:nth-child(2) { animation-delay: 0.2s; }
+.chart-card:nth-child(3) { animation-delay: 0.3s; }
+.chart-card:nth-child(4) { animation-delay: 0.4s; }
+
+.stat-card:nth-child(1) { animation-delay: 0.05s; }
+.stat-card:nth-child(2) { animation-delay: 0.1s; }
+.stat-card:nth-child(3) { animation-delay: 0.15s; }
+.stat-card:nth-child(4) { animation-delay: 0.2s; }
+
+/* Chart loading animation */
+.chart-container {
+    position: relative;
+    overflow: hidden;
+}
+
+/* Subtle pulse animation for active elements */
+@keyframes subtlePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+}
+
+/* Chart card hover icon effects removed */
+
+/* Enhanced hover effects - Already defined above */
+
+/* Improved focus states for accessibility - Removed to prevent borders on click */
+
+/* Statistics Dashboard Custom Styles */
+
+/* Stats Summary Layout - Display all 4 cards in a single row */
+.stats-summary {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 15px !important;
+    margin-bottom: 20px !important;
+}
+
+/* Additional responsive design improvements */
+@media (max-width: 1200px) {
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .chart-card {
+        margin-bottom: 20px;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-container {
+        padding: 10px;
+    }
+    
+    .page-header {
+        padding: 20px 25px !important;
+        margin-bottom: 20px !important;
+        max-width: 100% !important;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        text-align: center;
+        gap: 20px;
+    }
+    
+    .fireguard-logo {
+        width: 70px;
+        height: 70px;
+    }
+    
+    .page-header h1 {
+        font-size: 1.5rem !important;
+    }
+    
+    .page-header p {
+        font-size: 1rem !important;
+    }
+    
+    .status-indicators {
+        justify-content: center;
+        gap: 20px;
+    }
+    
+    .status-item {
+        font-size: 0.9rem !important;
+    }
+    
+    .stats-summary {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+    
+    .stat-card {
+        padding: 8px 12px !important;
+        flex-direction: column !important;
+        text-align: center !important;
+        min-height: 45px !important;
+    }
+    
+    .stat-content {
+        text-align: center !important;
+        margin-bottom: 8px !important;
+    }
+    
+    .stat-icon {
+        margin-left: 0 !important;
+    }
+    
+    .stat-number {
+        font-size: 1.5rem !important;
+    }
+    
+    .stat-label {
+        font-size: 0.875rem !important;
+    }
+    
+    .stat-icon i {
+        font-size: 1.5rem !important;
+    }
+    
+    .chart-card {
+        padding: 10px !important;
+        margin-bottom: 10px !important;
+    }
+    
+    .chart-container {
+        height: 220px !important;
+    }
+    
+    .filters-container {
+        padding: 12px !important;
+        gap: 12px !important;
+    }
+    
+    .filter-group {
+        min-width: 120px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .page-header {
+        padding: 18px 20px !important;
+    }
+    
+    .fireguard-logo {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .page-header h1 {
+        font-size: 1.3rem !important;
+    }
+    
+    .page-header p {
+        font-size: 0.9rem !important;
+    }
+    
+    .status-indicators {
+        flex-direction: column;
+        gap: 12px;
+        align-items: center;
+    }
+    
+    .status-item {
+        font-size: 0.85rem !important;
+    }
+    
+    .stats-summary {
+        grid-template-columns: 1fr;
+    }
+    
+    .chart-card {
+        padding: 8px !important;
+        margin-bottom: 8px !important;
+    }
+    
+    .chart-title {
+        font-size: 1rem !important;
+        margin-bottom: 12px !important;
+    }
+    
+    .chart-container {
+        height: 180px !important;
+    }
+    
+    .filters-container {
+        padding: 10px !important;
+        gap: 10px !important;
+    }
+    
+    .filter-group {
+        min-width: 100px !important;
+    }
+    
+    .filter-label {
+        font-size: 0.8rem !important;
+    }
+    
+    .filter-select, .filter-input {
+        font-size: 0.8rem !important;
+        padding: 6px 10px !important;
+    }
+}
+
+/* Loading animation */
+.loading-spinner::after {
+    content: '';
+    width: 20px;
+    height: 20px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #999999;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-left: 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Chart hover effects removed */
+
+/* Filter styling improvements - Already defined above */
+
+/* Chart legend improvements */
+.chartjs-legend {
+    font-size: 0.9rem;
+}
+
+/* Custom scrollbar for long lists */
+.filter-select {
+    scrollbar-width: thin;
+    scrollbar-color: #999999 #f1f1f1;
+}
+
+.filter-select::-webkit-scrollbar {
+    width: 6px;
+}
+
+.filter-select::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.filter-select::-webkit-scrollbar-thumb {
+    background: #999999;
+    border-radius: 3px;
+}
+
+.filter-select::-webkit-scrollbar-thumb:hover {
+    background: #777777;
+}
+
+/* Print styles */
+@media print {
+    .filters-container {
+        display: none;
+    }
+    
+    .chart-card {
+        break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+    
+    .page-header {
+        background: none !important;
+        color: #000 !important;
+    }
+}
+
+/* Dark mode support (if needed in future) */
+@media (prefers-color-scheme: dark) {
+    .chart-card {
+        background: #2d3748;
+        border-color: #4a5568;
+        color: #e2e8f0;
+    }
+    
+    .chart-title {
+        color: #e2e8f0;
+    }
+    
+    .filter-label {
+        color: #a0aec0;
+    }
+    
+    .filter-select, .filter-input {
+        background-color: #4a5568;
+        border-color: #718096;
+        color: #e2e8f0;
+    }
+    
+    .stat-card.alarms {
+        background: #e74c3c !important;
+    }
+    
+    .stat-card.heat {
+        background: #f39c12 !important;
+    }
+    
+    .stat-card.fire {
+        background: #27ae60 !important;
+    }
+    
+    .stat-card.responses {
+        background: #3498db !important;
+    }
+    
+    .stat-number {
+        color: #ffffff !important;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3) !important;
+        font-size: 3.5rem !important;
+        line-height: 1 !important;
+    }
+    
+    .stat-label {
+        color: #ffffff !important;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.3) !important;
+        font-size: 1.3rem !important;
+    }
+    
+    .stat-icon i {
+        font-size: 4rem !important;
+        color: #ffffff !important;
+        text-shadow: 0 3px 6px rgba(0,0,0,0.4) !important;
+        opacity: 1 !important;
+        filter: brightness(1.1) !important;
+    }
+}
+
+/* Accessibility improvements */
+.filter-select:focus, .filter-input:focus {
+    outline: 2px solid #999999;
+    outline-offset: 2px;
+}
+
+/* Chart card focus removed to prevent borders on click */
+
+/* Reset button styles - Modern compact design with smooth animations */
+.reset-btn {
+    padding: 8px 16px !important;
+    background: #6b7280 !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 0 !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    min-width: 100px !important;
+    justify-content: center !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    height: 36px !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+.reset-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s ease;
+    z-index: 1;
+}
+
+/* Reset button hover effects removed */
+
+.reset-btn:hover::before {
+    left: 100%;
+}
+
+.reset-btn:active {
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+    transition: all 0.1s ease !important;
+}
+
+.reset-btn i {
+    font-size: 0.875rem !important;
+    transition: all 0.3s ease !important;
+}
+
+/* Reset button icon hover effects removed */
+
+/* Mobile responsive adjustments for reset buttons */
+@media (max-width: 768px) {
+    .reset-btn {
+        min-width: 90px !important;
+        padding: 8px 12px !important;
+        font-size: 0.8rem !important;
+        height: 32px !important;
+    }
+    
+    .reset-btn i {
+        font-size: 0.8rem !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .reset-btn {
+        min-width: 80px !important;
+        padding: 6px 10px !important;
+        font-size: 0.75rem !important;
+        height: 30px !important;
+    }
+    
+    .reset-btn i {
+        font-size: 0.75rem !important;
+    }
+}

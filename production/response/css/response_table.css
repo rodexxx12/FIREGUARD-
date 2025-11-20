@@ -1,0 +1,255 @@
+.container-fluid {
+    max-width: 2000px;
+    margin: 0 auto;
+}
+
+/* Page Title */
+.page-title {
+    padding: 20px 0;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #ddd;
+}
+
+.page-title h3 {
+    color: #333;
+    font-weight: normal;
+    margin: 0;
+    font-size: 24px;
+}
+
+.page-title h3 i {
+    color: #666;
+    margin-right: 10px;
+}
+
+/* Main Panel */
+.x_panel {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.x_title {
+    border-bottom: 1px solid #ddd;
+    padding: 15px 20px;
+}
+
+.x_title h2 {
+    color: #333;
+    font-weight: normal;
+    margin: 0;
+    font-size: 18px;
+}
+
+.x_title h2 i {
+    color: #666;
+    margin-right: 8px;
+}
+
+.x_content {
+    padding: 20px;
+}
+
+/* Simple Filter Panel */
+.card {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.card-header {
+    border-bottom: 1px solid #ddd;
+    padding: 15px 20px;
+}
+
+.card-header h5 {
+    margin: 0;
+    font-weight: normal;
+    color: #333;
+    font-size: 16px;
+}
+
+.card-header h5 i {
+    margin-right: 8px;
+    color: #666;
+}
+
+.card-body {
+    padding: 20px;
+}
+
+/* Simple Form Elements */
+.form-label {
+    font-weight: normal;
+    color: #333;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+.form-select, .form-control {
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: #333;
+    width: 100%;
+}
+
+.form-select:focus, .form-control:focus {
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.form-select-sm, .form-control-sm {
+    font-size: 13px;
+    padding: 6px 10px;
+}
+
+/* Simple Buttons */
+.btn {
+    border-radius: 3px;
+    font-weight: normal;
+    padding: 8px 16px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    color: #333;
+    cursor: pointer;
+}
+
+.btn:hover {
+    border-color: #999;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: #ffffff;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+}
+
+.btn-outline-secondary {
+    color: #666;
+    border-color: #ccc;
+}
+
+.btn-outline-secondary:hover {
+    border-color: #999;
+    color: #333;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+/* Simple Badges */
+.badge {
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-weight: normal;
+    display: inline-block;
+}
+
+.badge-danger {
+    background-color: #dc3545;
+    color: #ffffff;
+}
+
+.badge-primary {
+    background-color: #007bff;
+    color: #ffffff;
+}
+
+.badge-warning {
+    background-color: #ffc107;
+    color: #333;
+}
+
+.badge-info {
+    background-color: #17a2b8;
+    color: #ffffff;
+}
+
+.badge-secondary {
+    background-color: #6c757d;
+    color: #ffffff;
+}
+
+.badge-success {
+    background-color: #28a745;
+    color: #ffffff;
+}
+
+/* Filter Status */
+#filterStatus {
+    font-size: 13px;
+    color: #666;
+}
+
+#filterStatus .badge {
+    font-size: 11px;
+    padding: 3px 6px;
+}
+
+/* Export Buttons */
+.dt-buttons {
+    margin-bottom: 15px;
+    display: none !important; /* Hide the entire DataTables buttons container */
+}
+
+.dt-buttons .btn {
+    margin-right: 5px;
+}
+
+/* Custom CSV Export Button */
+#exportCSV {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: #ffffff;
+}
+
+#exportCSV:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+}
+
+#exportCSV i {
+    margin-right: 5px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    
+    .card-body .col-md-4 {
+        margin-bottom: 15px;
+    }
+    
+    .btn-sm {
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .card,
+    .btn,
+    .dataTables_wrapper .dataTables_length,
+    .dataTables_wrapper .dataTables_filter,
+    .dataTables_wrapper .dataTables_paginate {
+        display: none !important;
+    }
+    
+    .x_panel {
+        border: 1px solid #000;
+    }
+}

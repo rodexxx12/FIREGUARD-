@@ -1,0 +1,1039 @@
+#include <WiFiManager.h>
+#include <HTTPClient.h>
+#include <DHT.h>
+#include <Preferences.h>
+#include <TinyGPS++.h>
+
+// Sensor Pins
+const int smokeAnalogPin = 32;
+const int smokeDigitalPin = 27;
+const int flamePin = 26;
+const int smokeLedPin = 25;
+const int flameLedPin = 33;
+const int buzzerPin = 14;
+const int dhtPin = 13;
+const int powerSwitchPin = 15;    // Tactile switch pin
+const int powerStatusLedPin = 2;  // Yellow LED - shows system is ON
+const int offStatusLedPin = 4;    // Red LED - shows system is OFF
+
+// GPS Pins
+#define GPS_RX 16
+#define GPS_TX 17
+
+// DHT Sensor Settings
+#define DHT_TYPE DHT11
+DHT dht(dhtPin, DHT_TYPE);
+
+// GPS Settings
+TinyGPSPlus gps;
+HardwareSerial gpsSerial(2);
+const int PH_TIMEZONE_OFFSET = 8;
+unsigned long lastGpsSend = 0;
+bool gpsWarmUpComplete = false;
+unsigned long gpsWarmUpStart = 0;
+const unsigned long GPS_WARM_UP_TIME = 60000; // 1 minute warm-up
+
+// Server details
+const char* serverUrl = "https://fireguard.bccbsis.com/device/smoke_api.php";
+
+// Detection Settings
+int smokeBaseline = 0;
+const float smokeSensitivity = 1.5;
+const int minSmokeChange = 300;
+const unsigned long loggingInterval = 300000; // Changed to 5 minute (300000 ms)
+const unsigned long flameDebounceTime = 1000;
+const int flameConfirmationCount = 8;
+const int flameRejectionCount = 15;
+const int stabilizationDelay = 30000;
+const int calibrationDuration = 30000;
+const unsigned long dhtReadInterval = 2000;
+
+// Heat Index Settings
+const float HEAT_INDEX_THRESHOLD = 27.0;
+const float HEAT_ALARM_THRESHOLD = 32.0;
+
+// Power Management Settings
+const unsigned long debounceDelay = 50;    // Debounce time for power switch
+const unsigned long shutdownHoldTime = 2000;  // Time to hold button for shutdown
+
+// Database sending settings
+const unsigned long minDbSendInterval = 5000; // Minimum time between database sends
+const unsigned long alarmDbSendInterval = 2000; // Time between database sends during alarm
+const unsigned long smokeDbSendInterval = 30000; // Changed to 30 seconds between database sends when smoke is detected
+const unsigned long gpsDbSendInterval = 10000; // Send GPS every 10 seconds when available
+
+// Detection variables
+unsigned long lastLogTime = 0;
+unsigned long lastFlameDetectionTime = 0;
+unsigned long lastDhtReadTime = 0;
+unsigned long lastDbSendTime = 0;
+unsigned long lastSmokeDbSendTime = 0; // Track last smoke-specific database send
+unsigned long systemStartTime = 0;
+int currentSmokeValue = 0;
+float currentTemperature = 0;
+float currentHumidity = 0;
+float currentHeatIndex = 0;
+int flameDetectionCount = 0;
+int flameRejectionCounter = 0;
+bool confirmedFlameDetected = false;
+bool smokeDetected = false;
+bool alarmActive = false;
+bool isCalibrated = false;
+bool dangerousHeatDetected = false;
+
+// Power Management variables
+bool systemPoweredOn = false;
+bool lastSwitchState = HIGH;
+bool switchState = HIGH;
+unsigned long lastDebounceTime = 0;
+unsigned long buttonPressStartTime = 0;
+bool buttonActive = false;
+bool powerStateChanged = false;
+
+// WiFiManager and Preferences
+WiFiManager wifiManager;
+Preferences preferences;
+
+// DHT Sensor Health Tracking
+unsigned long dhtErrorCount = 0;
+const unsigned long maxDhtErrors = 10;
+bool dhtSensorFaulty = false;
+
+// Function declarations
+void sendToDatabase(int smokeValue, bool smokeDetectedFlag, bool flameDetected, const char* reason = "regular");
+void sendGpsToDatabase();
+void powerOnSequence();
+void powerOffSequence();
+void checkPowerSwitch();
+void setupWiFi();
+void readDHT();
+void printEnvironmentData();
+float calculateHeatIndex(float temperature, float humidity);
+void checkHeatConditions();
+void calibrateSensor();
+bool checkSmoke();
+bool checkFlame();
+void handleAlarm(bool smoke, bool flame);
+bool validateDHTReadings(float temperature, float humidity);
+void processGPS();
+String getPhilippineDateTime();
+int getDaysInMonth(int month, int year);
+
+void setup() {
+  Serial.begin(115200);
+  gpsSerial.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX);
+  
+  while(!Serial);
+  
+  // Initialize pins
+  pinMode(smokeDigitalPin, INPUT_PULLUP);
+  pinMode(flamePin, INPUT_PULLUP);
+  pinMode(smokeLedPin, OUTPUT);
+  pinMode(flameLedPin, OUTPUT);
+  pinMode(buzzerPin, OUTPUT);
+  pinMode(powerSwitchPin, INPUT_PULLUP);    // Tactile switch with pull-up
+  pinMode(powerStatusLedPin, OUTPUT);       // Power status LED (Yellow)
+  pinMode(offStatusLedPin, OUTPUT);         // Off status LED (Red)
+  
+  // Turn off all outputs initially
+  digitalWrite(smokeLedPin, LOW);
+  digitalWrite(flameLedPin, LOW);
+  digitalWrite(buzzerPin, LOW);
+  digitalWrite(powerStatusLedPin, LOW);
+  digitalWrite(offStatusLedPin, LOW);
+
+  // Configure ADC for better accuracy
+  analogReadResolution(12);
+  analogSetAttenuation(ADC_11db);
+
+  // Initialize DHT sensor with improved settings
+  Serial.println("Initializing DHT sensor...");
+  dht.begin();
+  delay(2000); // Give DHT sensor more time to initialize
+
+  // Test DHT sensor
+  float testTemp = dht.readTemperature();
+  float testHumidity = dht.readHumidity();
+  
+  if (isnan(testTemp) || isnan(testHumidity)) {
+    Serial.println("DHT Sensor initialization failed! Check wiring:");
+    Serial.println("- Red wire to 3.3V");
+    Serial.println("- Black wire to GND"); 
+    Serial.println("- Yellow/White wire to pin 13");
+    Serial.println("- Add 10K resistor between data and 3.3V");
+  } else {
+    Serial.println("DHT Sensor initialized successfully");
+  }
+
+  systemStartTime = millis();
+  
+  // Initialize preferences
+  preferences.begin("fireguard", false);
+  
+  // Check if system should start powered on
+  systemPoweredOn = preferences.getBool("powerState", false);
+  
+  if (systemPoweredOn) {
+    Serial.println("System starting in powered ON state");
+    powerOnSequence();
+  } else {
+    Serial.println("System starting in powered OFF state");
+    powerOffSequence();
+  }
+}
+
+void powerOnSequence() {
+  // Turn on power status LED (Yellow)
+  digitalWrite(powerStatusLedPin, HIGH);
+  digitalWrite(offStatusLedPin, LOW);  // Turn off red LED
+  
+  // Connect to WiFi using WiFiManager
+  setupWiFi();
+
+  // Start GPS warm-up
+  gpsWarmUpStart = millis();
+  gpsWarmUpComplete = false;
+  Serial.println("\nGPS Warm-up started (1 minute)...");
+
+  // Warm-up period
+  Serial.println("\nSensor Warm-up (30 seconds)...");
+  unsigned long warmUpStart = millis();
+  while(millis() - warmUpStart < stabilizationDelay) {
+    delay(1000);
+    Serial.print(".");
+    digitalWrite(smokeLedPin, (millis()/500) % 2);
+    readDHT();
+    processGPS(); // Process GPS during warm-up
+    
+    // Simple button check during warm-up (no state changes)
+    if (digitalRead(powerSwitchPin) == LOW) {
+      Serial.println("Button pressed during warm-up");
+      delay(300); // Simple debounce
+    }
+  }
+  digitalWrite(smokeLedPin, LOW);
+  Serial.println("\nSensor warm-up complete");
+
+  // Calibration
+  calibrateSensor();
+
+  Serial.println("\nSystem Ready");
+  Serial.print("Baseline: ");
+  Serial.println(smokeBaseline);
+  printEnvironmentData();
+  
+  // Save power state
+  preferences.putBool("powerState", true);
+  systemPoweredOn = true;
+  
+  // Initialize last send times
+  lastLogTime = millis();
+  lastDbSendTime = millis();
+  lastSmokeDbSendTime = millis();
+  lastGpsSend = millis();
+}
+
+void powerOffSequence() {
+  // Turn off all outputs
+  digitalWrite(smokeLedPin, LOW);
+  digitalWrite(flameLedPin, LOW);
+  digitalWrite(buzzerPin, LOW);
+  digitalWrite(powerStatusLedPin, LOW);  // Turn off yellow LED
+  digitalWrite(offStatusLedPin, HIGH);   // Turn on red LED
+  noTone(buzzerPin);
+  
+  // Disconnect WiFi to save power
+  WiFi.disconnect(true);
+  WiFi.mode(WIFI_OFF);
+  
+  // Save power state
+  preferences.putBool("powerState", false);
+  systemPoweredOn = false;
+  isCalibrated = false; // Reset calibration state
+  gpsWarmUpComplete = false; // Reset GPS warm-up state
+  
+  Serial.println("System powered off. Press button to turn on.");
+}
+
+void checkPowerSwitch() {
+  // Read the state of the switch
+  int reading = digitalRead(powerSwitchPin);
+  
+  // Check if switch state changed (due to noise or pressing)
+  if (reading != lastSwitchState) {
+    lastDebounceTime = millis();
+  }
+  
+  // If the reading has been stable for longer than the debounce delay
+  if ((millis() - lastDebounceTime) > debounceDelay) {
+    // If the switch state has changed
+    if (reading != switchState) {
+      switchState = reading;
+      
+      // If switch is pressed (LOW because of pull-up)
+      if (switchState == LOW) {
+        buttonPressStartTime = millis();
+        buttonActive = true;
+        Serial.println("Button pressed");
+      } else {
+        // Button released
+        if (buttonActive) {
+          // Short press - toggle power if not in alarm
+          if (!alarmActive && (millis() - buttonPressStartTime < shutdownHoldTime)) {
+            powerStateChanged = true;
+            Serial.println("Power state change requested");
+          }
+          buttonActive = false;
+        }
+      }
+    }
+  }
+  
+  // Check for long press (for emergency shutdown even during alarm)
+  if (buttonActive && (millis() - buttonPressStartTime >= shutdownHoldTime)) {
+    Serial.println("Long press detected - forced shutdown");
+    powerStateChanged = true;
+    buttonActive = false;
+  }
+  
+  lastSwitchState = reading;
+}
+
+void setupWiFi() {
+  // Set a custom hostname for the device
+  String hostname = "FireGuard-" + String(ESP.getEfuseMac(), HEX);
+  WiFi.setHostname(hostname.c_str());
+  
+  // WiFiManager configuration
+  wifiManager.setDebugOutput(true);
+  wifiManager.setConfigPortalTimeout(180); // 3 minutes timeout
+  wifiManager.setConnectTimeout(30); // 30 seconds to connect
+  wifiManager.setConnectRetries(3);
+  
+  // Try to connect to stored WiFi or start configuration portal
+  Serial.println("Attempting to connect to WiFi...");
+  digitalWrite(smokeLedPin, HIGH);
+  
+  if (!wifiManager.autoConnect("FireGuard-Setup")) {
+    Serial.println("Failed to connect and hit timeout");
+    // Reset and try again
+    ESP.restart();
+    delay(1000);
+  }
+
+  digitalWrite(smokeLedPin, LOW);
+  Serial.println("WiFi connected!");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+  Serial.print("SSID: ");
+  Serial.println(WiFi.SSID());
+}
+
+void processGPS() {
+  // Read and process GPS data
+  while (gpsSerial.available() > 0) {
+    if (gps.encode(gpsSerial.read())) {
+      // Data is processed by TinyGPS++
+    }
+  }
+  
+  // Check GPS warm-up status
+  if (!gpsWarmUpComplete && (millis() - gpsWarmUpStart >= GPS_WARM_UP_TIME)) {
+    gpsWarmUpComplete = true;
+    Serial.println("GPS warm-up complete");
+    
+    // Send initial GPS data after warm-up
+    if (gps.location.isValid() && gps.time.isValid() && gps.date.isValid()) {
+      Serial.println("Sending initial GPS data after warm-up...");
+      sendGpsToDatabase();
+    }
+  }
+  
+  // Check for GPS module communication issues
+  if (millis() > 5000 && gps.charsProcessed() < 10) {
+    Serial.println("WARNING: No GPS data received. Check wiring!");
+  }
+}
+
+void sendGpsToDatabase() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi not connected. Skipping GPS database send.");
+    return;
+  }
+  
+  if (!gps.location.isValid() || !gps.time.isValid() || !gps.date.isValid()) {
+    Serial.println("No valid GPS fix available.");
+    return;
+  }
+  
+  Serial.println("Sending GPS data to database...");
+  
+  // Create JSON payload for GPS data with proper null handling
+  String jsonPayload = "{";
+  jsonPayload += "\"latitude\":" + String(gps.location.lat(), 6) + ",";
+  jsonPayload += "\"longitude\":" + String(gps.location.lng(), 6) + ",";
+  jsonPayload += "\"altitude\":" + (gps.altitude.isValid() ? String(gps.altitude.meters(), 2) : "null") + ",";
+  jsonPayload += "\"ph_time\":\"" + getPhilippineDateTime() + "\",";
+  jsonPayload += "\"satellites\":" + (gps.satellites.isValid() ? String(gps.satellites.value()) : "null") + ",";
+  jsonPayload += "\"hdop\":" + (gps.hdop.isValid() ? String(gps.hdop.hdop(), 2) : "null");
+  jsonPayload += "}";
+  
+  HTTPClient http;
+  http.begin(serverUrl);
+  http.addHeader("Content-Type", "application/json");
+  
+  int httpResponseCode = http.POST(jsonPayload);
+  
+  if (httpResponseCode > 0) {
+    String response = http.getString();
+    Serial.println("GPS Database response: " + response);
+  } else {
+    Serial.println("Error sending GPS data to database. Code: " + String(httpResponseCode));
+  }
+  
+  http.end();
+}
+
+String getPhilippineDateTime() {
+  if (!gps.time.isValid() || !gps.date.isValid()) {
+    return "No time data";
+  }
+  
+  int phHour = gps.time.hour() + PH_TIMEZONE_OFFSET;
+  int phMinute = gps.time.minute();
+  int phSecond = gps.time.second();
+  int phDay = gps.date.day();
+  int phMonth = gps.date.month();
+  int phYear = gps.date.year();
+  
+  // Handle timezone overflow
+  if (phHour >= 24) {
+    phHour -= 24;
+    phDay += 1;
+    
+    int daysInMonth = getDaysInMonth(phMonth, phYear);
+    if (phDay > daysInMonth) {
+      phDay = 1;
+      phMonth += 1;
+      if (phMonth > 12) {
+        phMonth = 1;
+        phYear += 1;
+      }
+    }
+  }
+  
+  char buffer[20];
+  snprintf(buffer, sizeof(buffer), "%04d-%02d-%02d %02d:%02d:%02d", 
+           phYear, phMonth, phDay, phHour, phMinute, phSecond);
+  return String(buffer);
+}
+
+int getDaysInMonth(int month, int year) {
+  switch (month) {
+    case 1: case 3: case 5: case 7: case 8: case 10: case 12:
+      return 31;
+    case 4: case 6: case 9: case 11:
+      return 30;
+    case 2:
+      // Simple leap year calculation (good for 2000-2099)
+      return ((year % 4 == 0) ? 29 : 28);
+    default:
+      return 31;
+  }
+}
+
+bool validateDHTReadings(float temperature, float humidity) {
+  // Check for physically impossible readings
+  if (temperature < -20.0 || temperature > 60.0) {
+    Serial.println("DHT Temperature reading out of valid range");
+    return false;
+  }
+  
+  if (humidity < 0.0 || humidity > 100.0) {
+    Serial.println("DHT Humidity reading out of valid range");
+    return false;
+  }
+  
+  // Check for common DHT sensor failure patterns
+  if (temperature == 0.0 && humidity == 0.0) {
+    Serial.println("DHT Sensor returning zeros - likely connection issue");
+    return false;
+  }
+  
+  if (temperature == 1.0 || temperature == -1.0) {
+    Serial.println("DHT Sensor returning error values");
+    return false;
+  }
+  
+  return true;
+}
+
+void readDHT() {
+  if (millis() - lastDhtReadTime >= dhtReadInterval) {
+    // Skip reading if sensor is marked as faulty
+    if (dhtSensorFaulty) {
+      return;
+    }
+    
+    float h = dht.readHumidity();
+    float t = dht.readTemperature();
+    
+    if (isnan(h) || isnan(t)) {
+      Serial.println("DHT read failed - checking connections");
+      dhtErrorCount++;
+      
+      // If we get too many consecutive errors, mark sensor as faulty
+      if (dhtErrorCount >= maxDhtErrors) {
+        dhtSensorFaulty = true;
+        Serial.println("DHT Sensor marked as faulty - check wiring and connections");
+        Serial.println("DHT Wiring Check:");
+        Serial.println("- Red wire to 3.3V");
+        Serial.println("- Black wire to GND");
+        Serial.println("- Yellow/White wire to pin 13");
+        Serial.println("- Add 10K resistor between data and 3.3V");
+        digitalWrite(smokeLedPin, HIGH);
+        delay(500);
+        digitalWrite(smokeLedPin, LOW);
+      }
+      
+      delay(100);
+      return;
+    }
+    
+    // Validate the readings
+    if (!validateDHTReadings(t, h)) {
+      dhtErrorCount++;
+      Serial.println("Invalid DHT readings - ignoring");
+      
+      // If we get too many consecutive errors, mark sensor as faulty
+      if (dhtErrorCount >= maxDhtErrors) {
+        dhtSensorFaulty = true;
+        Serial.println("DHT Sensor marked as faulty due to consistent invalid readings");
+      }
+      return;
+    }
+    
+    // Reset error count on successful reading
+    dhtErrorCount = 0;
+    
+    currentTemperature = t;
+    currentHumidity = h;
+    currentHeatIndex = calculateHeatIndex(t, h);
+    printEnvironmentData();
+    
+    lastDhtReadTime = millis();
+  }
+}
+
+void printEnvironmentData() {
+  if (!isnan(currentTemperature) && validateDHTReadings(currentTemperature, currentHumidity)) {
+    Serial.print("Environment - Temp: ");
+    Serial.print(currentTemperature);
+    Serial.print("°C, Humidity: ");
+    Serial.print(currentHumidity);
+    Serial.print("%, Heat Index: ");
+    Serial.print(currentHeatIndex);
+    Serial.println("°C");
+    
+    if (currentHeatIndex >= HEAT_INDEX_THRESHOLD) {
+      Serial.println("Warning: High Heat Index!");
+    }
+  } else {
+    Serial.println("Environment - Invalid sensor readings");
+  }
+}
+
+float calculateHeatIndex(float temperature, float humidity) {
+  if (isnan(temperature) || !validateDHTReadings(temperature, humidity)) {
+    return NAN;
+  }
+  
+  if (temperature < 20.0 || humidity < 40.0) {
+    return temperature;
+  }
+
+  float heatIndex = 0.5 * (temperature + 61.0 + ((temperature - 68.0) * 1.2) + (humidity * 0.094));
+
+  if (heatIndex >= 80.0) {
+    heatIndex = -42.379 + 2.04901523 * temperature + 10.14333127 * humidity 
+                - 0.22475541 * temperature * humidity - 0.00683783 * pow(temperature, 2) 
+                - 0.05481717 * pow(humidity, 2) + 0.00122874 * pow(temperature, 2) * humidity 
+                + 0.00085282 * temperature * pow(humidity, 2) - 0.00000199 * pow(temperature, 2) * pow(humidity, 2);
+    
+    if (humidity > 85 && temperature >= 80 && temperature <= 87) {
+      heatIndex += ((humidity - 85) / 10) * ((87 - temperature) / 5);
+    }
+  }
+  
+  return heatIndex;
+}
+
+void checkHeatConditions() {
+  if (!isnan(currentHeatIndex) && validateDHTReadings(currentTemperature, currentHumidity)) {
+    if (currentHeatIndex >= HEAT_ALARM_THRESHOLD) {
+      if (!dangerousHeatDetected) {
+        dangerousHeatDetected = true;
+        Serial.print("DANGEROUS HEAT DETECTED! Heat Index: ");
+        Serial.print(currentHeatIndex);
+        Serial.println("°C");
+        digitalWrite(smokeLedPin, HIGH);
+        digitalWrite(flameLedPin, HIGH);
+        delay(200);
+        digitalWrite(smokeLedPin, LOW);
+        digitalWrite(flameLedPin, LOW);
+        
+        // Send to database immediately for dangerous heat
+        if (millis() - lastDbSendTime > minDbSendInterval) {
+          sendToDatabase(currentSmokeValue, smokeDetected, confirmedFlameDetected, "heat_alarm");
+          lastDbSendTime = millis();
+        }
+      }
+    } else {
+      dangerousHeatDetected = false;
+    }
+  }
+}
+
+void calibrateSensor() {
+  Serial.println("Calibrating - ensure clean air environment...");
+  digitalWrite(smokeLedPin, HIGH);
+  
+  const int numReadings = 500;
+  long sum = 0;
+  int minReading = 4095;
+  int maxReading = 0;
+  
+  for(int i = 0; i < numReadings; i++) {
+    int reading = analogRead(smokeAnalogPin);
+    sum += reading;
+    if(reading < minReading) minReading = reading;
+    if(reading > maxReading) maxReading = reading;
+    
+    delay(50);
+    if(i % 50 == 0) {
+      Serial.print(".");
+      readDHT();
+      processGPS();
+      
+      // Simple button check during calibration (no state changes)
+      if (digitalRead(powerSwitchPin) == LOW) {
+        Serial.println("Button pressed during calibration");
+        delay(300); // Simple debounce
+      }
+    }
+  }
+  
+  // Calculate baseline using trimmed mean (remove outliers)
+  smokeBaseline = (sum - minReading - maxReading) / (numReadings - 2);
+  
+  // Additional check for reasonable baseline value
+  if (smokeBaseline < 500 || smokeBaseline > 3000) {
+    Serial.println("WARNING: Baseline value seems abnormal. Check sensor connection.");
+    // Use a fallback value if baseline seems unreasonable
+    smokeBaseline = 1500;
+  }
+  
+  digitalWrite(smokeLedPin, LOW);
+  
+  Serial.print("\nCalibration Complete - Baseline: ");
+  Serial.println(smokeBaseline);
+  Serial.print("Range observed: ");
+  Serial.print(minReading);
+  Serial.print(" - ");
+  Serial.println(maxReading);
+  
+  isCalibrated = true;
+}
+
+void sendToDatabase(int smokeValue, bool smokeDetectedFlag, bool flameDetected, const char* reason) {
+  if(WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi disconnected, attempting to reconnect...");
+    setupWiFi();
+    if(WiFi.status() != WL_CONNECTED) {
+      Serial.println("No WiFi - Data Not Sent");
+      return;
+    }
+  }
+
+  HTTPClient http;
+  
+  // Create a comprehensive JSON payload that includes all sensor data
+  String jsonPayload = "{";
+  
+  // Device ID (required by your PHP)
+  jsonPayload += "\"device_id\":1,";
+  
+  // Smoke data
+  jsonPayload += "\"value\":" + String(smokeValue) + ",";
+  jsonPayload += "\"detected\":" + String(smokeDetectedFlag ? 1 : 0) + ",";
+  
+  // Flame data
+  jsonPayload += "\"flame_detected\":" + String(flameDetected ? 1 : 0) + ",";
+  
+  // Environment data - send null if sensor is faulty or readings are invalid
+  if (dhtSensorFaulty || !validateDHTReadings(currentTemperature, currentHumidity)) {
+    jsonPayload += "\"temperature\":null,";
+    jsonPayload += "\"humidity\":null,";
+    jsonPayload += "\"heat_index\":null,";
+  } else {
+    jsonPayload += "\"temperature\":" + String(currentTemperature) + ",";
+    jsonPayload += "\"humidity\":" + String(currentHumidity) + ",";
+    
+    // Heat index
+    float heatIndex = calculateHeatIndex(currentTemperature, currentHumidity);
+    if (isnan(heatIndex)) {
+      jsonPayload += "\"heat_index\":null,";
+    } else {
+      jsonPayload += "\"heat_index\":" + String(heatIndex) + ",";
+    }
+  }
+  
+  // Logging and reason
+  jsonPayload += "\"log\":1,";
+  jsonPayload += "\"reason\":\"";
+  jsonPayload += reason;
+  jsonPayload += "\"";
+  
+  // Add GPS data if available and warm-up complete
+  if (gpsWarmUpComplete && gps.location.isValid() && gps.time.isValid() && gps.date.isValid()) {
+    jsonPayload += ",\"latitude\":" + String(gps.location.lat(), 6);
+    jsonPayload += ",\"longitude\":" + String(gps.location.lng(), 6);
+    jsonPayload += ",\"altitude\":" + (gps.altitude.isValid() ? String(gps.altitude.meters(), 2) : "null");
+    jsonPayload += ",\"ph_time\":\"" + getPhilippineDateTime() + "\"";
+    jsonPayload += ",\"satellites\":" + (gps.satellites.isValid() ? String(gps.satellites.value()) : "null");
+    jsonPayload += ",\"hdop\":" + (gps.hdop.isValid() ? String(gps.hdop.hdop(), 2) : "null");
+  }
+  
+  jsonPayload += "}";
+  
+  Serial.println("Sending to database: " + jsonPayload);
+  
+  http.begin(serverUrl);
+  http.setTimeout(10000); // Increased timeout to 10 seconds
+  http.addHeader("Content-Type", "application/json");
+  
+  int httpCode = http.POST(jsonPayload);
+  
+  if(httpCode == HTTP_CODE_OK) {
+    String response = http.getString();
+    Serial.println("Data Sent (" + String(reason) + "): " + response);
+  } else if (httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_FOUND) {
+    Serial.println("Redirect detected (" + String(reason) + "): " + String(httpCode));
+    // Try to get the redirect URL and follow it
+    String newUrl = http.getLocation();
+    if (newUrl.length() > 0) {
+      Serial.println("Redirect to: " + newUrl);
+      http.end();
+      http.begin(newUrl);
+      httpCode = http.GET();
+      if (httpCode == HTTP_CODE_OK) {
+        String response = http.getString();
+        Serial.println("Data Sent after redirect (" + String(reason) + "): " + response);
+      } else {
+        Serial.println("Error after redirect (" + String(reason) + "): " + String(httpCode));
+      }
+    }
+  } else {
+    Serial.println("Send Error (" + String(reason) + "): " + String(httpCode));
+    if (httpCode < 0) {
+      Serial.println("Error description: " + http.errorToString(httpCode));
+    }
+  }
+  http.end();
+}
+
+bool checkSmoke() {
+  static unsigned long lastCheck = 0;
+  static int readings[10] = {0};
+  static int idx = 0;
+  
+  if(millis() - lastCheck < 100) return smokeDetected;
+  lastCheck = millis();
+  
+  if(!isCalibrated) return false;
+
+  int currentReading = 0;
+  for(int i = 0; i < 3; i++) {
+    currentReading += analogRead(smokeAnalogPin);
+    delay(2);
+  }
+  currentReading /= 3;
+  currentSmokeValue = currentReading;
+  
+  readings[idx] = currentReading;
+  idx = (idx + 1) % 10;
+
+  long sum = 0;
+  for(int i = 0; i < 10; i++) {
+    sum += readings[i];
+  }
+  int smoothedValue = sum / 10;
+
+  bool digitalState = (digitalRead(smokeDigitalPin) == LOW);
+  
+  // Improved smoke detection logic
+  int relativeThreshold = smokeBaseline * smokeSensitivity;
+  int absoluteThreshold = smokeBaseline + minSmokeChange;
+  
+  // Only trigger if both analog and digital sensors agree, or if analog reading is extremely high
+  bool analogTrigger = (smoothedValue > relativeThreshold) && 
+                      (smoothedValue > absoluteThreshold);
+  bool digitalTrigger = digitalState;
+  
+  // Additional check: require a sustained change, not just a momentary spike
+  static int detectionCount = 0;
+  bool currentDetection = (analogTrigger && digitalTrigger) || (smoothedValue > smokeBaseline * 2.0);
+  
+  if (currentDetection) {
+    detectionCount = min(detectionCount + 1, 5); // Increment but cap at 5
+  } else {
+    detectionCount = max(detectionCount - 1, 0); // Decrement but don't go below 0
+  }
+  
+  // Only confirm detection if we've had consistent readings
+  return (detectionCount >= 3);
+}
+
+bool checkFlame() {
+  static unsigned long lastCheck = 0;
+  static bool lastState = false;
+  static int flameReadings[10] = {0};
+  static int flameIndex = 0;
+  
+  if(millis() - lastCheck < 200) return confirmedFlameDetected;
+  lastCheck = millis();
+  
+  int reading = 0;
+  for(int i = 0; i < 5; i++) {
+    reading += digitalRead(flamePin);
+    delay(1);
+  }
+  flameReadings[flameIndex] = (reading < 3) ? 1 : 0;
+  flameIndex = (flameIndex + 1) % 10;
+  
+  int flameCount = 0;
+  for(int i = 0; i < 10; i++) {
+    flameCount += flameReadings[i];
+  }
+  
+  bool currentState = (flameCount >= 7);
+  
+  if(currentState != lastState) {
+    lastFlameDetectionTime = millis();
+    lastState = currentState;
+  }
+  
+  if(currentState) {
+    if(millis() - lastFlameDetectionTime > flameDebounceTime) {
+      flameDetectionCount++;
+      if(flameDetectionCount >= flameConfirmationCount) {
+        confirmedFlameDetected = true;
+        
+        // Send to database immediately when flame is confirmed
+        if (millis() - lastDbSendTime > minDbSendInterval) {
+          sendToDatabase(currentSmokeValue, smokeDetected, confirmedFlameDetected, "flame_detected");
+          lastDbSendTime = millis();
+        }
+      }
+    }
+  } else {
+    flameDetectionCount = 0;
+    if(millis() - lastFlameDetectionTime > flameDebounceTime * 2) {
+      confirmedFlameDetected = false;
+    }
+  }
+  
+  return confirmedFlameDetected;
+}
+
+void handleAlarm(bool smoke, bool flame) {
+  digitalWrite(smokeLedPin, smoke ? HIGH : LOW);
+  digitalWrite(flameLedPin, flame ? HIGH : LOW);
+
+  if(flame || (smoke && currentTemperature > 50)) {
+    if(millis() % 200 < 100) {
+      tone(buzzerPin, 1000, 100);
+    } else {
+      noTone(buzzerPin);
+    }
+    alarmActive = true;
+    
+    // Send to database more frequently during alarm
+    if (millis() - lastDbSendTime > alarmDbSendInterval) {
+      sendToDatabase(currentSmokeValue, smokeDetected, confirmedFlameDetected, "alarm_active");
+      lastDbSendTime = millis();
+    }
+  } 
+  else if(smoke) {
+    if(millis() % 500 < 200) {
+      tone(buzzerPin, 800, 200);
+    } else {
+      noTone(buzzerPin);
+    }
+    alarmActive = true;
+    
+    // Send to database more frequently during alarm
+    if (millis() - lastDbSendTime > alarmDbSendInterval) {
+      sendToDatabase(currentSmokeValue, smokeDetected, confirmedFlameDetected, "smoke_alarm");
+      lastDbSendTime = millis();
+    }
+  } 
+  else if(dangerousHeatDetected) {
+    if(millis() % 1000 < 100) {
+      tone(buzzerPin, 600, 100);
+    } else {
+      noTone(buzzerPin);
+    }
+    alarmActive = true;
+  }
+  else if(alarmActive) {
+    noTone(buzzerPin);
+    alarmActive = false;
+    
+    // Send to database when alarm stops
+    if (millis() - lastDbSendTime > minDbSendInterval) {
+      sendToDatabase(currentSmokeValue, smokeDetected, confirmedFlameDetected, "alarm_cleared");
+      lastDbSendTime = millis();
+    }
+  }
+}
+
+void loop() {
+  // Check the power switch
+  checkPowerSwitch();
+  
+  // Handle power state change
+  if (powerStateChanged) {
+    powerStateChanged = false;
+    
+    if (systemPoweredOn) {
+      Serial.println("Power OFF triggered");
+      powerOffSequence();
+    } else {
+      Serial.println("Power ON triggered");
+      powerOnSequence();
+    }
+    return;
+  }
+  
+  // If system is powered off, enter low-power mode
+  if (!systemPoweredOn) {
+    // Keep red LED solid on to indicate system is off
+    digitalWrite(offStatusLedPin, HIGH);
+    delay(100);
+    return;
+  }
+  
+  if(!isCalibrated) {
+    delay(100);
+    return;
+  }
+
+  // Process GPS data
+  processGPS();
+
+  bool currentSmoke = checkSmoke();
+  bool currentFlame = checkFlame();
+  readDHT();
+  checkHeatConditions();
+
+  if(currentSmoke != smokeDetected) {
+    smokeDetected = currentSmoke;
+    
+    if(smokeDetected) {
+      Serial.print("SMOKE DETECTED! Value: ");
+      Serial.print(currentSmokeValue);
+      Serial.print(" (Baseline: ");
+      Serial.print(smokeBaseline);
+      Serial.println(")");
+      
+      // Send immediately when smoke is detected
+      if (millis() - lastDbSendTime > minDbSendInterval) {
+        sendToDatabase(currentSmokeValue, smokeDetected, confirmedFlameDetected, "smoke_detected");
+        lastDbSendTime = millis();
+        lastSmokeDbSendTime = millis(); // Reset the smoke-specific timer
+      }
+    } else {
+      Serial.println("Smoke cleared");
+      
+      // Send when smoke clears
+      if (millis() - lastDbSendTime > minDbSendInterval) {
+        sendToDatabase(currentSmokeValue, smokeDetected, confirmedFlameDetected, "smoke_cleared");
+        lastDbSendTime = millis();
+      }
+    }
+  }
+
+  // Send smoke data every 30 seconds if smoke is detected
+  if (smokeDetected && (millis() - lastSmokeDbSendTime >= smokeDbSendInterval)) {
+    Serial.print("Periodic smoke update - Value: ");
+    Serial.println(currentSmokeValue);
+    sendToDatabase(currentSmokeValue, smokeDetected, confirmedFlameDetected, "smoke_periodic");
+    lastSmokeDbSendTime = millis();
+    lastDbSendTime = millis();
+  }
+
+  handleAlarm(smokeDetected, confirmedFlameDetected);
+
+  // Check if we need to send data due to high temperature or heat index
+  bool highTempDetected = currentTemperature > 50;
+  bool highHeatIndexDetected = currentHeatIndex >= HEAT_ALARM_THRESHOLD;
+  
+  if ((highTempDetected || highHeatIndexDetected) && (millis() - lastDbSendTime > minDbSendInterval)) {
+    // Send immediately when high temperature or heat index is detected
+    Serial.print("High temperature/heat index detected - Temp: ");
+    Serial.print(currentTemperature);
+    Serial.print("°C, Heat Index: ");
+    Serial.print(currentHeatIndex);
+    Serial.println("°C");
+    sendToDatabase(currentSmokeValue, smokeDetected, confirmedFlameDetected, "high_temperature");
+    lastDbSendTime = millis();
+  }
+
+  // Send GPS data periodically when available (every 10 seconds)
+  if (gpsWarmUpComplete && gps.location.isValid() && gps.time.isValid() && gps.date.isValid() && 
+      (millis() - lastGpsSend >= gpsDbSendInterval)) {
+    Serial.println("Sending periodic GPS data...");
+    sendToDatabase(currentSmokeValue, smokeDetected, confirmedFlameDetected, "gps_update");
+    lastGpsSend = millis();
+  }
+
+  // Regular logging (every 5 minutes) when no alarms are detected
+  if(millis() - lastLogTime >= loggingInterval && !alarmActive) {
+    sendToDatabase(currentSmokeValue, smokeDetected, confirmedFlameDetected, "regular_log");
+    
+    Serial.print("Regular Log - Smoke: ");
+    Serial.print(smokeDetected ? currentSmokeValue : 0);
+    Serial.print(" (");
+    Serial.print(smokeDetected ? "DETECTED" : "clear");
+    Serial.print("), Flame: ");
+    Serial.print(confirmedFlameDetected ? "DETECTED" : "clear");
+    if (!isnan(currentTemperature) && validateDHTReadings(currentTemperature, currentHumidity)) {
+      Serial.print(", Temp: ");
+      Serial.print(currentTemperature);
+      Serial.print("°C, Humidity: ");
+      Serial.print(currentHumidity);
+      Serial.print("%, Heat Index: ");
+      Serial.print(currentHeatIndex);
+      Serial.print("°C");
+    } else {
+      Serial.print(", DHT Sensor: FAULTY");
+    }
+    
+    // Add GPS status to log
+    if (gps.location.isValid()) {
+      Serial.print(", GPS: Valid (");
+      Serial.print(gps.location.lat(), 6);
+      Serial.print(", ");
+      Serial.print(gps.location.lng(), 6);
+      Serial.print(")");
+    } else {
+      Serial.print(", GPS: No fix");
+    }
+    Serial.println();
+    
+    lastLogTime = millis();
+  }
+
+  delay(50);
+}

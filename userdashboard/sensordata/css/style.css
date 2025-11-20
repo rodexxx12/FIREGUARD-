@@ -1,0 +1,336 @@
+/* Modern clean white theme for Sensor Data */
+
+:root {
+	--bg: #ffffff;
+	--card-bg: #ffffff;
+	--text: #111827;
+	--muted: #6b7280;
+	--border: #e5e7eb;
+	--ring: #3b82f6;
+	--table-header: #f8fafc;
+	--table-hover: #f3f4f6;
+}
+
+html, body {
+	background: var(--bg);
+	color: var(--text);
+}
+
+/* Container spacing */
+.container-fluid {
+	max-width: 1500px;
+}
+
+/* Top bar */
+.dt-top-filters select.form-select,
+.dt-top-filters input.form-control {
+	border-color: var(--border);
+	background-color: #fff;
+	color: var(--text);
+	box-shadow: none;
+}
+.dt-top-filters select.form-select:focus,
+.dt-top-filters input.form-control:focus {
+	border-color: var(--ring);
+	box-shadow: 0 0 0 .2rem rgba(59,130,246,.15);
+}
+
+#resetFilters.btn {
+	border-color: var(--border);
+	color: var(--muted);
+}
+#resetFilters.btn:hover {
+	background: var(--table-hover);
+	color: var(--text);
+}
+
+/* Card polish with smooth animations */
+.card {
+	border: 1px solid var(--border);
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	transform: translateY(0);
+}
+
+.card:hover {
+	transform: translateY(-4px);
+	box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+	border-color: var(--ring);
+}
+
+.card-body {
+	padding: 1.25rem 1.25rem;
+	transition: padding 0.3s ease;
+}
+
+.card:hover .card-body {
+	padding: 1.5rem 1.25rem;
+}
+
+/* Table aesthetics */
+table.table {
+	border-color: var(--border);
+}
+table.table thead th {
+	background: var(--table-header);
+	border-bottom: 1px solid var(--border);
+	color: var(--muted);
+	font-weight: 600;
+}
+table.table tbody tr:hover {
+	background: var(--table-hover);
+}
+table.table td, table.table th {
+	vertical-align: middle;
+}
+
+/* DataTables tweaks */
+.dataTables_length select,
+.dataTables_filter input {
+	border: 1px solid var(--border) !important;
+	box-shadow: none !important;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+	border: 1px solid var(--border) !important;
+	margin: 0 .125rem !important;
+	color: var(--text) !important;
+	background: #fff !important;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+	border-color: var(--ring) !important;
+	color: var(--ring) !important;
+}
+
+/* Headings */
+h3 {
+	font-weight: 700;
+	letter-spacing: .2px;
+}
+
+/* Badge polish */
+.badge {
+	font-weight: 600;
+	padding: .35rem .5rem;
+	transition: all 0.3s ease;
+}
+
+.badge:hover {
+	transform: scale(1.05);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Gauge card specific animations */
+.card-modern {
+	transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+	transform: translateY(0) scale(1);
+}
+
+.card-modern:hover {
+	transform: translateY(-6px) scale(1.02);
+	box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+}
+
+.gauge-icon {
+	transition: all 0.3s ease;
+	transform: scale(1);
+}
+
+.card-modern:hover .gauge-icon {
+	transform: scale(1.1);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.gauge-value {
+	transition: all 0.3s ease;
+}
+
+.card-modern:hover .gauge-value {
+	transform: scale(1.05);
+}
+
+.gauge-legend {
+	transition: all 0.3s ease;
+}
+
+.card-modern:hover .gauge-legend {
+	transform: translateX(2px);
+}
+
+/* Smooth gauge arc animations */
+.gauge-arc-value {
+	transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.3s ease;
+}
+
+.gauge-arc-track {
+	transition: stroke 0.3s ease;
+}
+
+/* Button animations */
+.btn {
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	transform: translateY(0);
+}
+
+.btn:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn:active {
+	transform: translateY(0);
+	transition: all 0.1s ease;
+}
+
+/* Form control animations */
+.form-control, .form-select {
+	transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+	transform: scale(1.02);
+	box-shadow: 0 0 0 .2rem rgba(59,130,246,.15), 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Table row animations */
+table.table tbody tr {
+	transition: all 0.3s ease;
+}
+
+table.table tbody tr:hover {
+	background: var(--table-hover);
+	transform: scale(1.01);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* DataTables pagination animations */
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+	transition: all 0.3s ease;
+	transform: scale(1);
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+	transform: scale(1.1);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Loading animation for gauge updates */
+@keyframes pulse {
+	0% { opacity: 1; }
+	50% { opacity: 0.7; }
+	100% { opacity: 1; }
+}
+
+.gauge-updating {
+	animation: pulse 0.6s ease-in-out;
+}
+
+/* Gauge specific styles */
+.gauge-card-title { 
+	font-size: .85rem; 
+	letter-spacing: .03em; 
+	font-weight: 600; 
+	color: var(--muted); 
+	text-transform: uppercase; 
+}
+
+.gauge-value { 
+	font-size: 1.75rem; 
+	font-weight: 700; 
+	color: var(--text); 
+}
+
+.gauge-icon { 
+	width: 44px; 
+	height: 44px; 
+	border-radius: 12px; 
+	display: inline-block; 
+}
+
+.gauge-legend { 
+	font-weight: 600; 
+	color: var(--text); 
+}
+
+.legend-dot { 
+	width: 10px; 
+	height: 10px; 
+	border-radius: 50%; 
+	display: inline-block; 
+	margin-right: .5rem; 
+}
+
+.legend-danger { background-color: #dc3545; }
+.legend-warn { background-color: #f0ad4e; }
+.legend-ok { background-color: #28a745; }
+.legend-info { background-color: #3b82f6; }
+
+/* SVG semicircle gauge */
+.gauge-svg { width: 100%; height: auto; }
+.gauge-arc-track { stroke: #f1f3f5; stroke-width: 14; fill: none; }
+.gauge-arc-value { stroke-width: 14; fill: none; stroke-linecap: round; transition: stroke-dashoffset .4s ease; }
+
+/* Card spacing harmony */
+.gauge-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: .5rem; }
+.gauge-footer { margin-top: .5rem; display: flex; align-items: center; }
+.gauge-item { padding: 1rem; border: 1px solid var(--border); border-radius: 10px; background: var(--card-bg); }
+
+.gauge-item:hover { 
+	background: var(--table-hover); 
+	transform: translateY(-2px);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Section title */
+.section-title { 
+	font-weight: 700; 
+	color: var(--text); 
+}
+
+/* Filters styling */
+.filters-wrap .form-label { 
+	font-size: .85rem; 
+	color: var(--muted); 
+	font-weight: 600; 
+}
+
+.filters-wrap .form-select, .filters-wrap .form-control { 
+	border-radius: 10px; 
+	border-color: var(--border); 
+}
+
+.filters-actions .btn { 
+	border-radius: 10px; 
+}
+
+.btn-primary { 
+	background: #0d6efd; 
+	border-color: #0d6efd; 
+}
+
+.btn-outline-secondary { 
+	color: #475467; 
+	border-color: var(--border); 
+}
+
+.table-modern thead th { 
+	background: var(--table-header); 
+	color: #475467; 
+	font-weight: 700; 
+	border-bottom-color: #eef2f7; 
+}
+
+.table-modern tbody td { 
+	vertical-align: middle; 
+}
+
+.dataTables_wrapper .dataTables_length select { 
+	border-radius: 8px; 
+}
+
+.dataTables_wrapper .dataTables_filter input { 
+	border-radius: 8px; 
+	border: 1px solid var(--border); 
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button { 
+	border-radius: 8px !important; 
+}

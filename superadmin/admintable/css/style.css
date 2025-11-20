@@ -1,0 +1,312 @@
+/* ---------- Gentelella-inspired admin table styles ---------- */
+
+.x_title--flex {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.x_title--flex > ul.panel_toolbox {
+    margin-left: 0;
+    order: 3;
+}
+
+.x_title_actions {
+    margin-left: auto;
+    order: 2;
+}
+
+.x_title_actions .btn {
+    border-radius: 30px;
+    padding: 8px 18px;
+}
+
+.status-active {
+    color: #26B99A;
+    font-weight: bold;
+}
+
+.status-inactive {
+    color: #E74C3C;
+    font-weight: bold;
+}
+
+.action-btns {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.action-btns .btn {
+    margin: 0;
+}
+
+.datatable-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.datatable-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 15px;
+    border-bottom: 1px solid #e5e5e5;
+    padding-bottom: 10px;
+}
+
+.datatable-title {
+    margin: 0;
+    font-weight: 600;
+    color: #2a3f54;
+}
+
+.datatable-subtitle {
+    margin: 5px 0 0;
+    color: #73879C;
+    max-width: 540px;
+}
+
+.datatable-settings .btn {
+    border-radius: 20px;
+    border-color: #d2d2d2;
+    color: #73879C;
+}
+
+.datatable-settings .btn.active {
+    background-color: #26B99A;
+    border-color: #26B99A;
+    color: #fff;
+}
+
+.datatable-toolbar {
+    background: #f7f7f7;
+    border: 1px solid #e5e5e5;
+    border-radius: 6px;
+    padding: 20px;
+}
+
+.datatable-label {
+    display: block;
+    font-size: 13px;
+    text-transform: uppercase;
+    color: #73879C;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.datatable-label i {
+    margin-right: 6px;
+}
+
+.datatable-toolbar .input-group-addon {
+    background: #fff;
+    border-right: none;
+    color: #73879C;
+}
+
+.datatable-toolbar .form-control {
+    border-color: #dcdcdc;
+    border-radius: 4px;
+    box-shadow: none;
+}
+
+.datatable-toolbar .form-control:focus {
+    border-color: #26B99A;
+    box-shadow: 0 0 0 0.2rem rgba(38,185,154,.15);
+}
+
+.datatable-toolbar .btn {
+    border-radius: 30px;
+}
+
+.filter-info {
+    padding: 10px 12px;
+    border-radius: 4px;
+    min-height: 42px;
+}
+
+.datatable-status {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #e5e5e5;
+    border-radius: 6px;
+    padding: 15px 20px;
+    background: #fff;
+}
+
+.datatable-status-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #73879C;
+}
+
+.datatable-status-item strong {
+    color: #2a3f54;
+}
+
+.table-responsive {
+    border: 1px solid #e5e5e5;
+    border-radius: 6px;
+    padding: 15px;
+    background: #fff;
+}
+
+.table thead th {
+    background: #f5f7fa;
+    color: #73879C;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.table tbody td {
+    color: #2a3f54;
+    vertical-align: middle;
+}
+
+.datatable-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    border-top: 1px solid #e5e5e5;
+}
+
+.datatable-pagination .btn {
+    border-radius: 30px;
+    padding: 6px 18px;
+}
+
+/* Table Row Animation */
+#userTable tbody tr {
+    transition: all 0.2s ease;
+}
+
+#userTable tbody tr:hover {
+    background-color: #f8f9fa;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Statistics Cards */
+.stats-card {
+    padding: 20px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    box-shadow: none;
+    transition: transform 0.2s ease;
+}
+
+.stats-card:hover {
+    transform: translateY(-2px);
+    box-shadow: none;
+}
+
+.stats-icon {
+    font-size: 2.5rem;
+    margin-right: 15px;
+    opacity: 0.8;
+}
+
+.stats-info h3 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.stats-info p {
+    margin: 5px 0 0 0;
+    opacity: 0.9;
+    font-size: 0.9rem;
+}
+
+/* Table Container */
+.table-container {
+    background: transparent;
+    border-radius: 12px;
+    box-shadow: none;
+    padding: 25px;
+    border: 1px solid transparent;
+}
+
+/* Table Styling */
+#filterInfo {
+    color: #26B99A;
+    font-weight: 600;
+}
+#paginationControls {
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+#paginationControls .btn {
+    min-width: 100px;
+}
+@media (max-width: 992px) {
+    .x_title--flex {
+        flex-wrap: wrap;
+    }
+    
+    .x_title_actions {
+        width: 100%;
+        order: 3;
+        margin-left: 0;
+        margin-top: 10px;
+    }
+    
+    .x_title--flex > ul.panel_toolbox {
+        order: 2;
+        margin-left: auto;
+    }
+}
+
+@media (max-width: 768px) {
+    .datatable-toolbar {
+        padding: 15px;
+    }
+    
+    .datatable-pagination {
+        flex-direction: column;
+    }
+}
+
+/* Password Validation Styles */
+.password-strength, .password-match {
+    font-size: 12px;
+    margin-top: 5px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.password-strength small, .password-match small {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.password-strength small i, .password-match small i {
+    font-size: 10px;
+}
+
+/* Password toggle button styles */
+.input-group .btn-outline-secondary {
+    border-color: #ced4da;
+    color: #6c757d;
+    transition: all 0.2s ease;
+}
+
+.input-group .btn-outline-secondary:hover {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: white;
+}
+
+.input-group .btn-outline-secondary:focus {
+    box-shadow: 0 0 0 0.2rem rgba(108, 117, 125, 0.25);
+}

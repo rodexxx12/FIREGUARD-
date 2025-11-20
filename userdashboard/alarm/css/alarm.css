@@ -1,0 +1,102 @@
+:root {
+    --color-emergency: #dc3545;
+    --color-pre-dispatch: #fd7e14;
+    --color-acknowledged: #ffc107;
+    --color-safe: #28a745;
+    --color-disconnected: #6c757d;
+    --color-connected: #28a745;
+    --color-critical: #dc3545;
+    --color-warning: #ffc107;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-emergency { background-color: var(--color-emergency); color: white; }
+.status-pre-dispatch { background-color: var(--color-pre-dispatch); color: white; }
+.status-acknowledged { background-color: var(--color-acknowledged); color: #212529; }
+.status-safe { background-color: var(--color-safe); color: white; }
+
+.connection-status {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    background: var(--color-disconnected);
+    color: white;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.connection-status.connected {
+    background: var(--color-connected);
+}
+
+.connection-status.disconnected {
+    background: var(--color-disconnected);
+}
+
+.sensor-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin: 15px 0;
+}
+
+.sensor-box {
+    padding: 12px;
+    border-radius: 8px;
+    background: #f8f9fa;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.sensor-title {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-bottom: 5px;
+}
+
+.sensor-reading {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.sensor-critical {
+    color: var(--color-critical);
+    font-weight: bold;
+}
+
+.sensor-warning {
+    color: var(--color-warning);
+    font-weight: bold;
+}
+
+.alert-details {
+    text-align: left;
+    max-width: 100%;
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+.alert-details p {
+    margin: 8px 0;
+}
+
+.alert-divider {
+    margin: 15px 0;
+    border: 0;
+    height: 1px;
+    background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,0.1), rgba(0,0,0,0));
+}

@@ -1,0 +1,722 @@
+/* Spot Reports Module CSS - Formal and Simple Design */
+
+.container-fluid {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 15px;
+}
+
+/* Page Title */
+.page-title {
+    padding: 15px 0;
+    margin-bottom: 15px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.page-title h3 {
+    color: #2c3e50;
+    font-weight: 500;
+    margin: 0;
+    font-size: 20px;
+    letter-spacing: 0.5px;
+}
+
+.page-title h3 i {
+    color: #6c757d;
+    margin-right: 8px;
+}
+
+/* Main Panel */
+.x_panel {
+    border: 1px solid #dee2e6;
+    border-radius: 0;
+    margin-bottom: 15px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.x_title {
+    border-bottom: 1px solid #dee2e6;
+    padding: 12px 20px;
+    background-color: #f8f9fa;
+}
+
+.x_title h2 {
+    color: #495057;
+    font-weight: 500;
+    margin: 0;
+    font-size: 16px;
+    letter-spacing: 0.3px;
+}
+
+.x_title h2 i {
+    color: #6c757d;
+    margin-right: 6px;
+}
+
+.x_content {
+    padding: 15px 20px;
+}
+
+/* Simple Filter Panel */
+.card {
+    border: 1px solid #dee2e6;
+    border-radius: 0;
+    margin-bottom: 15px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    border-bottom: 1px solid #dee2e6;
+    padding: 12px 20px;
+    background-color: #f8f9fa;
+}
+
+.card-header h5 {
+    margin: 0;
+    font-weight: 500;
+    color: #495057;
+    font-size: 14px;
+    letter-spacing: 0.3px;
+}
+
+.card-header h5 i {
+    margin-right: 6px;
+    color: #6c757d;
+}
+
+.card-body {
+    padding: 15px 20px;
+}
+
+/* Simple Form Elements */
+.form-label {
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 5px;
+    font-size: 13px;
+}
+
+.form-select, .form-control {
+    border: 1px solid #ced4da;
+    border-radius: 0;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #495057;
+    width: 100%;
+    background-color: #fff;
+}
+
+.form-select:focus, .form-control:focus {
+    border-color: #495057;
+    outline: none;
+    box-shadow: 0 0 0 1px #495057;
+}
+
+.form-select-sm, .form-control-sm {
+    font-size: 12px;
+    padding: 6px 10px;
+}
+
+/* Simple Buttons */
+.btn {
+    border-radius: 0;
+    font-weight: 500;
+    padding: 6px 12px;
+    font-size: 12px;
+    border: 1px solid #ced4da;
+    color: #495057;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    border-color: #495057;
+    background-color: #f8f9fa;
+}
+
+.btn-primary {
+    background-color: #495057;
+    border-color: #495057;
+    color: #ffffff;
+}
+
+.btn-primary:hover {
+    background-color: #343a40;
+    border-color: #343a40;
+}
+
+.btn-success {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: #ffffff;
+}
+
+.btn-success:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+}
+
+.btn-outline-secondary {
+    color: #6c757d;
+    border-color: #ced4da;
+    background-color: transparent;
+}
+
+.btn-outline-secondary:hover {
+    border-color: #6c757d;
+    color: #495057;
+    background-color: #f8f9fa;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 11px;
+}
+
+/* Simple Badges */
+.badge {
+    font-size: 10px;
+    padding: 3px 6px;
+    border-radius: 0;
+    font-weight: 500;
+    display: inline-block;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge-danger {
+    background-color: #dc3545;
+    color: #ffffff;
+}
+
+.badge-primary {
+    background-color: #495057;
+    color: #ffffff;
+}
+
+.badge-warning {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.badge-info {
+    background-color: #17a2b8;
+    color: #ffffff;
+}
+
+.badge-secondary {
+    background-color: #6c757d;
+    color: #ffffff;
+}
+
+.badge-success {
+    background-color: #28a745;
+    color: #ffffff;
+}
+
+/* Filter Status */
+#filterStatus {
+    font-size: 13px;
+    color: #666;
+}
+
+#filterStatus .badge {
+    font-size: 11px;
+    padding: 3px 6px;
+}
+
+/* Export Buttons */
+.dt-buttons {
+    margin-bottom: 15px;
+}
+
+.dt-buttons .btn {
+    margin-right: 5px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    
+    .card-body .col-md-4 {
+        margin-bottom: 15px;
+    }
+    
+    .btn-sm {
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+}
+
+/* Enhanced Status Badges */
+.status-badge {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-block;
+    text-align: center;
+    min-width: 100px;
+}
+
+.status-normal { 
+    background-color: #dcfce7; 
+    color: #166534; 
+}
+
+.status-warning { 
+    background-color: #fef3c7; 
+    color: #92400e; 
+}
+
+.status-danger { 
+    background-color: #fee2e2; 
+    color: #991b1b; 
+}
+
+.status-info { 
+    background-color: #dbeafe; 
+    color: #1e40af; 
+}
+
+.status-missed { 
+    background-color: #fee2e2; 
+    color: #991b1b; 
+    border: 2px solid #ef4444; 
+}
+
+/* Safety Features Styling */
+.safety-features {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+}
+
+.safety-badge {
+    background-color: #f3f4f6;
+    color: #6b7280;
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border: 1px solid #e5e7eb;
+    text-align: center;
+    min-width: 70px;
+}
+
+.safety-badge.has {
+    background-color: #dcfce7;
+    color: #166534;
+    border-color: #bbf7d0;
+}
+
+/* Table Styling - Formal and Clean */
+.table {
+    margin-bottom: 0;
+    font-size: 13px;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.table th {
+    padding: 10px 8px;
+    font-weight: 600;
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    color: #495057;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: center;
+}
+
+.table td {
+    vertical-align: middle;
+    text-align: center;
+    padding: 10px 8px;
+    border-bottom: 1px solid #f1f3f4;
+    color: #495057;
+    font-size: 12px;
+}
+
+.table td:first-child,
+.table td:nth-child(2),
+.table td:nth-child(3),
+.table td:nth-child(4),
+.table td:nth-child(5) {
+    text-align: left;
+}
+
+.table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Enhanced Pagination */
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    padding: 6px 10px;
+    margin: 0 1px;
+    border-radius: 0;
+    border: 1px solid #dee2e6;
+    background: #ffffff;
+    color: #495057;
+    font-weight: 500;
+    font-size: 12px;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    background: #495057;
+    color: #ffffff;
+    border-color: #495057;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background: #f8f9fa;
+    border-color: #495057;
+    color: #495057;
+}
+
+/* Spot Report Specific Styles */
+.spot-report-form {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.spot-report-form .form-group {
+    margin-bottom: 15px;
+}
+
+.spot-report-form .form-group label {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.spot-report-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+.spot-report-actions .btn {
+    min-width: 100px;
+}
+
+/* Incident Details Panel */
+.incident-details {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.incident-details h4 {
+    color: #333;
+    margin-bottom: 15px;
+    font-size: 18px;
+}
+
+.incident-details .detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.incident-details .detail-row:last-child {
+    border-bottom: none;
+}
+
+.incident-details .detail-label {
+    font-weight: 600;
+    color: #666;
+}
+
+.incident-details .detail-value {
+    color: #333;
+}
+
+/* Alert Messages */
+.alert {
+    padding: 12px 16px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    border: 1px solid transparent;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    border-color: #ffeaa7;
+    color: #856404;
+}
+
+.alert-info {
+    background-color: #d1ecf1;
+    border-color: #bee5eb;
+    color: #0c5460;
+}
+
+/* Modal Styling */
+.modal-content {
+    border-radius: 0;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    padding: 15px 20px;
+}
+
+.modal-title {
+    color: #495057;
+    font-weight: 500;
+    font-size: 16px;
+    margin: 0;
+}
+
+.modal-title i {
+    color: #6c757d;
+    margin-right: 8px;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-footer {
+    background-color: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    padding: 15px 20px;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.detail-row:last-child {
+    border-bottom: none;
+}
+
+.detail-row strong {
+    color: #495057;
+    font-weight: 500;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    min-width: 120px;
+}
+
+.detail-row span {
+    color: #6c757d;
+    font-size: 13px;
+    text-align: right;
+}
+
+.modal-body h6 {
+    color: #6c757d;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: #6c757d;
+    opacity: 0.7;
+}
+
+.btn-close:hover {
+    opacity: 1;
+    color: #495057;
+}
+
+/* Report Status Color Overrides - Higher Specificity */
+.table .badge.badge-warning {
+    background-color: #ffc107 !important;
+    color: #212529 !important;
+    font-weight: 600 !important;
+}
+
+.table .badge.badge-success {
+    background-color: #28a745 !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+.table .badge.badge-info {
+    background-color: #17a2b8 !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+.table .badge.badge-secondary {
+    background-color: #6c757d !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+/* Action Button Color Overrides */
+.table .btn[style*="background-color: #ffc107"] {
+    background-color: #ffc107 !important;
+    color: #212529 !important;
+    border-color: #ffc107 !important;
+}
+
+.table .btn[style*="background-color: #28a745"] {
+    background-color: #28a745 !important;
+    color: #ffffff !important;
+    border-color: #28a745 !important;
+}
+
+.table .btn[style*="background-color: #17a2b8"] {
+    background-color: #17a2b8 !important;
+    color: #ffffff !important;
+    border-color: #17a2b8 !important;
+}
+
+.table .btn[style*="background-color: #6c757d"] {
+    background-color: #6c757d !important;
+    color: #ffffff !important;
+    border-color: #6c757d !important;
+}
+
+/* Modal Badge Color Overrides */
+.modal .badge.badge-warning {
+    background-color: #ffc107 !important;
+    color: #212529 !important;
+    font-weight: 600 !important;
+}
+
+.modal .badge.badge-success {
+    background-color: #28a745 !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+.modal .badge.badge-info {
+    background-color: #17a2b8 !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+.modal .badge.badge-secondary {
+    background-color: #6c757d !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+/* Additional Report Status Classes for Better Control */
+.report-status-draft {
+    background-color: #ffc107 !important;
+    color: #212529 !important;
+    font-weight: 600 !important;
+}
+
+.report-status-completed {
+    background-color: #28a745 !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+.report-status-pending-review {
+    background-color: #17a2b8 !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+.report-status-approved {
+    background-color: #007bff !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+.report-status-no-report {
+    background-color: #6c757d !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+/* Action Button Classes */
+.action-btn-draft {
+    background-color: #ffc107 !important;
+    color: #212529 !important;
+    border-color: #ffc107 !important;
+}
+
+.action-btn-draft:hover {
+    background-color: #e0a800 !important;
+    border-color: #d39e00 !important;
+    color: #212529 !important;
+}
+
+.action-btn-completed {
+    background-color: #28a745 !important;
+    color: #ffffff !important;
+    border-color: #28a745 !important;
+}
+
+.action-btn-completed:hover {
+    background-color: #218838 !important;
+    border-color: #1e7e34 !important;
+    color: #ffffff !important;
+}
+
+.action-btn-pending {
+    background-color: #17a2b8 !important;
+    color: #ffffff !important;
+    border-color: #17a2b8 !important;
+}
+
+.action-btn-pending:hover {
+    background-color: #138496 !important;
+    border-color: #117a8b !important;
+    color: #ffffff !important;
+}
+
+.action-btn-create {
+    background-color: #28a745 !important;
+    color: #ffffff !important;
+    border-color: #28a745 !important;
+}
+
+.action-btn-create:hover {
+    background-color: #218838 !important;
+    border-color: #1e7e34 !important;
+    color: #ffffff !important;
+}

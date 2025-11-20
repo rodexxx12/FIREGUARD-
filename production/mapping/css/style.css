@@ -1,0 +1,579 @@
+:root {
+    --primary: #e63946;
+    --secondary: #457b9d;
+    --dark: #1d3557;
+    --light: #f1faee;
+    --warning: #ffbe0b;
+    --danger: #d90429;
+}
+
+#map {
+    height: 85vh;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    border: 1px solid #dee2e6;
+    z-index: 1;
+}
+.map-wrapper {
+    width: 100%;
+    max-width: 100%;
+    position: relative;
+}
+
+
+.status-card {
+    border-left: 4px solid;
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.status-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+}
+
+.status-safe { border-color: #28a745; }
+.status-monitoring { border-color: var(--warning); }
+.status-pre-dispatch { border-color: #fd7e14; }
+.status-emergency { border-color: var(--danger); }
+
+.legend-indicator {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+.btn-emergency {
+    background-color: var(--danger);
+    color: white;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.btn-emergency:hover {
+    background-color: #b71c1c;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(217, 4, 41, 0.3);
+}
+
+
+
+.btn-danger {
+    background-color: var(--danger);
+    color: white;
+    font-weight: 600;
+    transition: all 0.3s;
+    border: none;
+}
+
+.btn-danger:hover {
+    background-color: #b71c1c;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(217, 4, 41, 0.3);
+    color: white;
+}
+
+.btn-danger:disabled {
+    background-color: #6c757d;
+    transform: none;
+    box-shadow: none;
+}.status-card {
+    border-left: 4px solid;
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.status-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+}
+
+.status-safe { border-color: #28a745; }
+.status-monitoring { border-color: var(--warning); }
+.status-pre-dispatch { border-color: #fd7e14; }
+.status-emergency { border-color: var(--danger); }
+
+.legend-indicator {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+.btn-emergency {
+    background-color: var(--danger);
+    color: white;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.btn-emergency:hover {
+    background-color: #b71c1c;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(217, 4, 41, 0.3);
+}
+
+.btn-danger {
+    background-color: var(--danger);
+    color: white;
+    font-weight: 600;
+    transition: all 0.3s;
+    border: none;
+}
+
+.btn-danger:hover {
+    background-color: #b71c1c;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(217, 4, 41, 0.3);
+    color: white;
+}
+
+.btn-danger:disabled {
+    background-color: #6c757d;
+    transform: none;
+    box-shadow: none;
+}
+.notification-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    font-size: 0.7rem;
+}
+
+.fire-icon {
+    filter: drop-shadow(0 0 4px rgba(0,0,0,0.3));
+}
+
+.user-location-icon {
+    position: relative;
+}
+
+.user-location-pulse {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #4285F4;
+    border: 2px solid white;
+    box-shadow: 0 0 0 0 rgba(66, 133, 244, 0.7);
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(66, 133, 244, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(66, 133, 244, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(66, 133, 244, 0); }
+}
+/* Building markers */
+.building-popup {
+  min-width: 250px;
+}
+
+.building-popup-title {
+  background-color: #d90429;
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  display: inline-block;
+  margin-bottom: 8px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.building-popup-address {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1d1d1f;
+  margin-bottom: 4px;
+}
+
+.building-popup-meta {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111;
+}
+
+.building-popup h5 {
+  color: #1a5276;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 5px;
+  margin-bottom: 10px;
+}
+
+/* Building icons */
+.leaflet-marker-icon.building-marker {
+  filter: drop-shadow(1px 1px 3px rgba(0,0,0,0.3));
+}
+
+/* Safety feature badges */
+.building-popup .badge {
+  font-size: 0.7em;
+  padding: 3px 6px;
+}
+
+@media (max-width: 991px) {
+  .status-card {
+    margin-bottom: 1.5rem;
+  }
+}
+
+/* Modern 3D Glassmorphism Legend Panel */
+.legend-panel-glass {
+    background: rgba(255,255,255,0.7);
+    border-radius: 1.5rem;
+    box-shadow: 0 8px 32px 0 rgba(31,38,135,0.18), 0 1.5px 6px 0 rgba(0,0,0,0.08);
+    backdrop-filter: blur(8px);
+    border: 1.5px solid rgba(200,200,200,0.18);
+    transition: box-shadow 0.3s, border 0.3s;
+}
+
+.legend-panel-glass .legend-settings-btn {
+    background: rgba(255,255,255,0.8);
+    border: none;
+    box-shadow: 0 2px 8px 0 rgba(44,62,80,0.10);
+    transition: background 0.2s;
+}
+
+.legend-panel-glass .legend-settings-btn:active {
+    background: #0b07e6e5;
+}
+
+.legend-list-group .legend-3d {
+    background: rgba(255,255,255,0.85);
+    border: none;
+    border-radius: 1rem;
+    margin-bottom: 0.5rem;
+    box-shadow: 0 2px 8px 0 rgba(44,62,80,0.10);
+    transition: box-shadow 0.2s, transform 0.2s, background 0.2s;
+    position: relative;
+    z-index: 1;
+}
+
+.legend-list-group .legend-3d.active,
+.legend-list-group .legend-3d:hover {
+    background: #0b07e6e5;
+    box-shadow: 0 8px 24px 0 rgba(44,62,80,0.18), 0 2px 8px 0 rgba(0,0,0,0.10);
+    transform: translateY(-2px) scale(1.03);
+}
+
+.legend-3d-indicator {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 10px;
+    border: 2.5px solid #fff;
+    box-shadow: 0 2px 8px 0 rgba(44,62,80,0.10);
+    transition: box-shadow 0.2s, border 0.2s;
+}
+
+.legend-list-group .legend-3d.active .legend-3d-indicator,
+.legend-list-group .legend-3d:hover .legend-3d-indicator {
+    border: 2.5px solid #e63946;
+    box-shadow: 0 4px 16px 0 rgba(230,57,70,0.18);
+}
+
+.legend-list-group .badge {
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    box-shadow: 0 1px 4px 0 rgba(44,62,80,0.08);
+    transition: box-shadow 0.2s;
+}
+
+.legend-list-group .legend-3d .fw-semibold {
+    font-size: 1.08rem;
+    letter-spacing: 0.01em;
+}
+/* Blue hover effect for .legend-3d items */
+.legend-list-group .legend-3d:hover {
+    background: rgba(230, 244, 255, 0.95); /* subtle light blue background */
+    box-shadow: 0 8px 24px rgba(0, 123, 255, 0.25), 0 2px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px) scale(1.03);
+    border: 1px solid rgba(0, 123, 255, 0.35);
+}
+
+/* Optional: Blue border and glow for the indicator on hover */
+.legend-list-group .legend-3d:hover .legend-3d-indicator {
+    border-color: #007bff;
+    box-shadow: 0 4px 16px rgba(0, 123, 255, 0.25);
+}
+
+/* Custom Marker Styles */
+.custom-marker {
+    background: transparent !important;
+    border: none !important;
+}
+
+.custom-marker div {
+    transition: all 0.3s ease;
+}
+
+.custom-marker:hover div {
+    transform: scale(1.2);
+    box-shadow: 0 0 15px rgba(0,0,0,0.7) !important;
+}
+
+/* Status-specific marker colors */
+.marker-emergency {
+    background-color: #d90429 !important; /* Red for EMERGENCY */
+}
+
+.marker-acknowledged {
+    background-color: #ffc107 !important; /* Yellow for ACKNOWLEDGED */
+}
+
+/* Route line colors */
+.route-emergency {
+    color: #d90429 !important;
+}
+
+.route-acknowledged {
+    color: #ffc107 !important;
+}
+
+/* Monthly Heat Trends Calendar Styles */
+.monthly-heat-calendar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.month-cell {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 8px;
+    text-align: center;
+    transition: all 0.2s ease;
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.month-cell:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.month-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #495057;
+    margin-bottom: 4px;
+}
+
+.month-temp {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #212529;
+}
+
+/* Compact Monthly Heat Trends Calendar Styles */
+.monthly-heat-calendar-compact {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+    margin-top: 5px;
+}
+
+.month-cell-compact {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 4px;
+    text-align: center;
+    transition: all 0.2s ease;
+    min-height: 35px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.month-cell-compact:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.month-name-compact {
+    font-weight: 600;
+    font-size: 0.7rem;
+    color: #495057;
+    margin-bottom: 2px;
+}
+
+.month-temp-compact {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #212529;
+}
+
+/* Temperature color coding */
+.month-cell.temp-low {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+}
+
+.month-cell.temp-low .month-temp {
+    color: #155724;
+}
+
+.month-cell.temp-medium {
+    background-color: #fff3cd;
+    border-color: #ffeaa7;
+}
+
+.month-cell.temp-medium .month-temp {
+    color: #856404;
+}
+
+.month-cell.temp-high {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+}
+
+.month-cell.temp-high .month-temp {
+    color: #721c24;
+}
+
+.month-cell.temp-current {
+    background-color: #d1ecf1;
+    border-color: #bee5eb;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+}
+
+.month-cell.temp-current .month-temp {
+    color: #0c5460;
+}
+
+/* Temperature color coding for compact version */
+.month-cell-compact.temp-low {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+}
+
+.month-cell-compact.temp-low .month-temp-compact {
+    color: #155724;
+}
+
+.month-cell-compact.temp-medium {
+    background-color: #fff3cd;
+    border-color: #ffeaa7;
+}
+
+.month-cell-compact.temp-medium .month-temp-compact {
+    color: #856404;
+}
+
+.month-cell-compact.temp-high {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+}
+
+.month-cell-compact.temp-high .month-temp-compact {
+    color: #721c24;
+}
+
+.month-cell-compact.temp-current {
+    background-color: #d1ecf1;
+    border-color: #bee5eb;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+}
+
+.month-cell-compact.temp-current .month-temp-compact {
+    color: #0c5460;
+}
+
+/* Calendar legend */
+.heat-legend {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 10px;
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    border: 1px solid #dee2e6;
+}
+
+/* Compact Calendar legend */
+.heat-legend-compact {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 5px;
+    font-size: 0.7rem;
+    color: #6c757d;
+}
+
+.legend-item-compact {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.legend-item-compact .legend-color {
+    width: 8px;
+    height: 8px;
+    border-radius: 1px;
+    border: 1px solid #dee2e6;
+}
+
+.legend-color.red {
+    background-color: #f8d7da;
+}
+
+.legend-color.orange {
+    background-color: #fff3cd;
+}
+
+.legend-color.green {
+    background-color: #d4edda;
+}
+
+/* Modal scrollable content */
+.modal-body {
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+/* Building details layout improvements */
+.building-details-section {
+    margin-bottom: 15px;
+}
+
+.building-details-section h6 {
+    color: #495057;
+    font-weight: 600;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 3px;
+}
+
+/* Compact building details */
+.building-details-section.compact {
+    margin-bottom: 10px;
+}
+
+.building-details-section.compact h6 {
+    margin-bottom: 5px;
+    padding-bottom: 2px;
+}

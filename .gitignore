@@ -1,0 +1,7 @@
+vendor/
+*.mp4
+*.zip
+*.sql
+*.log
+node_modules/
+.DS_Store
