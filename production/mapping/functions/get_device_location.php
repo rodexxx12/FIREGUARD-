@@ -49,14 +49,14 @@ function getDeviceLocation($pdo, $deviceId = null) {
         SELECT f1.*
         FROM fire_data f1
         INNER JOIN (
-            SELECT device_id, MAX(timestamp) as latest_timestamp
+            SELECT device_id, MAX(STR_TO_DATE(timestamp, '%Y-%m-%d %H:%i:%s')) as latest_timestamp
             FROM fire_data
             WHERE device_id IS NOT NULL
             GROUP BY device_id
-        ) f2 ON f1.device_id = f2.device_id AND f1.timestamp = f2.latest_timestamp
+        ) f2 ON f1.device_id = f2.device_id AND STR_TO_DATE(f1.timestamp, '%Y-%m-%d %H:%i:%s') = f2.latest_timestamp
     ) f ON d.device_id = f.device_id
     LEFT JOIN buildings b ON d.building_id = b.id
-    LEFT JOIN gps_data g ON ABS(TIMESTAMPDIFF(SECOND, g.ph_time, f.timestamp)) <= 300
+    LEFT JOIN gps_data g ON ABS(TIMESTAMPDIFF(SECOND, g.ph_time, STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s'))) <= 300
         AND g.latitude IS NOT NULL 
         AND g.longitude IS NOT NULL
         AND g.latitude != 0
@@ -68,8 +68,8 @@ function getDeviceLocation($pdo, $deviceId = null) {
             AND g2.longitude IS NOT NULL
             AND g2.latitude != 0
             AND g2.longitude != 0
-            AND ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, f.timestamp)) <= 300
-            ORDER BY ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, f.timestamp)) ASC
+            AND ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s'))) <= 300
+            ORDER BY ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s'))) ASC
             LIMIT 1
         )
     WHERE d.is_active = 1";
@@ -79,7 +79,7 @@ function getDeviceLocation($pdo, $deviceId = null) {
     }
     
     $sql .= "
-    ORDER BY f.timestamp DESC, d.device_id
+    ORDER BY STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s') DESC, d.device_id
     ";
     
     try {
@@ -142,7 +142,7 @@ function getAllActiveDevices($pdo) {
     FROM devices d
     LEFT JOIN fire_data f ON d.latest_fire_data_id = f.id
     LEFT JOIN buildings b ON d.building_id = b.id
-    LEFT JOIN gps_data g ON ABS(TIMESTAMPDIFF(SECOND, g.ph_time, f.timestamp)) <= 300
+    LEFT JOIN gps_data g ON ABS(TIMESTAMPDIFF(SECOND, g.ph_time, STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s'))) <= 300
         AND g.latitude IS NOT NULL 
         AND g.longitude IS NOT NULL
         AND g.latitude != 0
@@ -154,12 +154,12 @@ function getAllActiveDevices($pdo) {
             AND g2.longitude IS NOT NULL
             AND g2.latitude != 0
             AND g2.longitude != 0
-            AND ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, f.timestamp)) <= 300
-            ORDER BY ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, f.timestamp)) ASC
+            AND ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s'))) <= 300
+            ORDER BY ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s'))) ASC
             LIMIT 1
         )
     WHERE d.is_active = 1
-    ORDER BY f.timestamp DESC, d.device_id
+    ORDER BY STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s') DESC, d.device_id
     ";
 
     try {
@@ -217,14 +217,14 @@ function getDeviceLocationByBuilding($pdo, $buildingId) {
         SELECT f1.*
         FROM fire_data f1
         INNER JOIN (
-            SELECT device_id, MAX(timestamp) as latest_timestamp
+            SELECT device_id, MAX(STR_TO_DATE(timestamp, '%Y-%m-%d %H:%i:%s')) as latest_timestamp
             FROM fire_data
             WHERE device_id IS NOT NULL
             GROUP BY device_id
-        ) f2 ON f1.device_id = f2.device_id AND f1.timestamp = f2.latest_timestamp
+        ) f2 ON f1.device_id = f2.device_id AND STR_TO_DATE(f1.timestamp, '%Y-%m-%d %H:%i:%s') = f2.latest_timestamp
     ) f ON d.device_id = f.device_id
     LEFT JOIN buildings b ON d.building_id = b.id
-    LEFT JOIN gps_data g ON ABS(TIMESTAMPDIFF(SECOND, g.ph_time, f.timestamp)) <= 300
+    LEFT JOIN gps_data g ON ABS(TIMESTAMPDIFF(SECOND, g.ph_time, STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s'))) <= 300
         AND g.latitude IS NOT NULL 
         AND g.longitude IS NOT NULL
         AND g.latitude != 0
@@ -236,12 +236,12 @@ function getDeviceLocationByBuilding($pdo, $buildingId) {
             AND g2.longitude IS NOT NULL
             AND g2.latitude != 0
             AND g2.longitude != 0
-            AND ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, f.timestamp)) <= 300
-            ORDER BY ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, f.timestamp)) ASC
+            AND ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s'))) <= 300
+            ORDER BY ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s'))) ASC
             LIMIT 1
         )
     WHERE d.is_active = 1 AND d.building_id = :building_id
-    ORDER BY f.timestamp DESC
+    ORDER BY STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s') DESC
     ";
     
     try {
@@ -254,10 +254,10 @@ function getDeviceLocationByBuilding($pdo, $buildingId) {
     }
 }
 
-// Function to get devices with emergency status - returns fire_data GPS location (NOT building location)
+// Function to get devices with LATEST emergency or acknowledged status - returns fire_data GPS location (NOT building location)
 // Use GPS coordinates directly from fire_data table (prioritize fire_data's own GPS fields)
 // Priority: fire_data.gps_latitude/gps_longitude > fire_data.geo_lat/geo_long > gps_data table (NO building coordinates)
-// Returns fire_data GPS coordinates for emergency incidents
+// Returns devices where their LATEST fire_data status is either EMERGENCY or ACKNOWLEDGED
 function getEmergencyDevices($pdo) {
     $sql = "
     SELECT
@@ -267,18 +267,21 @@ function getEmergencyDevices($pdo) {
         d.serial_number,
         d.status as device_status,
         d.last_activity,
+        d.building_id,
         f.id as fire_data_id,
         f.status,
         f.timestamp,
+        -- Get GPS coordinates from fire_data table (prioritize fire_data's own GPS fields first)
+        -- Priority: fire_data.gps_latitude/gps_longitude > fire_data.geo_lat/geo_long > gps_data table
         COALESCE(
-            g.latitude, 
             f.gps_latitude, 
-            f.geo_lat
+            f.geo_lat,
+            g.latitude
         ) as geo_lat,
         COALESCE(
-            g.longitude, 
             f.gps_longitude, 
-            f.geo_long
+            f.geo_long,
+            g.longitude
         ) as geo_long,
         COALESCE(f.gps_altitude, g.altitude) as altitude,
         f.temp,
@@ -287,16 +290,30 @@ function getEmergencyDevices($pdo) {
         f.flame_detected,
         f.ml_confidence,
         f.ml_prediction,
+        f.ml_fire_probability,
         f.ai_prediction,
+        f.acknowledged_at_time,
+        f.barangay_id,
         b.building_name,
         b.address,
         b.latitude as building_lat,
         b.longitude as building_lng,
         g.ph_time as gps_time
     FROM devices d
-    INNER JOIN fire_data f ON d.device_id = f.device_id
+    INNER JOIN (
+        -- Get only the latest fire_data per device
+        SELECT f1.*
+        FROM fire_data f1
+        INNER JOIN (
+            SELECT device_id, MAX(STR_TO_DATE(timestamp, '%Y-%m-%d %H:%i:%s')) as latest_timestamp
+            FROM fire_data
+            WHERE device_id IS NOT NULL
+            GROUP BY device_id
+        ) f2 ON f1.device_id = f2.device_id AND STR_TO_DATE(f1.timestamp, '%Y-%m-%d %H:%i:%s') = f2.latest_timestamp
+        WHERE UPPER(f1.status) IN ('EMERGENCY', 'ACKNOWLEDGED')
+    ) f ON d.device_id = f.device_id
     LEFT JOIN buildings b ON d.building_id = b.id
-    LEFT JOIN gps_data g ON ABS(TIMESTAMPDIFF(SECOND, g.ph_time, f.timestamp)) <= 300
+    LEFT JOIN gps_data g ON ABS(TIMESTAMPDIFF(SECOND, g.ph_time, STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s'))) <= 300
         AND g.latitude IS NOT NULL 
         AND g.longitude IS NOT NULL
         AND g.latitude != 0
@@ -308,12 +325,12 @@ function getEmergencyDevices($pdo) {
             AND g2.longitude IS NOT NULL
             AND g2.latitude != 0
             AND g2.longitude != 0
-            AND ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, f.timestamp)) <= 300
-            ORDER BY ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, f.timestamp)) ASC
+            AND ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s'))) <= 300
+            ORDER BY ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s'))) ASC
             LIMIT 1
         )
-    WHERE d.is_active = 1 AND UPPER(f.status) IN ('EMERGENCY', 'ACKNOWLEDGED')
-    ORDER BY f.timestamp DESC
+    WHERE d.is_active = 1
+    ORDER BY STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s') DESC, d.device_id
     ";
     
     try {

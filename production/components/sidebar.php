@@ -35,11 +35,11 @@
       </li>
       <li><a><i class="fa fa-table"></i> Tables <span class="fa fa-chevron-down"></span></a>
         <ul class="nav child_menu">
-          <li><a href="../../buildingtable/php/main.php">Building Table</a></li>
-          <li><a href="../../alarmtable/php/index.php">Alarm Table</a></li>
-          <li><a href="../../response/php/index.php">Response Table</a></li>
-          <li><a href="../../usertable/php/index.php">User Table</a></li>
-          <li><a href="../../firefightertable/php/index.php">Firefighter Table</a></li>
+          <li><a href="../../buildingtable/php/main.php">Buildings</a></li>
+          <li><a href="../../alarmtable/php/index.php">Alarms</a></li>
+          <li><a href="../../response/php/index.php">Responses</a></li>
+          <li><a href="../../usertable/php/index.php">Users</a></li>
+          <li><a href="../../firefightertable/php/index.php">Firefighters</a></li>
         </ul>
       </li>
     </ul>

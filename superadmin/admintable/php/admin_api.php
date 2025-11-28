@@ -3,12 +3,22 @@ header('Content-Type: application/json');
 session_start();
 
 require_once '../../db/db.php';
+require_once '../../components/csrf_helper.php';
 
-// Check if user is logged in (add your authentication logic here)
-// if (!isset($_SESSION['admin_id'])) {
-//     echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
-//     exit();
-// }
+// Security: CRITICAL - Authentication check must be enabled
+// Check if user is logged in as superadmin
+if (!isset($_SESSION['superadmin_id'])) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'message' => 'Unauthorized access - Please login as superadmin']);
+    exit();
+}
+
+// Security: CSRF protection for state-changing operations
+$safeActions = ['get_admins', 'get_admin', 'get_counts', 'check_duplicate'];
+$action = $_POST['action'] ?? '';
+if (!in_array($action, $safeActions)) {
+    validateCSRFRequest(true);
+}
 
 try {
     $conn = getDatabaseConnection();
@@ -101,10 +111,23 @@ function getAdmins($conn) {
     $filteredStmt->execute($params);
     $filteredRecords = $filteredStmt->fetch()['total'];
     
-    // Get data
-    $dataQuery = "SELECT * FROM admin $whereClause ORDER BY $orderBy $orderDir LIMIT $start, $length";
+    // Security: Validate ORDER BY column to prevent SQL injection
+    $allowedOrderColumns = ['admin_id', 'username', 'full_name', 'email', 'contact_number', 'status', 'created_at', 'updated_at'];
+    $orderBy = in_array($orderBy, $allowedOrderColumns) ? $orderBy : 'admin_id';
+    $orderDir = strtoupper($orderDir) === 'ASC' ? 'ASC' : 'DESC';
+    
+    // Get data with validated ORDER BY and secure LIMIT/OFFSET binding
+    $dataQuery = "SELECT * FROM admin $whereClause ORDER BY `$orderBy` $orderDir LIMIT ? OFFSET ?";
     $dataStmt = $conn->prepare($dataQuery);
-    $dataStmt->execute($params);
+    
+    // Bind all parameters: WHERE conditions first, then LIMIT and OFFSET
+    $paramIndex = 1;
+    foreach ($params as $param) {
+        $dataStmt->bindValue($paramIndex++, $param, PDO::PARAM_STR);
+    }
+    $dataStmt->bindValue($paramIndex++, (int)$length, PDO::PARAM_INT);
+    $dataStmt->bindValue($paramIndex++, (int)$start, PDO::PARAM_INT);
+    $dataStmt->execute();
     $data = $dataStmt->fetchAll();
     
     echo json_encode([
@@ -181,20 +204,63 @@ function addAdmin($conn) {
     // Hash the password securely
     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
     
-    // Handle file upload
+    // Security: Secure file upload with validation
     $profileImage = null;
     if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] === UPLOAD_ERR_OK) {
+        // File upload security checks
+        $maxFileSize = 5 * 1024 * 1024; // 5MB limit
+        $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        
+        $fileSize = $_FILES['profile_image']['size'];
+        $fileName = $_FILES['profile_image']['name'];
+        $fileTmpName = $_FILES['profile_image']['tmp_name'];
+        
+        // Check file size
+        if ($fileSize > $maxFileSize) {
+            echo json_encode(['success' => false, 'message' => 'File size exceeds 5MB limit']);
+            return;
+        }
+        
+        // Verify MIME type using finfo
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $actualMimeType = finfo_file($finfo, $fileTmpName);
+        finfo_close($finfo);
+        
+        if (!in_array($actualMimeType, $allowedMimeTypes)) {
+            echo json_encode(['success' => false, 'message' => 'Invalid file type. Only images are allowed']);
+            return;
+        }
+        
+        // Validate extension (double-check)
+        $fileExtension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+        if (!in_array($fileExtension, $allowedExtensions)) {
+            echo json_encode(['success' => false, 'message' => 'Invalid file extension']);
+            return;
+        }
+        
+        // Generate secure filename
         $uploadDir = '../../uploads/';
         if (!is_dir($uploadDir)) {
             mkdir($uploadDir, 0755, true);
         }
         
-        $fileExtension = pathinfo($_FILES['profile_image']['name'], PATHINFO_EXTENSION);
-        $fileName = 'admin_' . time() . '_' . uniqid() . '.' . $fileExtension;
+        $fileName = 'admin_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $fileExtension;
         $filePath = $uploadDir . $fileName;
         
-        if (move_uploaded_file($_FILES['profile_image']['tmp_name'], $filePath)) {
+        // Verify it's actually an image by checking dimensions
+        $imageInfo = @getimagesize($fileTmpName);
+        if ($imageInfo === false) {
+            echo json_encode(['success' => false, 'message' => 'File is not a valid image']);
+            return;
+        }
+        
+        // Move uploaded file
+        if (move_uploaded_file($fileTmpName, $filePath)) {
             $profileImage = $fileName;
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to upload file']);
+            return;
         }
     }
     

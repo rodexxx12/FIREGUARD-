@@ -20,11 +20,15 @@ const CRITICAL_TEMPERATURE_THRESHOLD = 60;  // °C
 const HIGH_SMOKE_THRESHOLD = 2000;
 const HIGH_HEAT_INDEX_THRESHOLD = 35;  // °C
 
-// Database configuration
-$host = "localhost";
-$dbname = "u520834156_DBBagofire";
-$username = "u520834156_userBagofire";
-$password = "i[#[GQ!+=C9";
+// SECURITY FIX: Use centralized database configuration
+require_once __DIR__ . '/../core/config/config.php';
+require_once __DIR__ . '/../core/database/database.php';
+
+// Get credentials from centralized config
+$host = config('db.host', 'localhost');
+$dbname = config('db.name', '');
+$username = config('db.user', '');
+$password = config('db.pass', '');
 
 // WebSocket URL for clients: wss://fireguard.bccbsis.com/ws
 

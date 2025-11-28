@@ -3,7 +3,7 @@
     <div class="close-btn" id="closeForgot">×</div>
     <form id="forgotPasswordForm" method="post" action="">
         <input type="hidden" name="action" value="forgot_password">
-        <input type="hidden" name="csrf_token" value="<?= generateCsrfToken() ?>">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(generateCsrfToken('forgot_password_form'), ENT_QUOTES, 'UTF-8') ?>">
         <h2>Reset Password</h2>
         
         <div class="input-group">
@@ -25,7 +25,7 @@
     <div class="close-btn" id="closeReset">×</div>
     <form id="resetPasswordForm" method="post" action="">
         <input type="hidden" name="action" value="reset_password">
-        <input type="hidden" name="csrf_token" value="<?= generateCsrfToken() ?>">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(generateCsrfToken('reset_password_form'), ENT_QUOTES, 'UTF-8') ?>">
         <input type="hidden" name="token" value="<?= htmlspecialchars($reset_token ?? '') ?>">
         <input type="hidden" name="email" value="<?= htmlspecialchars($reset_email ?? '') ?>">
         <h2>Set New Password</h2>

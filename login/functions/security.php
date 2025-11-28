@@ -1,10 +1,30 @@
 <?php
-// Enhanced Input Validation & Sanitization
-function sanitizeInput($data) {
-    if (is_array($data)) {
-        return array_map('sanitizeInput', $data);
+require_once __DIR__ . '/env.php';
+if (!defined('CSRF_TOKEN_TTL')) {
+    define('CSRF_TOKEN_TTL', 900); // 15 minutes
+}
+
+/**
+ * Trim, strip control characters, and limit length of incoming data.
+ */
+function normalizeInput($data, $maxLength = 255) {
+    $value = trim((string)$data);
+    // Remove ASCII control characters while preserving common whitespace
+    $value = preg_replace('/[[:cntrl:]]/u', '', $value);
+    if ($maxLength > 0) {
+        $value = mb_substr($value, 0, $maxLength);
     }
-    return htmlspecialchars(trim($data), ENT_QUOTES, 'UTF-8');
+    return $value;
+}
+
+// Enhanced Input Validation & Sanitization
+function sanitizeInput($data, $maxLength = 255) {
+    if (is_array($data)) {
+        return array_map(function ($value) use ($maxLength) {
+            return sanitizeInput($value, $maxLength);
+        }, $data);
+    }
+    return normalizeInput($data, $maxLength);
 }
 
 function validateUsername($username) {
@@ -138,16 +158,54 @@ function validateSqlInput($input) {
     return true;
 }
 
-// CSRF Protection
-function generateCsrfToken() {
-    if (empty($_SESSION['csrf_token'])) {
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+function purgeExpiredCsrfTokens() {
+    if (empty($_SESSION['csrf_tokens']) || !is_array($_SESSION['csrf_tokens'])) {
+        return;
     }
-    return $_SESSION['csrf_token'];
+    $now = time();
+    foreach ($_SESSION['csrf_tokens'] as $form => $tokenData) {
+        if (empty($tokenData['expires_at']) || $tokenData['expires_at'] < $now) {
+            unset($_SESSION['csrf_tokens'][$form]);
+        }
+    }
 }
 
-function validateCsrfToken($token) {
-    return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
+// CSRF Protection
+function generateCsrfToken($form = 'default', $ttl = CSRF_TOKEN_TTL) {
+    purgeExpiredCsrfTokens();
+    if (!is_string($form) || $form === '') {
+        $form = 'default';
+    }
+    if (!isset($_SESSION['csrf_tokens']) || !is_array($_SESSION['csrf_tokens'])) {
+        $_SESSION['csrf_tokens'] = [];
+    }
+    $tokenData = $_SESSION['csrf_tokens'][$form] ?? null;
+    $isExpired = !$tokenData || empty($tokenData['value']) || ($tokenData['expires_at'] ?? 0) < time();
+    if ($isExpired) {
+        $_SESSION['csrf_tokens'][$form] = [
+            'value' => bin2hex(random_bytes(32)),
+            'expires_at' => time() + (int)$ttl
+        ];
+    }
+    return $_SESSION['csrf_tokens'][$form]['value'];
+}
+
+function validateCsrfToken($token, $form = 'default') {
+    purgeExpiredCsrfTokens();
+    if (!is_string($token) || $token === '') {
+        return false;
+    }
+
+    if (isset($_SESSION['csrf_tokens'][$form]) && hash_equals($_SESSION['csrf_tokens'][$form]['value'], $token)) {
+        return true;
+    }
+
+    // Backwards compatibility for legacy single-token implementations
+    if (isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token)) {
+        return true;
+    }
+
+    return false;
 }
 
 // Token Generation
@@ -222,3 +280,48 @@ function getClientIp() {
     
     return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 } 
+
+function verifyRecaptchaResponse(string $token, ?string $ip = null): bool {
+    $token = trim($token);
+    if ($token === '') {
+        return false;
+    }
+
+    $secret = (string)loginEnv('RECAPTCHA_SECRET_KEY', '');
+    if ($secret === '') {
+        error_log('reCAPTCHA secret key is not configured');
+        return false;
+    }
+
+    $payload = http_build_query([
+        'secret'   => $secret,
+        'response' => $token,
+        'remoteip' => $ip ?: getClientIp(),
+    ]);
+
+    $context = stream_context_create([
+        'http' => [
+            'method'  => 'POST',
+            'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
+            'content' => $payload,
+            'timeout' => 5,
+        ],
+    ]);
+
+    $result = @file_get_contents('https://www.google.com/recaptcha/api/siteverify', false, $context);
+    if ($result === false) {
+        error_log('Failed to contact reCAPTCHA verification endpoint');
+        return false;
+    }
+
+    $decoded = json_decode($result, true);
+    if (!is_array($decoded) || empty($decoded['success'])) {
+        return false;
+    }
+
+    if (isset($decoded['score']) && $decoded['score'] < 0.5) {
+        return false;
+    }
+
+    return true;
+}

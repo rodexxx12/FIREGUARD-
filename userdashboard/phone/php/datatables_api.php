@@ -4,12 +4,44 @@
  * Provides server-side processing for DataTables with filtering and search
  */
 
-session_start();
+// Error handling - environment-aware
+$isProduction = (getenv('APP_ENV') === 'production' || 
+                (isset($_SERVER['HTTP_HOST']) && 
+                 strpos($_SERVER['HTTP_HOST'], 'localhost') === false && 
+                 strpos($_SERVER['HTTP_HOST'], '127.0.0.1') === false));
+
+if ($isProduction) {
+    error_reporting(E_ALL);
+    ini_set('display_errors', '0');
+    ini_set('log_errors', '1');
+    $logDir = __DIR__ . '/../../logs';
+    if (!is_dir($logDir)) {
+        @mkdir($logDir, 0755, true);
+    }
+    ini_set('error_log', $logDir . '/php_errors.log');
+} else {
+    error_reporting(E_ALL);
+    ini_set('display_errors', '1');
+}
+
+// Start session first (before including session_config)
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Secure session configuration (now safe to include)
+require_once __DIR__ . '/../../includes/session_config.php';
+require_once __DIR__ . '/../../includes/auth.php';
+
 require_once 'UserPhoneModel.php';
 require_once '../db_connection.php';
 require_once '../config/config.php';
+require_once __DIR__ . '/security_functions.php';
 
 header('Content-Type: application/json');
+
+// Require authentication
+requireAuthentication();
 
 try {
     $db = getDatabaseConnection();
@@ -26,13 +58,13 @@ try {
         exit();
     }
     
-    // Get DataTables parameters
-    $draw = intval($_GET['draw'] ?? 1);
-    $start = intval($_GET['start'] ?? 0);
-    $length = intval($_GET['length'] ?? 10);
-    $searchValue = $_GET['search']['value'] ?? '';
-    $orderColumn = intval($_GET['order'][0]['column'] ?? 0);
-    $orderDir = $_GET['order'][0]['dir'] ?? 'desc';
+    // Get DataTables parameters with validation
+    $draw = validateInteger($_GET['draw'] ?? 1, 1) ?: 1;
+    $start = validateInteger($_GET['start'] ?? 0, 0) ?: 0;
+    $length = validateInteger($_GET['length'] ?? 10, 1, 1000) ?: 10; // Max 1000 records per request
+    $searchValue = sanitizeInput($_GET['search']['value'] ?? '', 'string', 255);
+    $orderColumn = validateInteger($_GET['order'][0]['column'] ?? 0, 0, 4) ?: 0;
+    $orderDir = in_array(strtolower($_GET['order'][0]['dir'] ?? 'desc'), ['asc', 'desc']) ? strtoupper($_GET['order'][0]['dir']) : 'DESC';
     
     // Column mapping for ordering
     $columns = [
@@ -62,11 +94,11 @@ try {
         });
     }
     
-    // Apply custom filters
-    $statusFilter = $_GET['status_filter'] ?? '';
-    $primaryFilter = $_GET['primary_filter'] ?? '';
-    $labelFilter = $_GET['label_filter'] ?? '';
-    $dateRangeFilter = $_GET['date_range_filter'] ?? '';
+    // Apply custom filters with sanitization
+    $statusFilter = sanitizeInput($_GET['status_filter'] ?? '', 'string', 20);
+    $primaryFilter = sanitizeInput($_GET['primary_filter'] ?? '', 'string', 20);
+    $labelFilter = sanitizeInput($_GET['label_filter'] ?? '', 'string', 100);
+    $dateRangeFilter = sanitizeInput($_GET['date_range_filter'] ?? '', 'string', 20);
     
     if ($statusFilter && $statusFilter !== 'all') {
         $phoneNumbers = array_filter($phoneNumbers, function($phone) use ($statusFilter) {
@@ -145,36 +177,37 @@ try {
     // Apply pagination
     $filteredData = array_slice($phoneNumbers, $start, $length);
     
-    // Format data for DataTables
+    // Format data for DataTables with XSS protection
     $data = [];
     foreach ($filteredData as $phone) {
         $data[] = [
-            'phone_id' => $phone['phone_id'],
-            'phone_number' => $phone['phone_number'],
-            'label' => $phone['label'] ?? '',
+            'phone_id' => (int)$phone['phone_id'],
+            'phone_number' => escapeOutput($phone['phone_number']),
+            'label' => escapeOutput($phone['label'] ?? ''),
             'verified' => (bool)$phone['verified'],
             'is_primary' => (bool)$phone['is_primary'],
-            'created_at' => $phone['created_at'],
-            'formatted_number' => '+63' . substr($phone['phone_number'], 1),
+            'created_at' => escapeOutput($phone['created_at']),
+            'formatted_number' => '+63' . substr($phone['phone_number'], 1), // Safe - already validated phone number
             'status_text' => $phone['verified'] ? 'verified' : 'unverified',
             'primary_text' => $phone['is_primary'] ? 'primary' : 'not primary'
         ];
     }
     
-    // Prepare response
+    // Prepare response with CSRF token
     $response = [
         'draw' => $draw,
         'recordsTotal' => $totalRecords,
         'recordsFiltered' => $totalRecords,
         'data' => $data,
         'meta' => [
-            'user_id' => $userId,
+            'user_id' => (int)$userId,
             'total_numbers' => $totalRecords,
             'verified_count' => count(array_filter($phoneNumbers, function($p) { return $p['verified']; })),
             'unverified_count' => count(array_filter($phoneNumbers, function($p) { return !$p['verified']; })),
             'primary_count' => count(array_filter($phoneNumbers, function($p) { return $p['is_primary']; })),
             'last_updated' => date('Y-m-d H:i:s')
-        ]
+        ],
+        'csrf_token' => generateCSRFToken()
     ];
     
     echo json_encode($response);

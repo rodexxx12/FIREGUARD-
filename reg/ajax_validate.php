@@ -1,10 +1,19 @@
 <?php
 require_once 'db_config.php';
+require_once 'security_functions.php';
 header('Content-Type: application/json');
+header('Cache-Control: no-store, must-revalidate');
 
 $response = ['valid' => false, 'message' => 'Invalid request'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $rateKey = 'ajax_validate_' . get_client_ip();
+    $rate = check_rate_limit($rateKey, 60, 60);
+    if (!$rate['allowed']) {
+        echo json_encode(['valid' => false, 'message' => 'Too many validation attempts. Please slow down.']);
+        exit;
+    }
+
     $type = $_POST['type'] ?? '';
     switch ($type) {
         case 'email':

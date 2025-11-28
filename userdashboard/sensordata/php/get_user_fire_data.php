@@ -1,24 +1,40 @@
 <?php
-session_start();
+// Error handling - environment-aware
+$isProduction = (getenv('APP_ENV') === 'production' || 
+                (isset($_SERVER['HTTP_HOST']) && 
+                 strpos($_SERVER['HTTP_HOST'], 'localhost') === false && 
+                 strpos($_SERVER['HTTP_HOST'], '127.0.0.1') === false));
+
+if ($isProduction) {
+    error_reporting(E_ALL);
+    ini_set('display_errors', '0');
+    ini_set('log_errors', '1');
+    $logDir = __DIR__ . '/../../logs';
+    if (!is_dir($logDir)) {
+        @mkdir($logDir, 0755, true);
+    }
+    ini_set('error_log', $logDir . '/php_errors.log');
+} else {
+    error_reporting(E_ALL);
+    ini_set('display_errors', '1');
+}
+
+// Start session first (before including session_config)
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Secure session configuration (now safe to include)
+require_once __DIR__ . '/../../includes/session_config.php';
+
 header('Content-Type: application/json');
 
-// Enable error reporting for debugging
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
-// Log the request for debugging
-error_log("DataTables Ajax request received. Session ID: " . session_id());
-error_log("Session data: " . print_r($_SESSION, true));
-error_log("GET parameters: " . print_r($_GET, true));
-
-if (!isset($_SESSION['user_id'])) {
-    error_log("DataTables Ajax error: No user_id in session");
+// Check authentication
+if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id']) || $_SESSION['user_id'] <= 0) {
     http_response_code(401);
     echo json_encode([
         'error' => 'Unauthorized',
-        'message' => 'Please log in to access this data',
-        'session_id' => session_id(),
-        'has_session' => !empty($_SESSION)
+        'message' => 'Your session has expired. Please refresh the page and log in again.'
     ]);
     exit;
 }

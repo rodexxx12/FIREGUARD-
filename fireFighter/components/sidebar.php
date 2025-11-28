@@ -39,11 +39,10 @@ if (!empty($_SESSION['firefighter_name'])) {
   <div class="menu_section">
     <h3>General</h3>
     <ul class="nav side-menu">
-      <li><a><i class="fa fa-home"></i> Home <span class="fa fa-chevron-down"></span></a>
-        <ul class="nav child_menu">
-          <li><a href="../../mapping/php/main.php">Locate Fire Incident</a></li>
-          <li><a href="../../profile/php/main.php">Profile</a></li>
-        </ul>
+      <li>
+        <a href="../../mapping/php/main.php">
+          <i class="fa fa-home"></i> Home
+        </a>
       </li>
     </ul>
 </div>
@@ -115,6 +114,25 @@ if (!empty($_SESSION['firefighter_name'])) {
 .profile_info span {
     font-weight: 800;  /* Make "Welcome," text bolder */
     font-size: 1rem;  /* Decrease the size */
+}
+
+.nav.side-menu > li {
+    margin-bottom: 6px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+}
+
+.nav.side-menu > li > a {
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nav.side-menu > li > a i {
+    width: 18px;
+    text-align: center;
 }
 
 .profile_info h2 {

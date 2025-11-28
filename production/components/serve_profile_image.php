@@ -1,72 +1,90 @@
 <?php
-// Script to serve profile images directly
-session_start();
+// Secure profile image delivery
+require_once __DIR__ . '/db_connection.php';
 
-// Get the image filename from the URL
-$image_file = $_GET['file'] ?? '';
-
-if (empty($image_file)) {
-    http_response_code(404);
-    echo "No image file specified";
-    exit;
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
 }
 
-// Security: only allow image files
-$allowed_extensions = ['jpg', 'jpeg', 'png', 'gif'];
-$file_extension = strtolower(pathinfo($image_file, PATHINFO_EXTENSION));
-
-if (!in_array($file_extension, $allowed_extensions)) {
-    http_response_code(403);
-    echo "Invalid file type";
-    exit;
-}
-
-// Check if admin is logged in
 if (!isset($_SESSION['admin_id'])) {
     http_response_code(401);
     echo "Not authenticated";
     exit;
 }
 
-// Construct the file path - use absolute path from components directory
-$image_path = __DIR__ . '/../profile/php/uploads/profile_images/' . $image_file;
+$requestedFile = $_GET['file'] ?? '';
+$requestedFile = trim($requestedFile);
 
-// Check if file exists
-if (!file_exists($image_path)) {
-    error_log("Profile image not found: " . $image_path);
+if ($requestedFile === '') {
     http_response_code(404);
-    echo "Image file not found: " . $image_path;
+    echo "Image not found";
     exit;
 }
 
-// Get file info
-$file_info = pathinfo($image_path);
-$mime_type = '';
-
-// Set correct MIME type
-switch (strtolower($file_info['extension'])) {
-    case 'jpg':
-    case 'jpeg':
-        $mime_type = 'image/jpeg';
-        break;
-    case 'png':
-        $mime_type = 'image/png';
-        break;
-    case 'gif':
-        $mime_type = 'image/gif';
-        break;
-    default:
-        http_response_code(400);
-        echo "Unsupported image type";
-        exit;
+$sanitizedFile = basename($requestedFile);
+if (!preg_match('/^[A-Za-z0-9._-]+$/', $sanitizedFile)) {
+    http_response_code(400);
+    echo "Invalid file name";
+    exit;
 }
 
-// Set headers
-header('Content-Type: ' . $mime_type);
-header('Content-Length: ' . filesize($image_path));
-header('Cache-Control: public, max-age=31536000'); // Cache for 1 year
-header('Expires: ' . gmdate('D, d M Y H:i:s \G\M\T', time() + 31536000));
+$allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
+$extension = strtolower(pathinfo($sanitizedFile, PATHINFO_EXTENSION));
+if (!in_array($extension, $allowedExtensions, true)) {
+    http_response_code(400);
+    echo "Invalid file type";
+    exit;
+}
 
-// Output the image
-readfile($image_path);
-?> 
+$baseDirectory = realpath(__DIR__ . '/../profile/php/uploads/profile_images');
+if ($baseDirectory === false) {
+    error_log('Profile image base directory missing.');
+    http_response_code(500);
+    echo "Image service unavailable";
+    exit;
+}
+
+$imagePath = $baseDirectory . DIRECTORY_SEPARATOR . $sanitizedFile;
+$realImagePath = realpath($imagePath);
+
+if ($realImagePath === false || strpos($realImagePath, $baseDirectory) !== 0 || !is_file($realImagePath)) {
+    http_response_code(404);
+    echo "Image not found";
+    exit;
+}
+
+$mimeTypes = [
+    'jpg' => 'image/jpeg',
+    'jpeg' => 'image/jpeg',
+    'png' => 'image/png',
+    'gif' => 'image/gif'
+];
+
+$mimeType = $mimeTypes[$extension] ?? 'application/octet-stream';
+$lastModified = gmdate('D, d M Y H:i:s \G\M\T', filemtime($realImagePath));
+$etag = '"' . hash('sha256', $realImagePath . $lastModified . filesize($realImagePath)) . '"';
+
+// Conditional requests to avoid re-sending unchanged assets
+if (
+    (isset($_SERVER['HTTP_IF_NONE_MATCH']) && trim($_SERVER['HTTP_IF_NONE_MATCH']) === $etag) ||
+    (isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) && trim($_SERVER['HTTP_IF_MODIFIED_SINCE']) === $lastModified)
+) {
+    header('HTTP/1.1 304 Not Modified');
+    exit;
+}
+
+header('Content-Type: ' . $mimeType);
+header('Content-Length: ' . filesize($realImagePath));
+header('Cache-Control: private, max-age=86400, immutable');
+header('Expires: ' . gmdate('D, d M Y H:i:s \G\M\T', time() + 86400));
+header('Last-Modified: ' . $lastModified);
+header('ETag: ' . $etag);
+header('X-Content-Type-Options: nosniff');
+header('Content-Security-Policy: default-src \'none\'; img-src \'self\' data:; style-src \'self\' \'unsafe-inline\';');
+
+if (ob_get_level()) {
+    ob_end_clean();
+}
+
+readfile($realImagePath);
+exit;

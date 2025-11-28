@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<ruleset name="FireDetection">
+    <description>PHP CodeSniffer ruleset for Fire Detection System</description>
+    
+    <!-- PSR-12 Standard -->
+    <rule ref="PSR12"/>
+    
+    <!-- File encoding -->
+    <rule ref="Generic.Files.ByteOrderMark"/>
+    
+    <!-- Line ending -->
+    <rule ref="Generic.Files.LineEndings">
+        <properties>
+            <property name="eolChar" value="\n"/>
+        </properties>
+    </rule>
+    
+    <!-- Directories to check -->
+    <file>core/</file>
+    <file>login/</file>
+    <file>device/</file>
+    <file>production/</file>
+    
+    <!-- Directories to exclude -->
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/vendors/*</exclude-pattern>
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+    <exclude-pattern>*/tests/*</exclude-pattern>
+    <exclude-pattern>*.min.js</exclude-pattern>
+    <exclude-pattern>*.min.css</exclude-pattern>
+    
+    <!-- Show progress -->
+    <arg value="p"/>
+    
+    <!-- Show colors -->
+    <arg name="colors"/>
+    
+    <!-- Report type -->
+    <arg value="full"/>
+    
+    <!-- Ignore warnings for now (focus on errors) -->
+    <config name="ignore_warnings_on_exit" value="1"/>
+</ruleset>
+

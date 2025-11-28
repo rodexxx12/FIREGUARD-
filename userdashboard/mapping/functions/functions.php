@@ -2,7 +2,7 @@
 
 session_start();
 if (!isset($_SESSION['user_id'])) {
-    header("Location: ../../index.php");
+    header("Location: ../../../index.php");
     exit();
 }
 
@@ -19,8 +19,8 @@ try {
     $stmt->execute(['user_id' => $user_id]);
     $total_devices = $stmt->fetchColumn();
 
-    // Get total device count for the current user (replacing building count)
-    $sql = "SELECT COUNT(*) AS total_buildings FROM devices WHERE user_id = :user_id";
+    // Get total building count for the current user
+    $sql = "SELECT COUNT(*) AS total_buildings FROM buildings WHERE user_id = :user_id";
     $stmt = $pdo->prepare($sql);
     $stmt->execute(['user_id' => $user_id]);
     $total_buildings = $stmt->fetchColumn();

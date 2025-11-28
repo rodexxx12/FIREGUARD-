@@ -4,6 +4,34 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 require_once __DIR__ . '/../php/config.php'; // Your database configuration file
+require_once __DIR__ . '/../../components/cache.php';
+
+if (!function_exists('incidentCacheRemember')) {
+    /**
+     * Wrap expensive query callbacks with CacheHelper when available.
+     */
+    function incidentCacheRemember(string $namespace, array $payload, int $ttlSeconds, callable $callback)
+    {
+        $ttl = $ttlSeconds > 0 ? $ttlSeconds : 30;
+
+        if (!class_exists('CacheHelper')) {
+            return $callback();
+        }
+
+        $cacheKey = CacheHelper::buildKey($namespace, $payload);
+        return CacheHelper::remember($cacheKey, $ttl, $callback);
+    }
+}
+
+if (!function_exists('sanitizeLimit')) {
+    /**
+     * Ensure LIMIT/OFFSET values are safe for direct interpolation.
+     */
+    function sanitizeLimit(int $value): int
+    {
+        return max(0, $value);
+    }
+}
 
 // Only enforce redirect for browser pages, not API endpoints
 if (!defined('INCIDENT_REPORTS_ALLOW_API')) {
@@ -15,127 +43,154 @@ if (!defined('INCIDENT_REPORTS_ALLOW_API')) {
 
 // Function to get incident details with additional safety information
 function getIncidentDetails($incidentId) {
-    $conn = getDatabaseConnection();
-    
-    $query = "SELECT fd.*, 
-                     b.building_name, b.address as building_address, b.building_type, b.contact_person, b.contact_number,
-                     b.total_floors, b.has_sprinkler_system, b.has_fire_alarm, b.has_fire_extinguishers,
-                     b.has_emergency_exits, b.has_emergency_lighting, b.has_fire_escape, b.last_inspected,
-                     u.fullname as owner_name, u.email_address as owner_email, u.contact_number as owner_phone,
-                     d.device_name, d.device_number, d.serial_number, d.status as device_status,
-                     a.acknowledged_at, a.acknowledged_by,
-                     r.response_type, r.notes, r.responded_by, r.timestamp as response_time,
-                     ff.name as firefighter_name, ff.rank as firefighter_rank, ff.badge_number, ff.specialization,
-                     adm.full_name as admin_name, adm.role as admin_role
-              FROM fire_data fd
-              LEFT JOIN buildings b ON fd.building_id = b.id
-              LEFT JOIN users u ON fd.user_id = u.user_id
-              LEFT JOIN devices d ON fd.device_id = d.device_id
-              LEFT JOIN acknowledgments a ON a.fire_data_id = fd.id
-              LEFT JOIN responses r ON r.fire_data_id = fd.id
-              LEFT JOIN firefighters ff ON r.firefighter_id = ff.id
-              LEFT JOIN admin adm ON a.acknowledged_by = adm.admin_id
-              WHERE fd.id = ?";
-    
-    $stmt = $conn->prepare($query);
-    $stmt->execute([$incidentId]);
-    
-    return $stmt->fetch();
+    return incidentCacheRemember('incident:details', ['id' => (int)$incidentId], 60, function () use ($incidentId) {
+        $conn = getDatabaseConnection();
+        
+        $query = "SELECT fd.*, 
+                         b.building_name, b.address as building_address, b.building_type, b.contact_person, b.contact_number,
+                         b.total_floors, b.has_sprinkler_system, b.has_fire_alarm, b.has_fire_extinguishers,
+                         b.has_emergency_exits, b.has_emergency_lighting, b.has_fire_escape, b.last_inspected,
+                         u.fullname as owner_name, u.email_address as owner_email, u.contact_number as owner_phone,
+                         d.device_name, d.device_number, d.serial_number, d.status as device_status,
+                         a.acknowledged_at, a.acknowledged_by,
+                         r.response_type, r.notes, r.responded_by, r.timestamp as response_time,
+                         ff.name as firefighter_name, ff.rank as firefighter_rank, ff.badge_number, ff.specialization,
+                         adm.full_name as admin_name, adm.role as admin_role
+                  FROM fire_data fd
+                  LEFT JOIN buildings b ON fd.building_id = b.id
+                  LEFT JOIN users u ON fd.user_id = u.user_id
+                  LEFT JOIN devices d ON fd.device_id = d.device_id
+                  LEFT JOIN acknowledgments a ON a.fire_data_id = fd.id
+                  LEFT JOIN responses r ON r.fire_data_id = fd.id
+                  LEFT JOIN firefighters ff ON r.firefighter_id = ff.id
+                  LEFT JOIN admin adm ON a.acknowledged_by = adm.admin_id
+                  WHERE fd.id = ?";
+        
+        $stmt = $conn->prepare($query);
+        $stmt->execute([(int)$incidentId]);
+        
+        return $stmt->fetch();
+    });
 }
 
 // Function to get sensor data for an incident with more details
 function getSensorData($incidentId) {
-    $conn = getDatabaseConnection();
-    
-    $query = "SELECT s.sensor_id, s.sensor_type, s.location, s.status,
-                     sl.temperature, sl.heat_level, sl.smoke_level, sl.flame_detected, sl.created_at,
-                     sl.log_message, sl.log_level
-              FROM system_logs sl
-              JOIN sensors s ON sl.device_id = s.sensor_id
-              WHERE sl.fire_data_id = ?
-              ORDER BY sl.created_at DESC";
-    
-    $stmt = $conn->prepare($query);
-    $stmt->execute([$incidentId]);
-    
-    return $stmt->fetchAll();
+    return incidentCacheRemember('incident:sensor', ['id' => (int)$incidentId], 30, function () use ($incidentId) {
+        $conn = getDatabaseConnection();
+        
+        $query = "SELECT s.sensor_id, s.sensor_type, s.location, s.status,
+                         sl.temperature, sl.heat_level, sl.smoke_level, sl.flame_detected, sl.created_at,
+                         sl.log_message, sl.log_level
+                  FROM system_logs sl
+                  JOIN sensors s ON sl.device_id = s.sensor_id
+                  WHERE sl.fire_data_id = ?
+                  ORDER BY sl.created_at DESC";
+        
+        $stmt = $conn->prepare($query);
+        $stmt->execute([(int)$incidentId]);
+        
+        return $stmt->fetchAll();
+    });
 }
 
 // Function to get all acknowledged incidents with pagination
 function getAcknowledgedIncidents($page = 1, $perPage = 10) {
-    $conn = getDatabaseConnection();
-    
-    $offset = ($page - 1) * $perPage;
-    
-    $query = "SELECT fd.id, fd.timestamp as incident_time, fd.status, fd.temp, fd.smoke, fd.heat, fd.flame_detected,
-                     b.building_name, b.address as building_address,
-                     u.fullname as owner_name,
-                     a.acknowledged_at, a.acknowledged_by,
-                     adm.full_name as admin_name
-              FROM fire_data fd
-              JOIN acknowledgments a ON a.fire_data_id = fd.id
-              LEFT JOIN buildings b ON fd.building_id = b.id
-              LEFT JOIN users u ON fd.user_id = u.user_id
-              LEFT JOIN admin adm ON a.acknowledged_by = adm.admin_id
-              WHERE fd.status = 'ACKNOWLEDGED'
-              ORDER BY fd.timestamp DESC
-              LIMIT ?, ?";
-    
-    $stmt = $conn->prepare($query);
-    $stmt->execute([$offset, $perPage]);
-    
-    return $stmt->fetchAll();
+    $page = max(1, (int)$page);
+    $perPage = min(200, max(1, (int)$perPage));
+    $offset = sanitizeLimit(($page - 1) * $perPage);
+    $limit = sanitizeLimit($perPage);
+
+    return incidentCacheRemember(
+        'incident:acknowledged:list',
+        ['page' => $page, 'perPage' => $limit],
+        30,
+        function () use ($offset, $limit) {
+            $conn = getDatabaseConnection();
+            
+            $query = "SELECT fd.id, fd.timestamp as incident_time, fd.status, fd.temp, fd.smoke, fd.heat, fd.flame_detected,
+                             b.building_name, b.address as building_address,
+                             u.fullname as owner_name,
+                             a.acknowledged_at, a.acknowledged_by,
+                             adm.full_name as admin_name
+                      FROM fire_data fd
+                      JOIN acknowledgments a ON a.fire_data_id = fd.id
+                      LEFT JOIN buildings b ON fd.building_id = b.id
+                      LEFT JOIN users u ON fd.user_id = u.user_id
+                      LEFT JOIN admin adm ON a.acknowledged_by = adm.admin_id
+                      WHERE fd.status = 'ACKNOWLEDGED'
+                      ORDER BY fd.timestamp DESC
+                      LIMIT {$offset}, {$limit}";
+            
+            $stmt = $conn->query($query);
+            return $stmt->fetchAll();
+        }
+    );
 }
 
 // Function to count total incidents for pagination
 function countAcknowledgedIncidents() {
-    $conn = getDatabaseConnection();
-    
-    $query = "SELECT COUNT(*) as total FROM fire_data fd
-              JOIN acknowledgments a ON a.fire_data_id = fd.id
-              WHERE fd.status = 'ACKNOWLEDGED'";
-    
-    $result = $conn->query($query);
-    return $result->fetch()['total'];
+    return incidentCacheRemember('incident:acknowledged:count', [], 60, function () {
+        $conn = getDatabaseConnection();
+        
+        $query = "SELECT COUNT(*) as total FROM fire_data fd
+                  JOIN acknowledgments a ON a.fire_data_id = fd.id
+                  WHERE fd.status = 'ACKNOWLEDGED'";
+        
+        $result = $conn->query($query);
+        $row = $result->fetch();
+        return (int)($row['total'] ?? 0);
+    });
 }
 
 // Function to get acknowledged incidents with search and filter
 function getAcknowledgedIncidentsFiltered($status = '', $start_date = '', $end_date = '', $page = 1, $perPage = 10) {
-    $conn = getDatabaseConnection();
-    $offset = ($page - 1) * $perPage;
-    $params = [];
-    $types = '';
-    $where = ["fd.status = 'ACKNOWLEDGED'"];
-    $query = "SELECT fd.id, fd.timestamp as incident_time, fd.status, fd.temp, fd.smoke, fd.heat, fd.flame_detected,
-                     b.building_name, b.address as building_address,
-                     u.fullname as owner_name,
-                     a.acknowledged_at, a.acknowledged_by,
-                     adm.full_name as admin_name
-              FROM fire_data fd
-              JOIN acknowledgments a ON a.fire_data_id = fd.id
-              LEFT JOIN buildings b ON fd.building_id = b.id
-              LEFT JOIN users u ON fd.user_id = u.user_id
-              LEFT JOIN admin adm ON a.acknowledged_by = adm.admin_id";
-    if ($start_date !== '') {
-        $where[] = "DATE(fd.timestamp) >= ?";
-        $params[] = $start_date;
-        $types .= 's';
-    }
-    if ($end_date !== '') {
-        $where[] = "DATE(fd.timestamp) <= ?";
-        $params[] = $end_date;
-        $types .= 's';
-    }
-    if ($where) {
-        $query .= " WHERE " . implode(' AND ', $where);
-    }
-    $query .= " ORDER BY fd.timestamp DESC LIMIT ?, ?";
-    $params[] = $offset;
-    $params[] = $perPage;
-    $types .= 'ii';
-    $stmt = $conn->prepare($query);
-    $stmt->execute($params);
-    return $stmt->fetchAll();
+    $page = max(1, (int)$page);
+    $perPage = min(200, max(1, (int)$perPage));
+    $offset = sanitizeLimit(($page - 1) * $perPage);
+    $limit = sanitizeLimit($perPage);
+
+    $cachePayload = [
+        'status' => $status,
+        'start_date' => $start_date,
+        'end_date' => $end_date,
+        'page' => $page,
+        'perPage' => $limit,
+    ];
+
+    return incidentCacheRemember('incident:acknowledged:filtered', $cachePayload, 30, function () use ($status, $start_date, $end_date, $offset, $limit) {
+        $conn = getDatabaseConnection();
+        $params = [];
+        $where = ["fd.status = 'ACKNOWLEDGED'"];
+        $query = "SELECT fd.id, fd.timestamp as incident_time, fd.status, fd.temp, fd.smoke, fd.heat, fd.flame_detected,
+                         b.building_name, b.address as building_address,
+                         u.fullname as owner_name,
+                         a.acknowledged_at, a.acknowledged_by,
+                         adm.full_name as admin_name
+                  FROM fire_data fd
+                  JOIN acknowledgments a ON a.fire_data_id = fd.id
+                  LEFT JOIN buildings b ON fd.building_id = b.id
+                  LEFT JOIN users u ON fd.user_id = u.user_id
+                  LEFT JOIN admin adm ON a.acknowledged_by = adm.admin_id";
+        if ($start_date !== '') {
+            $where[] = "DATE(fd.timestamp) >= ?";
+            $params[] = $start_date;
+        }
+        if ($end_date !== '') {
+            $where[] = "DATE(fd.timestamp) <= ?";
+            $params[] = $end_date;
+        }
+        if ($status !== '') {
+            $where[] = "fd.status = ?";
+            $params[] = $status;
+        }
+        if ($where) {
+            $query .= " WHERE " . implode(' AND ', $where);
+        }
+        $query .= " ORDER BY fd.timestamp DESC LIMIT {$offset}, {$limit}";
+        $stmt = $conn->prepare($query);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    });
 }
 
 
@@ -190,24 +245,30 @@ function migrateAllIncidentsToIncidentReports() {
             $errors[] = "Statement execution failed";
         }
     }
+    if (class_exists('CacheHelper')) {
+        CacheHelper::forget(CacheHelper::buildKey('incident:acknowledged:count', []));
+    }
+
     return ["success" => true, "inserted" => $inserted, "errors" => $errors];
 }
 
 // Function to get user address based on device number or device_id
 function getUserAddressByDevice($deviceIdentifier) {
-    $conn = getDatabaseConnection();
-    // Accepts either device_number (string) or device_id (int)
-    $query = "SELECT u.address
-              FROM devices d
-              JOIN users u ON d.user_id = u.user_id
-              WHERE d.device_number = ? OR d.device_id = ?
-              LIMIT 1";
-    $stmt = $conn->prepare($query);
-    $stmt->execute([$deviceIdentifier, $deviceIdentifier]);
-    if ($row = $stmt->fetch()) {
-        return $row['address'];
-    }
-    return null;
+    return incidentCacheRemember('device:user_address', ['device' => $deviceIdentifier], 300, function () use ($deviceIdentifier) {
+        $conn = getDatabaseConnection();
+        // Accepts either device_number (string) or device_id (int)
+        $query = "SELECT u.address
+                  FROM devices d
+                  JOIN users u ON d.user_id = u.user_id
+                  WHERE d.device_number = ? OR d.device_id = ?
+                  LIMIT 1";
+        $stmt = $conn->prepare($query);
+        $stmt->execute([$deviceIdentifier, $deviceIdentifier]);
+        if ($row = $stmt->fetch()) {
+            return $row['address'];
+        }
+        return null;
+    });
 }
 
 

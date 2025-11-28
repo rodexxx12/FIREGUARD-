@@ -2,13 +2,17 @@
 date_default_timezone_set('Asia/Manila');
 session_start();
 require_once '../../../db/db.php';
+require_once 'classes/ErrorHandler.php';
+require_once 'classes/SecurityHeaders.php';
+require_once 'classes/CsrfProtection.php';
 
-// Security headers
-header('X-Content-Type-Options: nosniff');
-header('X-Frame-Options: DENY');
-header('X-XSS-Protection: 1; mode=block');
-header('Referrer-Policy: strict-origin-when-cross-origin');
-header('Content-Security-Policy: default-src \'self\'; script-src \'self\' \'unsafe-inline\' https://cdn.jsdelivr.net https://code.jquery.com https://cdnjs.cloudflare.com https://cdn.datatables.net https://unpkg.com https://www.google.com https://www.gstatic.com; style-src \'self\' \'unsafe-inline\' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://use.fontawesome.com https://unpkg.com https://cdn.datatables.net https://fonts.googleapis.com https://www.gstatic.com; img-src \'self\' data: https:; font-src \'self\' https://netdna.bootstrapcdn.com https://fonts.gstatic.com https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://use.fontawesome.com; connect-src \'self\' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://cdn.datatables.net https://code.jquery.com https://www.google.com https://www.gstatic.com https://fonts.googleapis.com https://fonts.gstatic.com; frame-src \'self\' https://www.google.com;');
+// Initialize error handler
+$isProduction = (getenv('APP_ENV') === 'production');
+ErrorHandler::init($isProduction);
+
+// Set security headers
+$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $_SERVER['SERVER_PORT'] == 443;
+SecurityHeaders::setAll($isHttps);
 
 // Check if user is logged in
 if (!isset($_SESSION['admin_id'])) {
@@ -17,13 +21,12 @@ if (!isset($_SESSION['admin_id'])) {
 }
 
 // CSRF Protection
-if (!isset($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
+CsrfProtection::getToken(); // Ensure token exists
 
 // Validate CSRF token for POST requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+    if (!isset($_POST['csrf_token']) || !CsrfProtection::validateToken($_POST['csrf_token'])) {
+        http_response_code(403);
         die('CSRF token validation failed');
     }
 }
@@ -83,10 +86,7 @@ function validateSelectValue($value, $allowedValues) {
     return in_array($value, $allowedValues) ? $value : false;
 }
 
-// Enhanced SQL injection protection for dynamic queries
-function escapeLikeString($string) {
-    return str_replace(['%', '_'], ['\%', '\_'], $string);
-}
+// Note: LIKE wildcard escaping is now handled in SecureQueryBuilder when needed
 
 // Function to generate unique IR number with enhanced security
 function generateIRNumber($conn) {
@@ -421,7 +421,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $fireData) {
         
         // If there are validation errors, display them and stop processing
         if (!empty($validation_errors)) {
-            $error_message = "Please correct the following errors:<br>" . implode("<br>", $validation_errors);
+            $error_message = "Please correct the following errors:<br>" . implode("<br>", array_map('htmlspecialchars', $validation_errors));
         } else {
             // Check if a report already exists for this fire_data_id with enhanced security
             try {

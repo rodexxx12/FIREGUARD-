@@ -3,6 +3,18 @@ date_default_timezone_set('Asia/Manila');
 session_start();
 require_once '../../../db/db.php';
 require_once 'datetime_helper.php';
+require_once 'classes/InputValidator.php';
+require_once 'classes/ErrorHandler.php';
+require_once 'classes/SecurityHeaders.php';
+require_once 'classes/CsrfProtection.php';
+
+// Initialize error handler
+$isProduction = (getenv('APP_ENV') === 'production');
+ErrorHandler::init($isProduction);
+
+// Set security headers
+$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $_SERVER['SERVER_PORT'] == 443;
+SecurityHeaders::setAll($isHttps);
 
 // Check if user is logged in BEFORE including header.php
 if (!isset($_SESSION['admin_id'])) {
@@ -10,66 +22,134 @@ if (!isset($_SESSION['admin_id'])) {
     exit();
 }
 
+// CSRF Protection
+CsrfProtection::getToken(); // Ensure token exists
 
 $conn = getDatabaseConnection();
 $success_message = '';
 $error_message = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    try {
-        $stmt = $conn->prepare("
-            INSERT INTO spot_investigation_reports (
-                report_for, subject, date_completed, date_occurrence, time_occurrence,
-                place_occurrence, involved, establishment_name, owner, occupant,
-                fatalities, injured, estimated_damage, time_fire_started, time_fire_out,
-                highest_alarm_level, establishments_affected, estimated_area_sqm,
-                damage_computation, location_of_fatalities, weather_condition,
-                other_info, disposition, turned_over, investigator_name, investigator_signature,
-                created_at
-            ) VALUES (
-                :report_for, :subject, :date_completed, :date_occurrence, :time_occurrence,
-                :place_occurrence, :involved, :establishment_name, :owner, :occupant,
-                :fatalities, :injured, :estimated_damage, :time_fire_started, :time_fire_out,
-                :highest_alarm_level, :establishments_affected, :estimated_area_sqm,
-                :damage_computation, :location_of_fatalities, :weather_condition,
-                :other_info, :disposition, :turned_over, :investigator_name, :investigator_signature,
-                :created_at
-            )
-        ");
-        
-        // Set date_completed to current datetime if only date is provided
-        $dateCompleted = $_POST['date_completed'];
-        if (strlen($dateCompleted) === 10) { // Only date provided (YYYY-MM-DD)
-            $dateCompleted = date('Y-m-d H:i:s');
-        }
-        
-        // Sanitize and prepare values
-        $reportFor = trim($_POST['report_for']);
-        $subject = trim($_POST['subject'] ?? 'Spot Investigation Report (SIR)');
-        $dateOccurrence = trim($_POST['date_occurrence']);
-        $timeOccurrence = trim($_POST['time_occurrence']);
-        $placeOccurrence = trim($_POST['place_occurrence']);
-        $involved = trim($_POST['involved']);
-        $establishmentName = trim($_POST['establishment_name']);
-        $owner = trim($_POST['owner']);
-        $occupant = !empty($_POST['occupant']) ? trim($_POST['occupant']) : null;
-        $fatalities = isset($_POST['fatalities']) ? (int)$_POST['fatalities'] : 0;
-        $injured = isset($_POST['injured']) ? (int)$_POST['injured'] : 0;
-        $estimatedDamage = isset($_POST['estimated_damage']) ? (float)$_POST['estimated_damage'] : 0.00;
-        $timeFireStarted = trim($_POST['time_fire_started']);
-        $timeFireOut = !empty($_POST['time_fire_out']) ? trim($_POST['time_fire_out']) : null;
-        $highestAlarmLevel = !empty($_POST['highest_alarm_level']) ? trim($_POST['highest_alarm_level']) : null;
-        $establishmentsAffected = isset($_POST['establishments_affected']) ? (int)$_POST['establishments_affected'] : 0;
-        $estimatedAreaSqm = isset($_POST['estimated_area_sqm']) ? (float)$_POST['estimated_area_sqm'] : 0.00;
-        $damageComputation = isset($_POST['damage_computation']) ? (float)$_POST['damage_computation'] : 0.00;
-        $locationOfFatalities = !empty($_POST['location_of_fatalities']) ? trim($_POST['location_of_fatalities']) : null;
-        $weatherCondition = !empty($_POST['weather_condition']) ? trim($_POST['weather_condition']) : null;
-        $otherInfo = !empty($_POST['other_info']) ? trim($_POST['other_info']) : null;
-        $disposition = !empty($_POST['disposition']) ? trim($_POST['disposition']) : null;
-        $turnedOver = isset($_POST['turned_over']) ? 1 : 0;
-        $investigatorName = trim($_POST['investigator_name']);
-        $investigatorSignature = !empty($_POST['investigator_signature']) ? trim($_POST['investigator_signature']) : null;
-        $createdAt = formatDateTimeForDatabase();
+    // Validate CSRF token
+    if (!isset($_POST['csrf_token']) || !CsrfProtection::validateToken($_POST['csrf_token'])) {
+        $error_message = 'CSRF token validation failed';
+    } else {
+        try {
+            // Input validation
+            $validation_errors = [];
+            
+            $reportFor = InputValidator::validateString($_POST['report_for'] ?? '', 200, false);
+            if ($reportFor === false) {
+                $validation_errors[] = "Report For is required and must not exceed 200 characters.";
+            }
+            
+            $subject = InputValidator::validateString($_POST['subject'] ?? 'Spot Investigation Report (SIR)', 200);
+            if ($subject === false) {
+                $subject = 'Spot Investigation Report (SIR)';
+            }
+            
+            $dateOccurrence = InputValidator::validateDate($_POST['date_occurrence'] ?? '');
+            if ($dateOccurrence === false) {
+                $validation_errors[] = "Date of Occurrence is required and must be a valid date.";
+            }
+            
+            $timeOccurrence = InputValidator::validateString($_POST['time_occurrence'] ?? '', 10, false);
+            if ($timeOccurrence === false) {
+                $validation_errors[] = "Time of Occurrence is required.";
+            }
+            
+            $placeOccurrence = InputValidator::validateString($_POST['place_occurrence'] ?? '', 500, false);
+            if ($placeOccurrence === false) {
+                $validation_errors[] = "Place of Occurrence is required and must not exceed 500 characters.";
+            }
+            
+            $establishmentName = InputValidator::validateString($_POST['establishment_name'] ?? '', 200, false);
+            if ($establishmentName === false) {
+                $validation_errors[] = "Establishment Name is required and must not exceed 200 characters.";
+            }
+            
+            $owner = InputValidator::validateString($_POST['owner'] ?? '', 100, false);
+            if ($owner === false) {
+                $validation_errors[] = "Owner is required and must not exceed 100 characters.";
+            }
+            
+            $fatalities = InputValidator::validateInt($_POST['fatalities'] ?? 0, 0);
+            if ($fatalities === false) {
+                $fatalities = 0;
+            }
+            
+            $injured = InputValidator::validateInt($_POST['injured'] ?? 0, 0);
+            if ($injured === false) {
+                $injured = 0;
+            }
+            
+            $estimatedDamage = filter_var($_POST['estimated_damage'] ?? 0, FILTER_VALIDATE_FLOAT, ['options' => ['min_range' => 0]]);
+            if ($estimatedDamage === false) {
+                $estimatedDamage = 0.00;
+            }
+            
+            $establishmentsAffected = InputValidator::validateInt($_POST['establishments_affected'] ?? 1, 1);
+            if ($establishmentsAffected === false) {
+                $establishmentsAffected = 1;
+            }
+            
+            $estimatedAreaSqm = filter_var($_POST['estimated_area_sqm'] ?? 0, FILTER_VALIDATE_FLOAT, ['options' => ['min_range' => 0]]);
+            if ($estimatedAreaSqm === false) {
+                $estimatedAreaSqm = 0.00;
+            }
+            
+            $damageComputation = filter_var($_POST['damage_computation'] ?? 0, FILTER_VALIDATE_FLOAT, ['options' => ['min_range' => 0]]);
+            if ($damageComputation === false) {
+                $damageComputation = 0.00;
+            }
+            
+            $investigatorName = InputValidator::validateString($_POST['investigator_name'] ?? '', 100, false);
+            if ($investigatorName === false) {
+                $validation_errors[] = "Investigator Name is required and must not exceed 100 characters.";
+            }
+            
+            if (!empty($validation_errors)) {
+                $error_message = "Please correct the following errors:<br>" . implode("<br>", array_map('htmlspecialchars', $validation_errors));
+            } else {
+                $stmt = $conn->prepare("
+                    INSERT INTO spot_investigation_reports (
+                        report_for, subject, date_completed, date_occurrence, time_occurrence,
+                        place_occurrence, involved, establishment_name, owner, occupant,
+                        fatalities, injured, estimated_damage, time_fire_started, time_fire_out,
+                        highest_alarm_level, establishments_affected, estimated_area_sqm,
+                        damage_computation, location_of_fatalities, weather_condition,
+                        other_info, disposition, turned_over, investigator_name, investigator_signature,
+                        created_at
+                    ) VALUES (
+                        :report_for, :subject, :date_completed, :date_occurrence, :time_occurrence,
+                        :place_occurrence, :involved, :establishment_name, :owner, :occupant,
+                        :fatalities, :injured, :estimated_damage, :time_fire_started, :time_fire_out,
+                        :highest_alarm_level, :establishments_affected, :estimated_area_sqm,
+                        :damage_computation, :location_of_fatalities, :weather_condition,
+                        :other_info, :disposition, :turned_over, :investigator_name, :investigator_signature,
+                        :created_at
+                    )
+                ");
+                
+                // Set date_completed to current datetime if only date is provided
+                $dateCompleted = InputValidator::validateDate($_POST['date_completed'] ?? '');
+                if ($dateCompleted === false || strlen($dateCompleted) === 10) {
+                    $dateCompleted = date('Y-m-d H:i:s');
+                }
+                
+                // Sanitize remaining values
+                $involved = InputValidator::validateString($_POST['involved'] ?? '', 500);
+                $occupant = InputValidator::validateString($_POST['occupant'] ?? '', 100) ?: null;
+                $timeFireStarted = InputValidator::validateString($_POST['time_fire_started'] ?? '', 20);
+                $timeFireOut = InputValidator::validateString($_POST['time_fire_out'] ?? '', 20) ?: null;
+                $highestAlarmLevel = InputValidator::validateString($_POST['highest_alarm_level'] ?? '', 50) ?: null;
+                $locationOfFatalities = InputValidator::validateString($_POST['location_of_fatalities'] ?? '', 1000) ?: null;
+                $weatherCondition = InputValidator::validateString($_POST['weather_condition'] ?? '', 50) ?: null;
+                $otherInfo = InputValidator::validateString($_POST['other_info'] ?? '', 2000) ?: null;
+                $disposition = InputValidator::validateString($_POST['disposition'] ?? '', 2000) ?: null;
+                $turnedOver = isset($_POST['turned_over']) ? 1 : 0;
+                $investigatorSignature = InputValidator::validateString($_POST['investigator_signature'] ?? '', 100) ?: null;
+                $createdAt = formatDateTimeForDatabase();
         
         // Bind parameters using bindParam for SQL injection protection
         $stmt->bindParam(':report_for', $reportFor, PDO::PARAM_STR);
@@ -104,8 +184,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $success_message = 'Spot Investigation Report created successfully!';
         
-    } catch (Exception $e) {
-        $error_message = 'Error creating report: ' . $e->getMessage();
+                $stmt->execute();
+                
+                $success_message = 'Spot Investigation Report created successfully!';
+            }
+        } catch (Exception $e) {
+            error_log("Error creating spot report: " . $e->getMessage());
+            $error_message = 'Error creating report. Please try again.';
+        }
     }
 }
 ?>
@@ -227,6 +313,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
             
             <form method="POST" id="spotReportForm">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(CsrfProtection::getToken()); ?>">
                 <!-- Basic Information -->
                 <div class="form-section">
                     <h3 class="section-title">Basic Information</h3>

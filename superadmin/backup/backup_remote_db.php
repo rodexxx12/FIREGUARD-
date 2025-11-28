@@ -7,14 +7,37 @@
  * Usage: php backup_remote_db.php
  */
 
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+// Security: Environment-aware error reporting
+// Wrap in function_exists check to prevent redeclaration if db.php is included
+if (!function_exists('isDevelopmentEnvironment')) {
+    function isDevelopmentEnvironment() {
+        $env = $_ENV['APP_ENV'] ?? getenv('APP_ENV');
+        if ($env !== false && $env !== '') {
+            return strtolower($env) === 'development' || strtolower($env) === 'local';
+        }
+        return false;
+    }
+}
 
-// Remote database credentials
-$db_host = 'srv1322.hstgr.io';
-$db_name = 'u520834156_DBBagofire';
-$db_user = 'u520834156_userBagofire';
-$db_pass = 'i[#[GQ!+=C9';
+if (isDevelopmentEnvironment()) {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+} else {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 0);
+    ini_set('log_errors', 1);
+}
+
+// Security: Use environment variables for database credentials
+$db_host = $_ENV['DB_HOST'] ?? getenv('DB_HOST') ?: '';
+$db_name = $_ENV['DB_NAME'] ?? getenv('DB_NAME') ?: '';
+$db_user = $_ENV['DB_USER'] ?? getenv('DB_USER') ?: '';
+$db_pass = $_ENV['DB_PASS'] ?? getenv('DB_PASS') ?: '';
+
+// Validate credentials
+if (empty($db_host) || empty($db_name) || empty($db_user)) {
+    die("ERROR: Database credentials not configured. Set DB_HOST, DB_NAME, DB_USER, DB_PASS environment variables.\n");
+}
 
 echo "Starting remote database backup...\n";
 echo "Database: {$db_name}\n";

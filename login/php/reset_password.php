@@ -1,8 +1,15 @@
 <?php
-session_start();
+require_once '../functions/security.php';
+require_once '../functions/session.php';
 require_once '../functions/db.php';
 require_once '../functions/email.php';
-require_once '../functions/security.php';
+
+initSecureSession();
+
+if ((empty($_SERVER['HTTPS']) || $_SERVER['HTTPS'] === 'off') && !loginEnvBool('ALLOW_HTTP_RESET', false)) {
+    http_response_code(403);
+    exit('Password reset requires a secure (HTTPS) connection.');
+}
 
 // Initialize DB connection
 $conn = getDatabaseConnection();
@@ -37,7 +44,7 @@ if (empty($token) || empty($email)) {
 // 2. Handle password reset form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['new_password'], $_POST['confirm_password'])) {
     // CSRF Protection: Validate CSRF token
-    if (!isset($_POST['csrf_token']) || !validateCsrfToken($_POST['csrf_token'])) {
+    if (!isset($_POST['csrf_token']) || !validateCsrfToken($_POST['csrf_token'], 'reset_password_form')) {
         $error = "Invalid or expired security token. Please refresh the page and try again.";
     } else {
         $new_password = $_POST['new_password'];
@@ -60,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['new_password'], $_POS
 }
 
 // Generate CSRF token for the form
-$csrf_token = generateCsrfToken();
+$csrf_token = generateCsrfToken('reset_password_form');
 ?>
 
 <!DOCTYPE html>

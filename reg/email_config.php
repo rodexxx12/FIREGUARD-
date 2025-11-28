@@ -4,12 +4,25 @@
  * This file contains all email-related configurations and can be easily modified
  */
 
+// Load environment variables from .env file if it exists
+if (file_exists(__DIR__ . '/env_setup.php')) {
+    require_once __DIR__ . '/env_setup.php';
+}
+
 // Email Configuration Constants
-define('SMTP_HOST', 'smtp.hostinger.com');
-define('SMTP_USERNAME', 'fireguard@bccbsis.com');
-define('SMTP_PASSWORD', '1j/EIh?7Q');
-define('FROM_EMAIL', 'fireguard@bccbsis.com');
-define('FROM_NAME', 'Fire Detection System');
+// All sensitive credentials must be set via environment variables
+define('SMTP_HOST', getenv('SMTP_HOST') ?: 'smtp.hostinger.com');
+define('SMTP_USERNAME', getenv('SMTP_USERNAME') ?: '');
+define('SMTP_PASSWORD', getenv('SMTP_PASSWORD') ?: '');
+define('FROM_EMAIL', getenv('SMTP_FROM_EMAIL') ?: '');
+define('FROM_NAME', getenv('SMTP_FROM_NAME') ?: 'Fire Detection System');
+define('SMTP_ALLOW_SELF_SIGNED', filter_var(getenv('SMTP_ALLOW_SELF_SIGNED') ?: 'false', FILTER_VALIDATE_BOOLEAN));
+
+// Validate required environment variables
+if (empty(SMTP_USERNAME) || empty(SMTP_PASSWORD) || empty(FROM_EMAIL)) {
+    error_log('SMTP configuration error: Missing required environment variables (SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM_EMAIL)');
+    throw new RuntimeException('Email configuration is incomplete. Please set SMTP_USERNAME, SMTP_PASSWORD, and SMTP_FROM_EMAIL environment variables.');
+}
 
 // SMTP Configuration Options
 $smtp_configs = [
@@ -69,9 +82,9 @@ function configurePHPMailer($mail, $config_key = 'ssl_465') {
     // SSL/TLS options for better compatibility
     $mail->SMTPOptions = [
         'ssl' => [
-            'verify_peer' => false,
-            'verify_peer_name' => false,
-            'allow_self_signed' => true
+            'verify_peer' => !SMTP_ALLOW_SELF_SIGNED,
+            'verify_peer_name' => !SMTP_ALLOW_SELF_SIGNED,
+            'allow_self_signed' => SMTP_ALLOW_SELF_SIGNED
         ]
     ];
     

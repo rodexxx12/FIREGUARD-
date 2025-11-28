@@ -1,12 +1,41 @@
 <?php
+// Suppress error output for JSON responses
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
+ini_set('log_errors', 1);
+
+// Start output buffering to catch any accidental output
+if (!ob_get_level()) {
+    ob_start();
+}
+
 require_once 'common/database_utils.php';
 
 try {
-    // Get filter parameters
-    $startDate = $_GET['start_date'] ?? '';
-    $endDate = $_GET['end_date'] ?? '';
-    $firefighterId = $_GET['firefighter_id'] ?? '';
-    $barangay = $_GET['barangay'] ?? '';
+    // Get filter parameters with validation
+    $startDateRaw = $_GET['start_date'] ?? null;
+    $startDate = DatabaseUtils::sanitizeDate($startDateRaw);
+    if ($startDateRaw && !$startDate) {
+        DatabaseUtils::sendError('Invalid start date. Use YYYY-MM-DD format.');
+    }
+
+    $endDateRaw = $_GET['end_date'] ?? null;
+    $endDate = DatabaseUtils::sanitizeDate($endDateRaw);
+    if ($endDateRaw && !$endDate) {
+        DatabaseUtils::sendError('Invalid end date. Use YYYY-MM-DD format.');
+    }
+
+    $firefighterIdRaw = $_GET['firefighter_id'] ?? null;
+    $firefighterId = DatabaseUtils::sanitizeInt($firefighterIdRaw, 1);
+    if ($firefighterIdRaw !== null && $firefighterId === null) {
+        DatabaseUtils::sendError('Invalid firefighter identifier.');
+    }
+
+    $barangayRaw = $_GET['barangay'] ?? null;
+    $barangay = DatabaseUtils::sanitizeInt($barangayRaw, 1);
+    if ($barangayRaw !== null && $barangay === null) {
+        DatabaseUtils::sendError('Invalid barangay identifier.');
+    }
     
     // Build optimized query using common utilities
     $sql = "SELECT 
@@ -26,13 +55,13 @@ try {
     
     // Add date filters
     if (!empty($startDate)) {
-        $whereConditions[] = "DATE(r.timestamp) >= :start_date";
-        $params[':start_date'] = $startDate;
+        $whereConditions[] = "r.timestamp >= :start_date";
+        $params[':start_date'] = "{$startDate} 00:00:00";
     }
     
     if (!empty($endDate)) {
-        $whereConditions[] = "DATE(r.timestamp) <= :end_date";
-        $params[':end_date'] = $endDate;
+        $whereConditions[] = "r.timestamp <= :end_date";
+        $params[':end_date'] = "{$endDate} 23:59:59";
     }
     
     // Add firefighter filter

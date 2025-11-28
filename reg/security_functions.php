@@ -7,7 +7,48 @@
  * - Rate limiting (IP-based)
  * - Enhanced password hashing (argon2id/bcrypt)
  * - reCAPTCHA verification
+ * - Secure session configuration
  */
+
+if (!function_exists('configure_secure_session')) {
+    /**
+     * Configure secure session settings
+     * Should be called before session_start()
+     */
+    function configure_secure_session() {
+        // Only configure if session hasn't started
+        if (session_status() === PHP_SESSION_NONE) {
+            // Use cookies only (prevent session fixation)
+            ini_set('session.use_only_cookies', 1);
+            ini_set('session.use_strict_mode', 1);
+            
+            // Cookie security settings
+            $is_https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
+                        (!empty($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
+            
+            session_set_cookie_params([
+                'lifetime' => 0, // Session cookie (expires when browser closes)
+                'path' => '/',
+                'domain' => '',
+                'secure' => $is_https, // Only send over HTTPS if available
+                'httponly' => true, // Prevent JavaScript access
+                'samesite' => 'Strict' // CSRF protection
+            ]);
+        }
+    }
+}
+
+if (!function_exists('regenerate_session_id')) {
+    /**
+     * Regenerate session ID for security (prevent session fixation)
+     * Should be called after successful authentication
+     */
+    function regenerate_session_id() {
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_regenerate_id(true); // Delete old session file
+        }
+    }
+}
 
 if (!function_exists('generate_csrf_token')) {
     /**
@@ -98,8 +139,10 @@ if (!function_exists('check_rate_limit')) {
         $conn = getDatabaseConnection();
         
         try {
-            // Create rate_limits table if it doesn't exist
-            $conn->exec("CREATE TABLE IF NOT EXISTS rate_limits (
+            static $rateLimitTableEnsured = false;
+            if (!$rateLimitTableEnsured) {
+                // Create rate_limits table if it doesn't exist
+                $conn->exec("CREATE TABLE IF NOT EXISTS rate_limits (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 ip_address VARCHAR(45) NOT NULL,
                 action VARCHAR(50) NOT NULL,
@@ -110,9 +153,13 @@ if (!function_exists('check_rate_limit')) {
                 INDEX idx_ip_action (ip_address, action),
                 INDEX idx_last_attempt (last_attempt)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                $rateLimitTableEnsured = true;
+            }
             
             // Clean old records (older than time_window)
-            $conn->exec("DELETE FROM rate_limits WHERE last_attempt < DATE_SUB(NOW(), INTERVAL $time_window SECOND)");
+            $cutoff = date('Y-m-d H:i:s', time() - $time_window);
+            $cleanupStmt = $conn->prepare("DELETE FROM rate_limits WHERE last_attempt < ?");
+            $cleanupStmt->execute([$cutoff]);
             
             // Get or create rate limit record
             $stmt = $conn->prepare("

@@ -31,12 +31,12 @@ if ($stmt && $stmt->rowCount() > 0) {
     $heat = htmlspecialchars($row['heat']);
     $flame_detected = htmlspecialchars($row['flame_detected']);
     
-    // Only show alert for these statuses
-    $showAlert = in_array($status, ['EMERGENCY', 'MONITORING', 'ACKNOWLEDGED']);
-    // Only auto-refresh for these statuses
+    // Only show alert for EMERGENCY status
+    $showAlert = ($status === 'EMERGENCY');
+    // Only auto-refresh for EMERGENCY
     $shouldRefresh = $showAlert;
-    // Only speak for these statuses
-    $shouldSpeak = in_array($status, ['EMERGENCY']);
+    // Only speak for EMERGENCY
+    $shouldSpeak = ($status === 'EMERGENCY');
 } else {
     $building_type = "";
     $smoke = "";
@@ -45,15 +45,8 @@ if ($stmt && $stmt->rowCount() > 0) {
     $flame_detected = "";
 }
 
-// Determine initial alert class
-$alertClass = 'alert-warning';
-if ($status === 'EMERGENCY') {
-    $alertClass = 'alert-danger';
-} elseif ($status === 'MONITORING') {
-    $alertClass = 'alert-warning';
-} elseif ($status === 'ACKNOWLEDGED') {
-    $alertClass = 'alert-info';
-}
+// Determine initial alert class - only EMERGENCY shows
+$alertClass = 'alert-danger';
 ?>
 
 <!DOCTYPE html>
@@ -228,15 +221,12 @@ if ($status === 'EMERGENCY') {
 
 </head>
 <body>
-    <!-- Bootstrap Alert with Close Button - Only shown for EMERGENCY, MONITORING, ACKNOWLEDGED -->
+    <!-- Bootstrap Alert with Close Button - Only shown for EMERGENCY -->
     <?php if ($showAlert): ?>
     <div id="fireAlert" class="alert <?php echo $alertClass; ?> status-alert mb-4">
       <div class="alert-content">
         <span class="status-badge">
-          <i class="fas fa-<?php 
-            echo $status === 'EMERGENCY' ? 'exclamation-triangle' : 
-                 ($status === 'MONITORING' ? 'eye' : 'info-circle'); 
-          ?>"></i>
+          <i class="fas fa-exclamation-triangle"></i>
           <?php echo $status; ?>
         </span>
         
@@ -387,8 +377,8 @@ if ($status === 'EMERGENCY') {
       .then(response => response.json())
       .then(data => {
         const alertDiv = document.getElementById('fireAlert');
-        const showAlert = ['EMERGENCY', 'MONITORING', 'ACKNOWLEDGED'].includes(data.status);
-        const shouldSpeak = ['EMERGENCY'].includes(data.status);
+        const showAlert = (data.status === 'EMERGENCY');
+        const shouldSpeak = (data.status === 'EMERGENCY');
         
         if (!alertDiv && showAlert) {
           // Create alert div if it doesn't exist but should be shown
@@ -403,10 +393,7 @@ if ($status === 'EMERGENCY') {
             // Update content
             alertContent.innerHTML = `
               <span class="status-badge">
-                <i class="fas fa-${
-                  data.status === 'EMERGENCY' ? 'exclamation-triangle' : 
-                  data.status === 'MONITORING' ? 'eye' : 'info-circle'
-                }"></i>
+                <i class="fas fa-exclamation-triangle"></i>
                 ${data.status}
               </span>
               
@@ -431,16 +418,11 @@ if ($status === 'EMERGENCY') {
               </span>
             `;
             
-            // Update alert class based on status
-            alertDiv.className = `alert ${data.status === 'EMERGENCY' ? 'alert-danger' : 
-                                data.status === 'MONITORING' ? 'alert-warning' : 'alert-info'} status-alert mb-4`;
+            // Update alert class - only EMERGENCY shows
+            alertDiv.className = 'alert alert-danger status-alert mb-4';
             
             // Add pulse animation for emergency
-            if (data.status === 'EMERGENCY') {
-              alertDiv.style.animation = 'pulse 1.5s infinite';
-            } else {
-              alertDiv.style.animation = 'none';
-            }
+            alertDiv.style.animation = 'pulse 1.5s infinite';
             
             // Show the alert
             alertDiv.style.display = 'flex';
@@ -472,26 +454,18 @@ if ($status === 'EMERGENCY') {
 
   // Function to create alert div if it doesn't exist
   function createAlertDiv(data) {
-    const alertClass = data.status === 'EMERGENCY' ? 'alert-danger' : 
-                      data.status === 'MONITORING' ? 'alert-warning' : 'alert-info';
-    
-    const icon = data.status === 'EMERGENCY' ? 'exclamation-triangle' : 
-                data.status === 'MONITORING' ? 'eye' : 'info-circle';
-    
     const alertDiv = document.createElement('div');
     alertDiv.id = 'fireAlert';
-    alertDiv.className = `alert ${alertClass} status-alert mb-4`;
+    alertDiv.className = 'alert alert-danger status-alert mb-4';
     alertDiv.style.display = 'flex';
     
     // Add pulse animation for emergency
-    if (data.status === 'EMERGENCY') {
-      alertDiv.style.animation = 'pulse 1.5s infinite';
-    }
+    alertDiv.style.animation = 'pulse 1.5s infinite';
     
     alertDiv.innerHTML = `
       <div class="alert-content">
         <span class="status-badge">
-          <i class="fas fa-${icon}"></i>
+          <i class="fas fa-exclamation-triangle"></i>
           ${data.status}
         </span>
         

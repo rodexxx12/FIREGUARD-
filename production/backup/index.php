@@ -1,14 +1,20 @@
 <?php
-session_start();
-// Check if user is logged in (either officer or admin)
+require_once __DIR__ . '/../db/db.php';
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 if (!isset($_SESSION['admin_id']) && !isset($_SESSION['officer_id'])) {
     header('Location: ../../login/index.php');
     exit;
 }
 
-// Get existing backups
+$backupBaseDir = dirname(__DIR__, 2) . '/secure_storage/backups';
+
 function getBackups($type) {
-    $backup_dir = __DIR__ . '/backups/' . $type;
+    global $backupBaseDir;
+    $backup_dir = $backupBaseDir . '/' . $type;
     $backups = array();
     
     if (is_dir($backup_dir)) {

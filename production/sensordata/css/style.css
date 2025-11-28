@@ -357,4 +357,6 @@ table.table tbody tr:hover {
 	animation: shimmer 1.5s infinite;
 }
 
+/* Device, Date, and Time information - using original Bootstrap small and text-muted styles */
+
 

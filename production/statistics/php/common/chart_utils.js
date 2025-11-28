@@ -8,6 +8,18 @@ let alarmChart, barangayChart, incidentChart, responseChart;
 
 // Common utility functions
 const ChartUtils = {
+    escapeHtml(value) {
+        if (value === null || value === undefined) {
+            return '';
+        }
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    },
+
     // Enhanced number counting animation
     animateNumber(element, targetValue, duration = 2000) {
         const startValue = 0;
@@ -48,7 +60,13 @@ const ChartUtils = {
         }
         const container = element.parentElement;
         if (container) {
-            container.innerHTML = `<div class="error-message">${message}</div>`;
+            while (container.firstChild) {
+                container.removeChild(container.firstChild);
+            }
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message || 'Unable to load data.';
+            container.appendChild(errorDiv);
         }
     },
 
@@ -112,32 +130,53 @@ const ChartUtils = {
 const AlertSystem = {
     showAlert(type, title, message, duration = 5000) {
         const alertContainer = document.getElementById('alertContainer');
+        if (!alertContainer) {
+            console.error('Alert container not found');
+            return;
+        }
+
+        const allowedTypes = ['success', 'warning', 'danger', 'info'];
+        const sanitizedType = allowedTypes.includes(type) ? type : 'info';
         const alertId = 'alert-' + Date.now();
-        
-        const alertHTML = `
-            <div id="${alertId}" class="alert alert-${type}">
-                <div class="alert-icon">
-                    ${this.getAlertIcon(type)}
-                </div>
-                <div class="alert-content">
-                    <div class="alert-title">${title}</div>
-                    <div class="alert-message">${message}</div>
-                </div>
-                <button class="alert-close" onclick="AlertSystem.closeAlert('${alertId}')">&times;</button>
-            </div>
-        `;
-        
-        alertContainer.insertAdjacentHTML('beforeend', alertHTML);
-        
-        // Trigger smooth entrance animation
+
+        const alert = document.createElement('div');
+        alert.id = alertId;
+        alert.className = `alert alert-${sanitizedType}`;
+
+        const iconWrapper = document.createElement('div');
+        iconWrapper.className = 'alert-icon';
+        iconWrapper.textContent = this.getAlertIcon(sanitizedType);
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'alert-content';
+
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'alert-title';
+        titleDiv.textContent = title || '';
+
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'alert-message';
+        messageDiv.textContent = message || '';
+
+        contentDiv.appendChild(titleDiv);
+        contentDiv.appendChild(messageDiv);
+
+        const closeButton = document.createElement('button');
+        closeButton.className = 'alert-close';
+        closeButton.setAttribute('type', 'button');
+        closeButton.textContent = '×';
+        closeButton.addEventListener('click', () => this.closeAlert(alertId));
+
+        alert.appendChild(iconWrapper);
+        alert.appendChild(contentDiv);
+        alert.appendChild(closeButton);
+
+        alertContainer.appendChild(alert);
+
         setTimeout(() => {
-            const alert = document.getElementById(alertId);
-            if (alert) {
-                alert.classList.add('show');
-            }
+            alert.classList.add('show');
         }, 10);
-        
-        // Auto-close after duration
+
         if (duration > 0) {
             setTimeout(() => {
                 this.closeAlert(alertId);

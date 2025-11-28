@@ -1,37 +1,42 @@
-// Configuration
-const config = {
-    fireStation: { 
-        lat: 10.525467693871333, 
-        lng: 122.84123838118607, 
-        name: "Bago City Fire Station",
-        contact: "(034) 461-1234"
-    },
-    buildings: window.buildingsData || [],
-    apiEndpoint: "server.php",
-    updateInterval: 30000, // 30 seconds
-    heatmapRadius: 25,
-    heatmapBlur: 15,
-    statusThresholds: {
-        Safe: { smoke: 20, temp: 30, heat: 30 },
-        Monitoring: { smoke: 50, temp: 50, heat: 50 },
-        Acknowledged: { smoke: 100, temp: 100, heat: 100 },
-        Emergency: { smoke: 200, temp: 200, heat: 200 }
-    },
-    userId: window.userId || 0,
-    mapboxAccessToken: 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw',
-    // TTS Configuration
-    tts: {
-        enabled: true,
-        voice: null,
-        rate: 1.0,
-        pitch: 1.0,
-        volume: 0.8,
-        autoSpeak: true,
-        speakDirections: true,
-        speakStatus: true,
-        speakETA: true
-    }
-};
+// Configuration - Use window.config to avoid conflicts with other scripts
+if (typeof window.mapConfig === 'undefined') {
+    window.mapConfig = {
+        fireStation: { 
+            lat: 10.525467693871333, 
+            lng: 122.84123838118607, 
+            name: "Bago City Fire Station",
+            contact: "(034) 461-1234",
+            address: "City Hall Complex, Bago City, Negros Occidental, Philippines"
+        },
+        buildings: window.buildingsData || [],
+        apiEndpoint: "server.php",
+        updateInterval: 30000, // 30 seconds
+        heatmapRadius: 25,
+        heatmapBlur: 15,
+        statusThresholds: {
+            Safe: { smoke: 20, temp: 30, heat: 30 },
+            Monitoring: { smoke: 50, temp: 50, heat: 50 },
+            Acknowledged: { smoke: 100, temp: 100, heat: 100 },
+            Emergency: { smoke: 200, temp: 200, heat: 200 }
+        },
+        userId: window.userId || 0,
+        mapboxAccessToken: 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw',
+        // TTS Configuration
+        tts: {
+            enabled: true,
+            voice: null,
+            rate: 1.0,
+            pitch: 1.0,
+            volume: 0.8,
+            autoSpeak: true,
+            speakDirections: true,
+            speakStatus: true,
+            speakETA: true
+        }
+    };
+}
+// Alias for backward compatibility
+const config = window.mapConfig;
     
 // Global variables
 let map, fireMarkers, heatLayer, routingControl;
@@ -128,7 +133,7 @@ function addFireStationMarker() {
         <div class="text-center">
             <h5 class="fw-bold mb-2">${config.fireStation.name}</h5>
             <p class="mb-1"><i class="bi bi-telephone me-2"></i>${config.fireStation.contact}</p>
-            <p class="mb-0"><i class="bi bi-geo-alt me-2"></i>${config.fireStation.lat.toFixed(6)}, ${config.fireStation.lng.toFixed(6)}</p>
+            <p class="mb-0"><i class="bi bi-geo-alt me-2"></i>${config.fireStation.address || `${config.fireStation.lat.toFixed(6)}, ${config.fireStation.lng.toFixed(6)}`}</p>
         </div>
     `)
     .bindTooltip(config.fireStation.name, { 
@@ -414,12 +419,21 @@ function initBuildingDetailsModal() {
     
 // Initialize event listeners
 function initEventListeners() {
-    // Route buttons
-    document.getElementById('routeToStation').addEventListener('click', showRouteToStation);
-    document.getElementById('clearRoute').addEventListener('click', clearRoute);
-    document.getElementById('locate-emergency').addEventListener('click', locateEmergency);
+    // Route buttons - with null checks
+    const routeToStationBtn = document.getElementById('routeToStation');
+    if (routeToStationBtn) {
+        routeToStationBtn.addEventListener('click', showRouteToStation);
+    }
     
-
+    const clearRouteBtn = document.getElementById('clearRoute');
+    if (clearRouteBtn) {
+        clearRouteBtn.addEventListener('click', clearRoute);
+    }
+    
+    const locateEmergencyBtn = document.getElementById('locate-emergency');
+    if (locateEmergencyBtn) {
+        locateEmergencyBtn.addEventListener('click', locateEmergency);
+    }
     
     // Filter legend
     document.querySelectorAll('.filter-legend').forEach(item => {
@@ -434,8 +448,11 @@ function initEventListeners() {
         });
     });
     
-    // Refresh button
-    document.getElementById('refresh-btn').addEventListener('click', fetchFireData);
+    // Refresh button - with null check
+    const refreshBtn = document.getElementById('refresh-btn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', fetchFireData);
+    }
     // View on map buttons
     document.addEventListener('click', function(e) {
         if (e.target.classList.contains('view-on-map')) {
@@ -1054,6 +1071,35 @@ function showAlert(type, message, autoClose = true) {
         warning: 'warning',
         info: 'info'
     }[type] || 'info';
+    
+    // Check if there's an open emergency modal from alarm.php - don't interfere with it
+    if (typeof Swal !== 'undefined') {
+        const existingPopup = Swal.getPopup();
+        if (existingPopup) {
+            const title = existingPopup.querySelector('.swal2-title');
+            // If there's an emergency alert open, use a toast that won't interfere
+            if (title && (title.textContent.includes('🚨') || title.textContent.includes('EMERGENCY STATUS'))) {
+                // Use a non-blocking toast notification instead
+                const Toast = Swal.mixin({
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: autoClose ? 3000 : undefined,
+                    timerProgressBar: autoClose,
+                    didOpen: (toast) => {
+                        toast.addEventListener('mouseenter', Swal.stopTimer)
+                        toast.addEventListener('mouseleave', Swal.resumeTimer)
+                    }
+                });
+                
+                Toast.fire({
+                    icon: icon,
+                    title: message
+                });
+                return; // Exit early to avoid closing the emergency modal
+            }
+        }
+    }
     
     const Toast = Swal.mixin({
         toast: true,

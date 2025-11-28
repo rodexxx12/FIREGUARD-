@@ -461,7 +461,7 @@ $totalBarangays = count($barangays);
                 const startItem = this.barangays.length > 0 ? (this.currentPage - 1) * this.itemsPerPage + 1 : 0;
                 const endItem = Math.min(this.currentPage * this.itemsPerPage, this.barangays.length);
                 showingInfoElement.textContent = 
-                    `Showing ${startItem}-${endItem} of ${this.barangays.length} IR numbers`;
+                    `Showing ${startItem}-${endItem} of ${this.barangays.length} barangays`;
             },
             
             sortBarangays() {

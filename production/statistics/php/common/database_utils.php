@@ -4,7 +4,13 @@
  * Reduces code duplication across all statistics files
  */
 
+// Suppress error output for JSON responses
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
+ini_set('log_errors', 1);
+
 require_once '../../../db/db.php';
+require_once dirname(__DIR__, 3) . '/components/cache.php';
 
 class DatabaseUtils {
     
@@ -13,6 +19,27 @@ class DatabaseUtils {
      */
     public static function getConnection() {
         return getDatabaseConnection();
+    }
+
+    /**
+     * Cache arbitrary payloads using the shared cache helper.
+     */
+    public static function remember(string $namespace, array $payload, callable $callback, int $ttl = 60) {
+        if (!class_exists('CacheHelper')) {
+            return $callback();
+        }
+
+        $key = CacheHelper::buildKey($namespace, $payload);
+        return CacheHelper::remember($key, $ttl, $callback);
+    }
+
+    /**
+     * Cache the result of a query plus bindings to avoid N+1 hits.
+     */
+    public static function cachedQuery(string $namespace, string $sql, array $params = [], int $ttl = 60) {
+        return self::remember($namespace, ['sql' => $sql, 'params' => $params], function () use ($sql, $params) {
+            return self::executeQuery($sql, $params);
+        }, $ttl);
     }
     
     /**
@@ -83,6 +110,12 @@ class DatabaseUtils {
      * Standardize JSON response format
      */
     public static function sendResponse($success, $data = null, $message = '', $debug = null) {
+        // Clear any previous output buffers safely
+        $obLevel = ob_get_level();
+        for ($i = 0; $i < $obLevel; $i++) {
+            @ob_end_clean();
+        }
+        
         $response = [
             'success' => $success,
             'message' => $message
@@ -96,15 +129,23 @@ class DatabaseUtils {
             $response['debug'] = $debug;
         }
         
-        header('Content-Type: application/json');
-        echo json_encode($response);
+        // Ensure headers haven't been sent
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
+        }
+        
+        echo json_encode($response, JSON_UNESCAPED_UNICODE);
+        exit;
     }
     
     /**
      * Standardize error response
      */
     public static function sendError($message, $error = null) {
-        self::sendResponse(false, null, $message, $error ? ['error' => $error] : null);
+        if ($error) {
+            error_log("API Error: {$message} - " . self::stringifyError($error));
+        }
+        self::sendResponse(false, null, $message);
     }
     
     /**
@@ -167,6 +208,69 @@ class DatabaseUtils {
             }, $data);
         }
         return max(0, $data ?? 0);
+    }
+
+    /**
+     * Normalize Y-m-d date input
+     */
+    public static function sanitizeDate($value) {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        $date = DateTime::createFromFormat('Y-m-d', $value);
+        return $date ? $date->format('Y-m-d') : null;
+    }
+
+    /**
+     * Sanitize integer parameter with optional range
+     */
+    public static function sanitizeInt($value, $min = null, $max = null) {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        if (filter_var($value, FILTER_VALIDATE_INT) === false) {
+            return null;
+        }
+        $intVal = (int)$value;
+        if ($min !== null && $intVal < $min) {
+            return null;
+        }
+        if ($max !== null && $intVal > $max) {
+            return null;
+        }
+        return $intVal;
+    }
+
+    /**
+     * Ensure value belongs to allowed enum
+     */
+    public static function sanitizeEnum($value, array $allowed) {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        $upperValue = strtoupper($value);
+        $allowedUpper = array_map('strtoupper', $allowed);
+        return in_array($upperValue, $allowedUpper, true) ? $upperValue : null;
+    }
+
+    /**
+     * Determine if debug logging enabled
+     */
+    public static function isDebugEnabled() {
+        return filter_var(getenv('APP_DEBUG') ?? false, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    private static function stringifyError($error) {
+        if (is_string($error)) {
+            return $error;
+        }
+        if (is_array($error)) {
+            return json_encode($error);
+        }
+        if ($error instanceof Throwable) {
+            return $error->getMessage();
+        }
+        return print_r($error, true);
     }
 }
 ?>

@@ -18,16 +18,28 @@ function handleAjaxRequest() {
         if (!isset($_POST['action'])) {
             throw new Exception('No action specified');
         }
+        $action = $_POST['action'];
         if (!isset($_POST['csrf_token'])) {
             throw new Exception('CSRF token is missing');
         }
-        if (!validateCsrfToken($_POST['csrf_token'])) {
+        $csrfToken = $_POST['csrf_token'];
+        $formMap = [
+            'login' => 'login_form',
+            'forgot_password' => 'forgot_password_form',
+            'reset_password' => 'reset_password_form',
+            'contact_form' => 'contact_form'
+        ];
+        $formKey = $formMap[$action] ?? 'default';
+        if (!validateCsrfToken($csrfToken, $formKey)) {
             throw new Exception('Invalid or expired CSRF token. Please refresh the page and try again.');
         }
         $response = [];
-        switch ($_POST['action']) {
+        if ($action === 'login') {
+            ensureRecaptchaPasses($_POST);
+        }
+        switch ($action) {
             case 'login':
-                $username = trim(sanitizeInput($_POST['username'] ?? ''));
+                $username = sanitizeInput($_POST['username'] ?? '', 64);
                 $password = $_POST['password'] ?? '';
                 $remember = isset($_POST['remember']);
                 
@@ -84,17 +96,6 @@ function handleAjaxRequest() {
                     throw new Exception('Failed to reset password. Please try again.');
                 }
                 break;
-            case 'validate_credentials':
-                $username = trim(sanitizeInput($_POST['username'] ?? ''));
-                $password = $_POST['password'] ?? '';
-                
-                // Basic validation
-                if (empty($username) || empty($password)) {
-                    $response = ['valid' => false, 'message' => 'Please enter both username and password'];
-                } else {
-                    $response = validateCredentials($username, $password);
-                }
-                break;
             case 'contact_form':
                 handleContactFormSubmission();
                 break;
@@ -109,118 +110,15 @@ function handleAjaxRequest() {
     exit();
 }
 
-/**
- * Validate credentials against all user tables without logging in
- * This is used for real-time validation feedback
- */
-function validateCredentials($username, $password) {
-    $conn = getDatabaseConnection();
-    
-    // Trim and sanitize username
-    $username = trim($username);
-    
-    // Basic validation
-    if (empty($username) || empty($password)) {
-        return ['valid' => false, 'message' => 'Please enter both username and password'];
+function ensureRecaptchaPasses(array $post): void {
+    if ((string)loginEnv('RECAPTCHA_SECRET_KEY', '') === '') {
+        error_log('reCAPTCHA secret key missing. Skipping verification until configured.');
+        return;
     }
-    
-    // Check superadmin table (username or email)
-    try {
-        $identifier = $username;
-        $identifierField = filter_var($identifier, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
-        $stmt = $conn->prepare("
-            SELECT superadmin_id, username, email, password, status
-            FROM superadmin 
-            WHERE {$identifierField} = ? 
-            LIMIT 1
-        ");
-        $stmt->execute([$identifier]);
-        if ($stmt->rowCount() > 0) {
-            $user = $stmt->fetch();
-            if (password_verify($password, $user['password'])) {
-                if (strtolower($user['status'] ?? '') !== 'active') {
-                    return ['valid' => false, 'message' => 'Your superadmin account is inactive'];
-                }
-                return [
-                    'valid' => true,
-                    'message' => 'Credentials are correct',
-                    'user_type' => 'superadmin'
-                ];
-            }
-        }
-    } catch (PDOException $e) {
-        error_log("Error validating superadmin credentials: " . $e->getMessage());
+    $captcha = $post['g-recaptcha-response'] ?? '';
+    if (!verifyRecaptchaResponse($captcha, getClientIp())) {
+        throw new Exception('Please complete the reCAPTCHA challenge.');
     }
-
-    // Check admin table
-    try {
-        $stmt = $conn->prepare("
-            SELECT admin_id, username, password, status 
-            FROM admin 
-            WHERE username = ? 
-            LIMIT 1
-        ");
-        $stmt->execute([$username]);
-        if ($stmt->rowCount() > 0) {
-            $user = $stmt->fetch();
-            if ($user['status'] !== 'Active') {
-                return ['valid' => false, 'message' => 'Your account is inactive'];
-            }
-            if (password_verify($password, $user['password'])) {
-                return ['valid' => true, 'message' => 'Credentials are correct', 'user_type' => 'admin'];
-            }
-        }
-    } catch (PDOException $e) {
-        error_log("Error validating admin credentials: " . $e->getMessage());
-    }
-
-    // Check users table
-    try {
-        $stmt = $conn->prepare("
-            SELECT user_id, username, password, status
-            FROM users 
-            WHERE LOWER(TRIM(username)) = LOWER(TRIM(?))
-            LIMIT 1
-        ");
-        $stmt->execute([$username]);
-        if ($stmt->rowCount() > 0) {
-            $user = $stmt->fetch();
-            $status = strtolower(trim($user['status'] ?? ''));
-            if ($status !== 'active') {
-                return ['valid' => false, 'message' => 'Your account is inactive'];
-            }
-            if (!empty($user['password']) && password_verify($password, $user['password'])) {
-                return ['valid' => true, 'message' => 'Credentials are correct', 'user_type' => 'user'];
-            }
-        }
-    } catch (PDOException $e) {
-        error_log("Error validating user credentials: " . $e->getMessage());
-    }
-
-    // Check firefighters table
-    try {
-        $stmt = $conn->prepare("
-            SELECT id, username, password, availability 
-            FROM firefighters 
-            WHERE username = ? 
-            LIMIT 1
-        ");
-        $stmt->execute([$username]);
-        if ($stmt->rowCount() > 0) {
-            $user = $stmt->fetch();
-            if ($user['availability'] !== 1) {
-                return ['valid' => false, 'message' => 'Your account is currently unavailable'];
-            }
-            if (password_verify($password, $user['password'])) {
-                return ['valid' => true, 'message' => 'Credentials are correct', 'user_type' => 'firefighter'];
-            }
-        }
-    } catch (PDOException $e) {
-        error_log("Error validating firefighter credentials: " . $e->getMessage());
-    }
-
-    // No matching credentials found
-    return ['valid' => false, 'message' => 'Invalid username or password'];
 }
 
 // Handle AJAX requests when this file is called directly

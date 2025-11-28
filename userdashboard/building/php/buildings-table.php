@@ -1,7 +1,7 @@
 <?php
 session_start();
 if (!isset($_SESSION['user_id'])) {
-    header("Location: ../../../index.php");
+    header("Location: ../../../../index.php");
     exit();
 }
 
@@ -13,21 +13,106 @@ if (!function_exists('getDBConnection')) {
     }
 }
 
+// ============================================
+// SECURITY: CSRF Token Functions
+// ============================================
+function generateCSRFToken() {
+    if (!isset($_SESSION['csrf_token']) || !isset($_SESSION['csrf_token_time']) || 
+        (time() - $_SESSION['csrf_token_time']) > 3600) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        $_SESSION['csrf_token_time'] = time();
+    }
+    return $_SESSION['csrf_token'];
+}
+
+function validateCSRFToken($token) {
+    if (!isset($_SESSION['csrf_token'])) {
+        error_log("CSRF validation failed: No token in session");
+        return false;
+    }
+    
+    if (!hash_equals($_SESSION['csrf_token'], $token)) {
+        error_log("CSRF validation failed: Token mismatch from IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+        return false;
+    }
+    
+    return true;
+}
+
+/**
+ * Secure input sanitization
+ */
+function sanitizeInput($input, $type = 'string', $maxLength = null) {
+    if ($input === null || $input === '') {
+        return null;
+    }
+    
+    $input = str_replace(["\0", "\x00"], '', $input);
+    $input = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $input);
+    
+    switch ($type) {
+        case 'string':
+            $input = trim($input);
+            $input = strip_tags($input);
+            if ($maxLength !== null && mb_strlen($input) > $maxLength) {
+                $input = mb_substr($input, 0, $maxLength);
+            }
+            break;
+            
+        case 'int':
+            $input = filter_var($input, FILTER_VALIDATE_INT);
+            if ($input === false) {
+                return null;
+            }
+            break;
+            
+        case 'float':
+            $input = filter_var($input, FILTER_VALIDATE_FLOAT);
+            if ($input === false) {
+                return null;
+            }
+            break;
+    }
+    
+    return $input;
+}
+
 // Handle DELETE request for removing a building
 if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
     header('Content-Type: application/json');
 
     try {
-        $input = json_decode(file_get_contents('php://input'), true);
+        // ============================================
+        // SECURITY: JSON Input Validation with CSRF
+        // ============================================
+        $raw_input = file_get_contents('php://input');
+        if (empty($raw_input)) {
+            throw new Exception('No input provided');
+        }
+        
+        $input = json_decode($raw_input, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new Exception('Invalid JSON input');
+        }
+
+        // Validate CSRF token
+        if (!isset($input['csrf_token']) || !validateCSRFToken($input['csrf_token'])) {
+            http_response_code(403);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Security validation failed. Please refresh the page and try again.'
+            ]);
+            exit;
+        }
 
         if (!isset($input['building_id'])) {
             throw new Exception('Building ID is required');
         }
 
-        $building_id = intval($input['building_id']);
+        $building_id = sanitizeInput($input['building_id'], 'int');
         $user_id = $_SESSION['user_id'] ?? 0;
 
-        if ($building_id <= 0) {
+        if ($building_id === null || $building_id <= 0) {
             throw new Exception('Invalid building ID');
         }
 
@@ -56,54 +141,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
         ]);
 
     } catch (Exception $e) {
+        error_log("Building deletion error: " . $e->getMessage());
         http_response_code(500);
         echo json_encode([
             'status' => 'error',
-            'message' => $e->getMessage()
+            'message' => 'Failed to delete building. Please try again.'
         ]);
     }
     exit;
 }
 
-// Handle AJAX request for fetching building data
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] === 'get_building') {
-    header('Content-Type: application/json');
+// Generate CSRF token for JavaScript
+$csrf_token = generateCSRFToken();
 
-    if (!isset($_GET['building_id'])) {
-        echo json_encode(['status' => 'error', 'message' => 'Building ID is required']);
-        exit;
-    }
-
-    try {
-        $conn = getDBConnection();
-        $building_id = intval($_GET['building_id']);
-        $user_id = $_SESSION['user_id'];
-
-        $stmt = $conn->prepare("SELECT * FROM buildings WHERE id = ? AND user_id = ?");
-        $stmt->execute([$building_id, $user_id]);
-        $building = $stmt->fetch();
-
-        if (!$building) {
-            echo json_encode(['status' => 'error', 'message' => 'Building not found or not authorized']);
-            exit;
-        }
-
-        $building['has_sprinkler_system'] = (bool)$building['has_sprinkler_system'];
-        $building['has_fire_alarm'] = (bool)$building['has_fire_alarm'];
-        $building['has_fire_extinguishers'] = (bool)$building['has_fire_extinguishers'];
-        $building['has_emergency_exits'] = (bool)$building['has_emergency_exits'];
-        $building['has_emergency_lighting'] = (bool)$building['has_emergency_lighting'];
-        $building['has_fire_escape'] = (bool)$building['has_fire_escape'];
-
-        echo json_encode(['status' => 'success', 'data' => $building]);
-
-    } catch (Exception $e) {
-        echo json_encode(['status' => 'error', 'message' => 'Failed to fetch building data: ' . $e->getMessage()]);
-    }
-    exit;
-}
-
-// Fetch all buildings for the table
 // Fetch all buildings for the table
 $buildings = [];
 if (isset($_SESSION['user_id'])) {
@@ -119,6 +169,9 @@ if (isset($_SESSION['user_id'])) {
 
 include('../../components/header.php');
 ?>
+<!-- DataTables Buttons CSS -->
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css">
+
 <style>
 
     .page-title {
@@ -180,6 +233,177 @@ include('../../components/header.php');
         background-color: #2ecc71;
         color: #fff;
     }
+
+    /* Align DataTables length menu and search controls in one row */
+    .dataTables_wrapper {
+        padding: 0;
+    }
+
+    .dataTables_wrapper .row:first-child,
+    .dataTables_wrapper .dt-buttons + .row,
+    .dataTables_wrapper > .row:first-of-type {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        margin: 0 0 15px 0 !important;
+        padding: 0 !important;
+        flex-wrap: nowrap !important;
+        width: 100% !important;
+    }
+    
+
+    .dataTables_wrapper .row:first-child > div,
+    .dataTables_wrapper .row:first-child > div[class*="col"],
+    .dataTables_wrapper .dt-buttons + .row > div,
+    .dataTables_wrapper > .row:first-of-type > div {
+        flex: 0 0 auto !important;
+        width: auto !important;
+        max-width: none !important;
+        float: none !important;
+        display: inline-block !important;
+        margin: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    /* Position search filter container at the right corner */
+    .dataTables_wrapper .row:first-child > div:last-child,
+    .dataTables_wrapper .dt-buttons + .row > div:last-child,
+    .dataTables_wrapper > .row:first-of-type > div:last-child {
+        margin-left: auto !important;
+        flex: 0 0 auto !important;
+        width: auto !important;
+        max-width: none !important;
+        order: 999 !important;
+    }
+
+    .dataTables_wrapper .dataTables_length {
+        float: none !important;
+        text-align: left !important;
+        margin-bottom: 0 !important;
+        padding: 0 !important;
+        order: 1;
+        display: inline-block !important;
+        vertical-align: middle !important;
+    }
+
+    .dataTables_wrapper .dataTables_filter {
+        float: none !important;
+        text-align: right !important;
+        margin-bottom: 0 !important;
+        margin-left: auto !important;
+        padding: 0 !important;
+        order: 999 !important;
+        display: inline-block !important;
+        vertical-align: middle !important;
+        width: auto !important;
+        flex: 0 0 auto !important;
+    }
+
+    .dataTables_wrapper .dataTables_length label {
+        margin-bottom: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px;
+        font-weight: normal;
+        white-space: nowrap;
+        width: auto !important;
+        vertical-align: middle !important;
+    }
+
+    .dataTables_wrapper .dataTables_filter label {
+        margin-bottom: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        gap: 8px;
+        font-weight: normal;
+        white-space: nowrap;
+        width: auto !important;
+        vertical-align: middle !important;
+    }
+
+    .dataTables_wrapper .dataTables_length select {
+        margin: 0 5px;
+        padding: 5px 8px;
+        border-radius: 4px;
+        border: 1px solid #ced4da;
+        display: inline-block;
+    }
+
+    .dataTables_wrapper .dataTables_filter input {
+        margin-left: 10px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        border: 1px solid #ced4da;
+        display: inline-block;
+    }
+
+    /* Align DataTables info and pagination in one row */
+    .dataTables_wrapper .row:last-child {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        margin: 15px 0 0 0 !important;
+        padding: 0 !important;
+        flex-wrap: nowrap !important;
+    }
+
+    .dataTables_wrapper .row:last-child > div {
+        flex: 0 0 auto !important;
+        width: auto !important;
+        max-width: none !important;
+    }
+
+    .dataTables_wrapper .dataTables_info {
+        float: none !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+        order: 1;
+    }
+
+    .dataTables_wrapper .dataTables_paginate {
+        float: none !important;
+        text-align: right !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+        order: 2;
+    }
+
+    @media (max-width: 768px) {
+        .dataTables_wrapper .row:first-child {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 15px;
+        }
+
+        .dataTables_wrapper .dataTables_length,
+        .dataTables_wrapper .dataTables_filter {
+            text-align: left !important;
+            width: 100%;
+        }
+
+        .dataTables_wrapper .dataTables_filter input {
+            width: 100%;
+            margin-left: 0;
+            margin-top: 5px;
+        }
+
+        .dataTables_wrapper .row:last-child {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 15px;
+        }
+
+        .dataTables_wrapper .dataTables_info,
+        .dataTables_wrapper .dataTables_paginate {
+            text-align: left !important;
+            width: 100%;
+        }
+    }
 </style>
 </head>
 <body class="nav-md">
@@ -191,18 +415,6 @@ include('../../components/header.php');
         </div>
         <?php include('../../components/navigation.php')?>
         <div class="right_col" role="main"> 
-        <div class="page-title">
-            <div class="title_left">
-
-           
-            <div class="title_right">
-                
-            </div>
-           
-        </div>
-         </div>
-        <div class="clearfix"></div>
-
         <?php if (empty($buildings)): ?>
             <div class="x_panel mt-4">
                 <div class="x_content">
@@ -221,7 +433,7 @@ include('../../components/header.php');
                 <div class="col-md-12 col-sm-12">
                     <div class="x_panel table-card">
                         <div class="x_title">
-                            <h2>Default Example <small>Registered Buildings</small></h2>
+                            <h2><small>Registered Buildings</small></h2>
                             <ul class="nav navbar-right panel_toolbox">
                                 <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a></li>
                                 <li class="dropdown">
@@ -229,24 +441,17 @@ include('../../components/header.php');
                                     <div class="dropdown-menu" role="menu">
                                         <a class="dropdown-item" href="main.php">Register New Building</a>
                                         <a class="dropdown-item" href="#" id="panelRefresh">Refresh Table</a>
+                                        <div class="dropdown-divider"></div>
+                                        <a class="dropdown-item" href="#" id="toolboxCopy"><i class="bi bi-clipboard"></i> Copy</a>
+                                        <a class="dropdown-item" href="#" id="toolboxCSV"><i class="bi bi-filetype-csv"></i> CSV</a>
+                                        <a class="dropdown-item" href="#" id="toolboxPrint"><i class="bi bi-printer"></i> Print</a>
                                     </div>
                                 </li>
-                                <li><a class="close-link"><i class="fa fa-close"></i></a></li>
+                                <!-- <li><a class="close-link"><i class="fa fa-close"></i></a></li> -->
                             </ul>
                             <div class="clearfix"></div>
                         </div>
                         <div class="x_content">
-                            <p class="text-muted font-13 m-b-30">
-                                DataTables has most features enabled by default, so all you need to do is call the constructor: <code>$().DataTable();</code>
-                            </p>
-                            <div class="d-flex flex-wrap gap-2 mb-3">
-                                <a href="main.php" class="btn btn-success">
-                                    <i class="bi bi-plus-lg"></i> Register New Building
-                                </a>
-                                <button class="btn btn-outline-secondary" id="refreshBuildings">
-                                    <i class="bi bi-arrow-repeat"></i> Refresh
-                                </button>
-                            </div>
                             <div class="table-responsive">
                                 <table id="buildingsTable" class="table table-striped table-bordered jambo_table bulk_action">
                                     <thead>
@@ -289,9 +494,6 @@ include('../../components/header.php');
                                                 <td><?php echo !empty($building['last_inspected']) ? date('M d, Y', strtotime($building['last_inspected'])) : 'Never'; ?></td>
                                                 <td class="last">
                                                     <div class="btn-group" role="group">
-                                                        <button class="btn btn-info btn-sm view-building" data-id="<?php echo $building['id']; ?>" title="View">
-                                                            <i class="bi bi-eye-fill"></i>
-                                                        </button>
                                                         <button class="btn btn-warning btn-sm edit-building" data-id="<?php echo $building['id']; ?>" title="Edit">
                                                             <i class="bi bi-pencil-square"></i>
                                                         </button>
@@ -312,29 +514,23 @@ include('../../components/header.php');
         <?php endif; ?>
     </div>
 
-    <!-- Building Details Modal -->
-    <div class="modal fade" id="buildingDetailsModal" tabindex="-1" aria-labelledby="buildingDetailsModalLabel">
-        <div class="modal-dialog modal-xl modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="buildingDetailsModalLabel">Building Details</h5>
-                    <button type="button" class="btn-close" id="closeModalBtn" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <!-- Content injected dynamically -->
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" id="closeModalBtnFooter">Close</button>
-                    <button type="button" class="btn btn-primary" id="editBuildingBtn">Edit Building</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <?php include('../../components/footer.php'); ?>
 
+    <?php include('../../components/scripts.php'); ?>
+    
+    <!-- Reload DataTables core after scripts.php to ensure it attaches to the correct jQuery instance -->
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    
+    <!-- DataTables Buttons Extension JS - Load after scripts.php to ensure jQuery is available -->
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
+    
+    <!-- Initialize buildings table after all scripts are loaded -->
     <script>
-        $(document).ready(function() {
+        (function() {
             const endpoint = 'buildings-table.php';
             let buildingsTable;
 
@@ -344,8 +540,40 @@ include('../../components/header.php');
                     return;
                 }
 
+                // Check if DataTables is loaded
+                if (typeof $.fn.DataTable === 'undefined') {
+                    console.error('DataTables is not loaded');
+                    setTimeout(initializeBuildingsTable, 100);
+                    return;
+                }
+
+                // Check if DataTables Buttons extension is loaded
+                if (typeof $.fn.DataTable.Buttons === 'undefined') {
+                    console.warn('DataTables Buttons extension is not loaded, initializing without buttons');
+                    // Try to initialize without buttons
+                    buildingsTable = $buildingsTable.DataTable({
+                        processing: true,
+                        responsive: true,
+                        autoWidth: false,
+                        pageLength: 10,
+                        lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'All']],
+                        language: {
+                            lengthMenu: 'Show _MENU_ entries',
+                            search: 'Search:',
+                            info: 'Showing _START_ to _END_ of _TOTAL_ buildings',
+                            infoEmpty: 'No buildings to display',
+                            zeroRecords: 'No matching buildings found',
+                            paginate: {
+                                previous: 'Prev',
+                                next: 'Next'
+                            }
+                        }
+                    });
+                    return;
+                }
+
                 buildingsTable = $buildingsTable.DataTable({
-                    dom: "Blfrtip",
+                    dom: "lfrtip",
                     buttons: [
                         { extend: 'copy', className: 'btn-sm btn-outline-primary' },
                         { extend: 'csv', className: 'btn-sm btn-outline-primary' },
@@ -372,256 +600,164 @@ include('../../components/header.php');
                 });
             }
 
-            initializeBuildingsTable();
-
-            $('#refreshBuildings, #panelRefresh').on('click', function(event) {
-                if (event) {
-                    event.preventDefault();
+            // Wait for jQuery and then initialize
+            function waitForJQuery(callback) {
+                if (typeof jQuery !== 'undefined' && typeof $ !== 'undefined') {
+                    $(document).ready(function() {
+                        // Small delay to ensure all DataTables scripts are loaded
+                        setTimeout(function() {
+                            initializeBuildingsTable();
+                            callback();
+                        }, 100);
+                    });
+                } else {
+                    setTimeout(function() {
+                        waitForJQuery(callback);
+                    }, 50);
                 }
-                $(this).addClass('disabled');
-                location.reload();
-            });
+            }
 
-            $('#globalSearchBtn').on('click', function () {
-                const query = $('#globalSearchInput').val();
-                if (buildingsTable) {
-                    buildingsTable.search(query).draw();
-                }
-            });
-
-            $('#globalSearchInput').on('keyup', function (e) {
-                if (!buildingsTable) return;
-                if (e.key === 'Enter') {
-                    buildingsTable.search(this.value).draw();
-                } else if (!this.value.length) {
-                    buildingsTable.search('').draw();
-                }
-            });
-
-            $(document).on('change', '#check-all', function() {
-                const isChecked = $(this).prop('checked');
-                $('.building-select').prop('checked', isChecked);
-            });
-
-            $(document).on('change', '.building-select', function() {
-                const total = $('.building-select').length;
-                const checked = $('.building-select:checked').length;
-                $('#check-all').prop('checked', total === checked);
-            });
-
-            $(document).on('click', '.view-building', function() {
-                const buildingId = $(this).data('id');
-
-                Swal.fire({
-                    title: 'Loading Building Details',
-                    allowOutsideClick: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                        $.ajax({
-                            url: endpoint,
-                            method: 'GET',
-                            dataType: 'json',
-                            data: {
-                                action: 'get_building',
-                                building_id: buildingId
-                            },
-                            success: function(response) {
-                                Swal.close();
-                                if (response.status === 'success') {
-                                    const building = response.data;
-
-                                    const formatValue = (value, fallback = 'Not provided') => {
-                                        if (value === null || value === undefined) {
-                                            return fallback;
-                                        }
-                                        const trimmed = value.toString().trim();
-                                        return trimmed.length ? trimmed : fallback;
-                                    };
-
-                                    const formatNumberValue = (value, fallback = 'Not provided') => {
-                                        if (value === null || value === undefined || value === '' || Number.isNaN(Number(value))) {
-                                            return fallback;
-                                        }
-                                        return value;
-                                    };
-
-                                    const formatDateValue = (value) => {
-                                        if (!value) {
-                                            return 'Not inspected';
-                                        }
-                                        const parsedDate = new Date(value);
-                                        if (Number.isNaN(parsedDate.getTime())) {
-                                            return value;
-                                        }
-                                        return parsedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                                    };
-
-                                    const capitalize = (value) => {
-                                        const formatted = formatValue(value, 'Unspecified');
-                                        return formatted.charAt(0).toUpperCase() + formatted.slice(1);
-                                    };
-
-                                    const detailItem = (label, value) => `
-                                        <div class="detail-item">
-                                            <span class="detail-label">${label}</span>
-                                            <span class="detail-item-value">${value}</span>
-                                        </div>
-                                    `;
-
-                                    const safetyFeatures = [
-                                        { label: 'Sprinkler System', active: !!building.has_sprinkler_system },
-                                        { label: 'Fire Alarm', active: !!building.has_fire_alarm },
-                                        { label: 'Fire Extinguishers', active: !!building.has_fire_extinguishers },
-                                        { label: 'Emergency Exits', active: !!building.has_emergency_exits },
-                                        { label: 'Emergency Lighting', active: !!building.has_emergency_lighting },
-                                        { label: 'Fire Escape', active: !!building.has_fire_escape }
-                                    ];
-
-                                    const safetyBadges = safetyFeatures.map(feature => `
-                                        <span class="safety-badge ${feature.active ? 'active' : ''}">${feature.label}</span>
-                                    `).join('');
-
-                                    const locationSection = (building.latitude && building.longitude) ? `
-                                        <div class="detail-section">
-                                            <span class="detail-label">Location</span>
-                                            <div class="location-grid">
-                                                ${detailItem('Latitude', formatValue(building.latitude, 'Not set'))}
-                                                ${detailItem('Longitude', formatValue(building.longitude, 'Not set'))}
-                                            </div>
-                                        </div>
-                                    ` : '';
-
-                                    const buildingDetails = `
-                                        <div class="building-detail-card">
-                                            <div class="building-detail-header">
-                                                <div>
-                                                    <span class="detail-label">Building</span>
-                                                    <h4>${formatValue(building.building_name, 'Unnamed Building')}</h4>
-                                                    <p class="detail-meta">${formatValue(building.address, 'Address not provided')}</p>
-                                                </div>
-                                                <span class="detail-type-badge">${capitalize(building.building_type)}</span>
-                                            </div>
-
-                                            <div class="detail-grid">
-                                                ${detailItem('Type', capitalize(building.building_type))}
-                                                ${detailItem('Floors', formatNumberValue(building.total_floors, 'Not set'))}
-                                                ${detailItem('Floor Area', building.building_area ? `${building.building_area} sq m` : 'Not set')}
-                                                ${detailItem('Construction Year', formatValue(building.construction_year, 'Not set'))}
-                                                ${detailItem('Last Inspection', formatDateValue(building.last_inspected))}
-                                            </div>
-
-                                            <div class="detail-section">
-                                                <span class="detail-label">Contact</span>
-                                                <div class="detail-grid">
-                                                    ${detailItem('Contact Person', formatValue(building.contact_person, 'Not provided'))}
-                                                    ${detailItem('Contact Number', formatValue(building.contact_number, 'Not provided'))}
-                                                </div>
-                                            </div>
-
-                                            <div class="detail-divider"></div>
-
-                                            <div class="detail-section">
-                                                <span class="detail-label">Safety Features</span>
-                                                <div class="safety-badges">
-                                                    ${safetyBadges}
-                                                </div>
-                                            </div>
-
-                                            ${locationSection}
-                                        </div>
-                                    `;
-
-                                    $('#buildingDetailsModal .modal-body').html(buildingDetails);
-                                    $('#buildingDetailsModal').data('building-id', buildingId).modal('show');
-                                } else {
-                                    Swal.fire('Error', response.message || 'Failed to load building details', 'error');
-                                }
-                            },
-                            error: function() {
-                                Swal.close();
-                                Swal.fire('Error', 'Failed to load building details. Please try again.', 'error');
-                            }
-                        });
+            // Setup event handlers after initialization
+            function setupEventHandlers() {
+                $('#refreshBuildings, #panelRefresh').on('click', function(event) {
+                    if (event) {
+                        event.preventDefault();
                     }
+                    $(this).addClass('disabled');
+                    location.reload();
                 });
-            });
 
-            $(document).on('click', '.edit-building', function() {
-                const buildingId = $(this).data('id');
-                window.location.href = `main.php?edit_building=${buildingId}`;
-            });
-
-            $(document).on('click', '.delete-building', function() {
-                const buildingId = $(this).data('id');
-                const buildingName = $(this).closest('tr').find('td:first').text();
-
-                Swal.fire({
-                    title: 'Delete Building',
-                    html: `Are you sure you want to delete <strong>${buildingName}</strong>?`,
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#d33',
-                    cancelButtonColor: '#6c757d',
-                    confirmButtonText: 'Delete',
-                    cancelButtonText: 'Cancel',
-                    showLoaderOnConfirm: true,
-                    preConfirm: () => {
-                        return $.ajax({
-                            type: 'DELETE',
-                            url: endpoint,
-                            contentType: 'application/json',
-                            data: JSON.stringify({ building_id: buildingId }),
-                            dataType: 'json'
-                        }).catch(error => {
-                            let errorMsg = 'Failed to delete building';
-                            if (error.responseJSON && error.responseJSON.message) {
-                                errorMsg = error.responseJSON.message;
-                            }
-                            Swal.showValidationMessage(errorMsg);
-                            return Promise.reject(error);
-                        });
-                    },
-                    allowOutsideClick: () => !Swal.isLoading()
-                }).then((result) => {
-                    if (result.isConfirmed && result.value) {
-                        if (result.value.status === 'success') {
-                            Swal.fire('Deleted!', result.value.message, 'success');
-                            if (buildingsTable && $.fn.DataTable.isDataTable('#buildingsTable')) {
-                                buildingsTable.row($(`tr[data-id="${buildingId}"]`)).remove().draw();
-                                if (!buildingsTable.data().count()) {
-                                    location.reload();
-                                } else {
-                                    $('#check-all').prop('checked', false);
-                                }
-                            } else {
-                                $(`tr[data-id="${buildingId}"]`).remove();
-                            }
-                        } else {
-                            Swal.fire('Error', result.value.message || 'Unknown error', 'error');
+                // Toolbox dropdown actions - trigger DataTables buttons
+                $('#toolboxCopy').on('click', function(event) {
+                    event.preventDefault();
+                    if (buildingsTable && buildingsTable.buttons) {
+                        try {
+                            // Trigger copy button by index (0 = copy, based on buttons array order)
+                            buildingsTable.button(0).trigger();
+                        } catch(e) {
+                            // Fallback: find button in DOM
+                            $('.dt-button.buttons-copy, button.dt-button:contains("Copy")').first().trigger('click');
                         }
                     }
                 });
-            });
 
-            $('#editBuildingBtn').click(function() {
-                const buildingId = $('#buildingDetailsModal').data('building-id');
-                $('#buildingDetailsModal').modal('hide');
-                if (buildingId) {
+                $('#toolboxCSV').on('click', function(event) {
+                    event.preventDefault();
+                    if (buildingsTable && buildingsTable.buttons) {
+                        try {
+                            // Trigger CSV button by index (1 = csv, based on buttons array order)
+                            buildingsTable.button(1).trigger();
+                        } catch(e) {
+                            // Fallback: find button in DOM
+                            $('.dt-button.buttons-csv, button.dt-button:contains("CSV")').first().trigger('click');
+                        }
+                    }
+                });
+
+                $('#toolboxPrint').on('click', function(event) {
+                    event.preventDefault();
+                    if (buildingsTable && buildingsTable.buttons) {
+                        try {
+                            // Trigger print button by index (4 = print, based on buttons array order)
+                            buildingsTable.button(4).trigger();
+                        } catch(e) {
+                            // Fallback: find button in DOM
+                            $('.dt-button.buttons-print, button.dt-button:contains("Print")').first().trigger('click');
+                        }
+                    }
+                });
+
+                $('#globalSearchBtn').on('click', function () {
+                    const query = $('#globalSearchInput').val();
+                    if (buildingsTable) {
+                        buildingsTable.search(query).draw();
+                    }
+                });
+
+                $('#globalSearchInput').on('keyup', function (e) {
+                    if (!buildingsTable) return;
+                    if (e.key === 'Enter') {
+                        buildingsTable.search(this.value).draw();
+                    } else if (!this.value.length) {
+                        buildingsTable.search('').draw();
+                    }
+                });
+
+                $(document).on('change', '#check-all', function() {
+                    const isChecked = $(this).prop('checked');
+                    $('.building-select').prop('checked', isChecked);
+                });
+
+                $(document).on('change', '.building-select', function() {
+                    const total = $('.building-select').length;
+                    const checked = $('.building-select:checked').length;
+                    $('#check-all').prop('checked', total === checked);
+                });
+
+                $(document).on('click', '.edit-building', function() {
+                    const buildingId = $(this).data('id');
                     window.location.href = `main.php?edit_building=${buildingId}`;
-                }
-            });
+                });
 
-            $('#closeModalBtn, #closeModalBtnFooter').click(function() {
-                $('#buildingDetailsModal').modal('hide');
-            });
+                $(document).on('click', '.delete-building', function() {
+                    const buildingId = $(this).data('id');
+                    const buildingName = $(this).closest('tr').find('td:first').text();
 
-            $('#buildingDetailsModal').on('hidden.bs.modal', function () {
-                $(this).find('.modal-body').empty();
-                $(this).removeData('building-id');
-            });
-        });
+                    Swal.fire({
+                        title: 'Delete Building',
+                        html: `Are you sure you want to delete <strong>${buildingName}</strong>?`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'Delete',
+                        cancelButtonText: 'Cancel',
+                        showLoaderOnConfirm: true,
+                        preConfirm: () => {
+                            return $.ajax({
+                                type: 'DELETE',
+                                url: endpoint,
+                                contentType: 'application/json',
+                                data: JSON.stringify({ 
+                                    building_id: buildingId,
+                                    csrf_token: '<?php echo htmlspecialchars($csrf_token, ENT_QUOTES, 'UTF-8'); ?>'
+                                }),
+                                dataType: 'json'
+                            }).catch(error => {
+                                let errorMsg = 'Failed to delete building';
+                                if (error.responseJSON && error.responseJSON.message) {
+                                    errorMsg = error.responseJSON.message;
+                                }
+                                Swal.showValidationMessage(errorMsg);
+                                return Promise.reject(error);
+                            });
+                        },
+                        allowOutsideClick: () => !Swal.isLoading()
+                    }).then((result) => {
+                        if (result.isConfirmed && result.value) {
+                            if (result.value.status === 'success') {
+                                Swal.fire('Deleted!', result.value.message, 'success');
+                                if (buildingsTable && $.fn.DataTable.isDataTable('#buildingsTable')) {
+                                    buildingsTable.row($(`tr[data-id="${buildingId}"]`)).remove().draw();
+                                    if (!buildingsTable.data().count()) {
+                                        location.reload();
+                                    } else {
+                                        $('#check-all').prop('checked', false);
+                                    }
+                                } else {
+                                    $(`tr[data-id="${buildingId}"]`).remove();
+                                }
+                            } else {
+                                Swal.fire('Error', result.value.message || 'Unknown error', 'error');
+                            }
+                        }
+                    });
+                });
+            }
+
+            // Start initialization process
+            waitForJQuery(setupEventHandlers);
+        })();
     </script>
-
-    <?php include('../../../../components/scripts.php'); ?>
 </body>
 </html>

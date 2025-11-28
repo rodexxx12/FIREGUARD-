@@ -3,6 +3,19 @@ date_default_timezone_set('Asia/Manila');
 session_start();
 require_once '../../db/db.php';
 require_once '../php/datetime_helper.php';
+require_once '../php/classes/CsrfProtection.php';
+require_once '../php/classes/RateLimiter.php';
+require_once '../php/classes/InputValidator.php';
+require_once '../php/classes/ErrorHandler.php';
+require_once '../php/classes/SecurityHeaders.php';
+
+// Initialize error handler
+$isProduction = (getenv('APP_ENV') === 'production');
+ErrorHandler::init($isProduction);
+
+// Set security headers
+$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $_SERVER['SERVER_PORT'] == 443;
+SecurityHeaders::setAll($isHttps);
 
 // Check if user is logged in
 if (!isset($_SESSION['admin_id'])) {
@@ -21,6 +34,20 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit();
 }
 
+// Rate limiting
+$limiter = new RateLimiter();
+$rateLimitKey = 'api_generate_' . ($_SESSION['admin_id'] ?? $_SERVER['REMOTE_ADDR']);
+if (!$limiter->checkLimit($rateLimitKey, 5, 60)) {
+    http_response_code(429);
+    header('Retry-After: 60');
+    echo json_encode([
+        'success' => false,
+        'message' => 'Too many requests. Please try again later.',
+        'retry_after' => 60
+    ]);
+    exit();
+}
+
 try {
     // Get JSON input
     $input = json_decode(file_get_contents('php://input'), true);
@@ -31,7 +58,22 @@ try {
         exit();
     }
     
-    $reportId = (int)$input['report_id'];
+    // CSRF protection
+    if (!isset($input['csrf_token'])) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'CSRF token required']);
+        exit();
+    }
+    
+    CsrfProtection::requireToken($input['csrf_token']);
+    
+    // Validate and sanitize input
+    $reportId = InputValidator::validateInt($input['report_id'], 1);
+    if (!$reportId) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Invalid report ID']);
+        exit();
+    }
     
     $conn = getDatabaseConnection();
     
@@ -151,7 +193,7 @@ try {
     http_response_code(500);
     echo json_encode([
         'success' => false, 
-        'message' => 'Failed to generate report: ' . $e->getMessage()
+        'message' => 'Failed to generate report'
     ]);
 }
 ?>

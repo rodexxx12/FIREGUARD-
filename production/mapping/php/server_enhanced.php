@@ -103,7 +103,7 @@ try {
     FROM fire_data f
     LEFT JOIN buildings b ON f.building_id = b.id
     LEFT JOIN devices d ON f.device_id = d.device_id
-    LEFT JOIN gps_data g ON ABS(TIMESTAMPDIFF(SECOND, g.ph_time, f.timestamp)) <= 300
+    LEFT JOIN gps_data g ON ABS(TIMESTAMPDIFF(SECOND, g.ph_time, STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s'))) <= 300
         AND g.latitude IS NOT NULL 
         AND g.longitude IS NOT NULL
         AND g.latitude != 0
@@ -115,12 +115,12 @@ try {
             AND g2.longitude IS NOT NULL
             AND g2.latitude != 0
             AND g2.longitude != 0
-            AND ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, f.timestamp)) <= 300
-            ORDER BY ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, f.timestamp)) ASC
+            AND ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s'))) <= 300
+            ORDER BY ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s'))) ASC
             LIMIT 1
         )
-    WHERE f.timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
-    ORDER BY f.timestamp DESC
+    WHERE STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s') >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+    ORDER BY STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s') DESC
     ";
     
     $stmt = $conn->prepare($sql);
@@ -167,7 +167,7 @@ try {
         FROM fire_data f
         LEFT JOIN buildings b ON f.building_id = b.id
         LEFT JOIN devices d ON f.device_id = d.device_id
-        LEFT JOIN gps_data g ON ABS(TIMESTAMPDIFF(SECOND, g.ph_time, f.timestamp)) <= 300
+        LEFT JOIN gps_data g ON ABS(TIMESTAMPDIFF(SECOND, g.ph_time, STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s'))) <= 300
             AND g.latitude IS NOT NULL 
             AND g.longitude IS NOT NULL
             AND g.latitude != 0
@@ -179,11 +179,11 @@ try {
                 AND g2.longitude IS NOT NULL
                 AND g2.latitude != 0
                 AND g2.longitude != 0
-                AND ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, f.timestamp)) <= 300
-                ORDER BY ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, f.timestamp)) ASC
+                AND ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s'))) <= 300
+                ORDER BY ABS(TIMESTAMPDIFF(SECOND, g2.ph_time, STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s'))) ASC
                 LIMIT 1
             )
-        ORDER BY f.timestamp DESC
+        ORDER BY STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s') DESC
         LIMIT 50
         ";
         
@@ -203,7 +203,7 @@ try {
         status,
         COUNT(*) as count
     FROM fire_data 
-    WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+    WHERE STR_TO_DATE(timestamp, '%Y-%m-%d %H:%i:%s') >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
     GROUP BY status
     ";
     
@@ -223,8 +223,8 @@ try {
     FROM fire_data f
     LEFT JOIN buildings b ON f.building_id = b.id
     WHERE f.status IN ('Emergency', 'Pre-Dispatch', 'Monitoring')
-    AND f.timestamp >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
-    ORDER BY f.timestamp DESC
+    AND STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s') >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
+    ORDER BY STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s') DESC
     LIMIT 10
     ";
     

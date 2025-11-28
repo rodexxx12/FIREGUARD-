@@ -8,7 +8,14 @@ if (typeof $ !== 'undefined') {
 // Alert details functionality - will be initialized in main DOMContentLoaded
 function initAlertDetails() {
     document.querySelectorAll('.view-alert-details').forEach(button => {
-        button.addEventListener('click', () => {
+        button.addEventListener('click', async () => {
+            // Check if alarm is showing emergency - if so, don't show modal
+            const hasEmergency = await checkAlarmEmergencyStatus();
+            if (hasEmergency) {
+                console.log('Emergency alert active - modal blocked');
+                return;
+            }
+            
             const status = button.getAttribute('data-status');
             const building = button.getAttribute('data-building');
             const smoke = button.getAttribute('data-smoke');
@@ -198,7 +205,7 @@ async function addFireStationMarker() {
         marker.bindPopup(`
             <div class="text-center">
                 <h5 class="fw-bold mb-2" style="background-color: red; color: white; padding: 5px; border-radius: 3px;">${config.fireStation.name}</h5>
-                <p class="mb-1" style="background-color: red; color: white; padding: 5px; border-radius: 3px;"><i class="bi bi-telephone me-2"></i>${config.fireStation.contact}</p>
+                <p class="mb-1" style="background-color: red; color: white; padding: 5px; border-radius: 3px;">${config.fireStation.contact}</p>
                 <p class="mb-0"><i class="bi bi-geo-alt me-2"></i>${address}</p>
             </div>
         `);
@@ -286,10 +293,10 @@ function initBuildingAreaCircles() {
             const buildingType = area.building_type || 'Unknown';
             circle.bindPopup(`
                 <div class="building-area-popup">
-                    <h6 class="fw-bold mb-1" style="background-color: #90EE90; padding: 2px 4px; display: inline-block;">${buildingName}</h6>
-                    <div class="text-muted small" style="background-color: #90EE90; padding: 2px 4px; display: inline-block;">Type: ${buildingType}</div>
-                    <div class="small" style="background-color: #90EE90; padding: 2px 4px; display: inline-block;">Border Area: ${radius}m radius</div>
-                    ${area.address ? `<div class="text-muted small mt-1" style="background-color: #90EE90; padding: 2px 4px; display: inline-block;">${area.address}</div>` : ''}
+                    ${area.address ? `<div class="mb-2" style="font-size: 1rem; font-weight: 700; background-color: #007bff; color: white; padding: 4px 8px; display: inline-block; border-radius: 4px;">${area.address}</div>` : ''}
+                    <h6 class="fw-bold mb-2" style="font-size: 1.1rem; font-weight: 800;">${buildingName}</h6>
+                    <div class="mb-2" style="font-size: 1rem; font-weight: 700;">Type: ${buildingType}</div>
+                    <div class="mb-2" style="font-size: 1rem; font-weight: 700;">Border Area: ${radius}m radius</div>
                 </div>
             `);
             
@@ -383,8 +390,50 @@ document.addEventListener('click', function(event) {
 
 // Removed duplicate fetchBuildingDetails function - using consolidated version below
 
+// Check if alarm is showing emergency alert
+let isAlarmEmergencyActive = false;
+let emergencyCheckCache = null;
+let emergencyCheckCacheTime = 0;
+const EMERGENCY_CHECK_CACHE_DURATION = 2000; // Cache for 2 seconds
+
+async function checkAlarmEmergencyStatus() {
+    // Use cached result if available and fresh
+    const now = Date.now();
+    if (emergencyCheckCache !== null && (now - emergencyCheckCacheTime) < EMERGENCY_CHECK_CACHE_DURATION) {
+        return emergencyCheckCache;
+    }
+    
+    try {
+        const response = await fetch('../../alarm/alarm.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'check_emergency=1'
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const hasEmergency = data.success && data.has_emergency === true;
+            emergencyCheckCache = hasEmergency;
+            emergencyCheckCacheTime = now;
+            isAlarmEmergencyActive = hasEmergency;
+            return hasEmergency;
+        }
+    } catch (error) {
+        console.log('Error checking emergency status:', error);
+    }
+    
+    // On error, return cached value or false
+    return emergencyCheckCache !== null ? emergencyCheckCache : false;
+}
+
 // Populate the modal with building details (buildings table only)
-function populateBuildingModalWithStats(payload) {
+async function populateBuildingModalWithStats(payload) {
+    // Check if alarm is showing emergency - if so, don't show modal
+    const hasEmergency = await checkAlarmEmergencyStatus();
+    if (hasEmergency) {
+        console.log('Emergency alert active - modal blocked');
+        return;
+    }
     const content = document.getElementById('building-details-content');
     if (!content) return;
 
@@ -635,7 +684,14 @@ function initBuildingDetailsModal() {
 }
 
 // Fetch building details via fetch API (consolidated function)
-function fetchBuildingDetails(buildingId) {
+async function fetchBuildingDetails(buildingId) {
+    // Check if alarm is showing emergency - if so, don't fetch/show modal
+    const hasEmergency = await checkAlarmEmergencyStatus();
+    if (hasEmergency) {
+        console.log('Emergency alert active - building details fetch blocked');
+        return;
+    }
+    
     const url = `get_building_stats.php?id=${buildingId}`;
     
     fetch(url, {
@@ -651,9 +707,13 @@ function fetchBuildingDetails(buildingId) {
         }
         return response.json();
     })
-    .then(data => {
+    .then(async data => {
         if (data.success) {
-            populateBuildingModalWithStats(data);
+            // Double-check emergency status before showing modal
+            const hasEmergencyNow = await checkAlarmEmergencyStatus();
+            if (!hasEmergencyNow) {
+                populateBuildingModalWithStats(data);
+            }
         } else {
             showAlert('danger', 'Failed to fetch building details');
         }
@@ -665,7 +725,14 @@ function fetchBuildingDetails(buildingId) {
 }
 
 // Show building details modal
-function showBuildingModal(building) {
+async function showBuildingModal(building) {
+    // Check if alarm is showing emergency - if so, don't show modal
+    const hasEmergency = await checkAlarmEmergencyStatus();
+    if (hasEmergency) {
+        console.log('Emergency alert active - modal blocked');
+        return;
+    }
+    
     Swal.fire({
         title: building.building_name,
         html: `
@@ -869,6 +936,26 @@ function fetchFireData() {
             if (!window.dataLoaded) {
                 console.log('Initial data loaded successfully');
                 window.dataLoaded = true;
+                // Automatically locate and display the latest emergency/acknowledged status on first load
+                // BUT delay if alarm alert is active - let alarm.php show first
+                setTimeout(() => {
+                    // Check if emergency alert is active (from alarm.php)
+                    const isAlertActive = window.emergencyAlertActive || 
+                                         (typeof Swal !== 'undefined' && Swal.getContainer() && Swal.getContainer().classList.contains('swal2-show'));
+                    
+                    if (isAlertActive) {
+                        // Wait longer if alarm is showing - check again after delay
+                        setTimeout(() => {
+                            const stillActive = window.emergencyAlertActive || 
+                                               (typeof Swal !== 'undefined' && Swal.getContainer() && Swal.getContainer().classList.contains('swal2-show'));
+                            if (!stillActive) {
+                                locateEmergency(true); // Suppress "no emergency" alert on automatic load
+                            }
+                        }, 5000); // Wait 5 seconds for alarm to be acknowledged
+                    } else {
+                        locateEmergency(true); // Suppress "no emergency" alert on automatic load
+                    }
+                }, 2000); // Increased delay to ensure alarm.php shows first
             }
         } else {
             throw new Error(data.message);
@@ -1091,13 +1178,33 @@ function createFireMarker(fire) {
 
 // Get appropriate icon for status
 function getIconForStatus(status) {
+    // Normalize status to handle different cases
+    const normalizedStatus = status ? status.toString().trim() : '';
+    
     const icons = {
         'Safe': 'https://cdn-icons-png.flaticon.com/512/1828/1828640.png',
         'Monitoring': 'https://cdn-icons-png.flaticon.com/512/3523/3523096.png',
-        'Acknowledged': 'https://cdn-icons-png.flaticon.com/512/599/599502.png',
-        'Emergency': 'https://cdn-icons-png.flaticon.com/512/599/599508.png'
+        'Acknowledged': './acknowledged.png',
+        'ACKNOWLEDGED': './acknowledged.png',
+        'Emergency': './fire.png',
+        'EMERGENCY': './fire.png'
     };
-    return icons[status] || 'https://cdn-icons-png.flaticon.com/512/3212/3212567.png';
+    
+    // Check exact match first
+    if (icons[normalizedStatus]) {
+        return icons[normalizedStatus];
+    }
+    
+    // Check case-insensitive match
+    const upperStatus = normalizedStatus.toUpperCase();
+    if (upperStatus === 'ACKNOWLEDGED') {
+        return './acknowledged.png';
+    }
+    if (upperStatus === 'EMERGENCY') {
+        return './fire.png';
+    }
+    
+    return icons[normalizedStatus] || 'https://cdn-icons-png.flaticon.com/512/3212/3212567.png';
 }
 // Text-to-Speech functionality
 function speakText(text, priority = 'normal') {
@@ -1453,14 +1560,18 @@ function showRouteToStation() {
             const { status } = latestBuilding;
             console.log('Building found at:', latitude, longitude, 'Status:', status);
 
-            // Check if device is within a building's 100m area
-            const areaCheck = isWithinBuildingArea(latitude, longitude);
-            if (!areaCheck.within) {
-                const errorMessage = `Cannot calculate route: ${areaCheck.message}. Device must be within 100 meters of a building to be located.`;
-                showAlert('warning', errorMessage);
-                speakText(errorMessage, 'normal');
+            // Validate GPS coordinates
+            if (!latitude || !longitude || isNaN(latitude) || isNaN(longitude)) {
+                showAlert('warning', 'Invalid GPS coordinates for emergency location.');
                 clearRoute();
                 return;
+            }
+            
+            // For emergency/acknowledged statuses, always allow routing regardless of building area
+            // GPS coordinates from fire_data represent the actual device location
+            const areaCheck = isWithinBuildingArea(latitude, longitude);
+            if (!areaCheck.within) {
+                console.log('Emergency location not within building area, but allowing routing anyway:', areaCheck.message);
             }
 
             clearRoute();
@@ -1475,8 +1586,17 @@ function showRouteToStation() {
                               statusUpper === 'ACKNOWLEDGED' ? '#ffc107' : 
                               '#fd7e14'; // PRE-DISPATCH color
 
-            // Create custom colored marker based on status
-            const customIcon = L.divIcon({
+            // Create icon based on status
+            const iconUrl = statusUpper === 'EMERGENCY' ? './fire.png' : 
+                           statusUpper === 'ACKNOWLEDGED' ? './acknowledged.png' : 
+                           null;
+            
+            const customIcon = iconUrl ? L.icon({
+                iconUrl: iconUrl,
+                iconSize: [40, 40],
+                iconAnchor: [20, 40],
+                popupAnchor: [0, -40]
+            }) : L.divIcon({
                 className: 'custom-marker',
                 html: `<div style="
                     background-color: ${routeColor}; 
@@ -1605,7 +1725,7 @@ function clearRoute() {
 
 let emergencyMarker = null;
 
-function locateEmergency() {
+function locateEmergency(suppressNoEmergencyAlert = false) {
     console.log('locateEmergency: Function called');
     fetchMostRecentCritical()
         .then(criticalBuilding => {
@@ -1613,7 +1733,9 @@ function locateEmergency() {
             const locateBtn = document.getElementById('locateEmergencyBtn');
             
             if (!criticalBuilding) {
-                showAlert('info', 'No fire_data with EMERGENCY or ACKNOWLEDGED status found. All fire incidents are currently safe.');
+                if (!suppressNoEmergencyAlert) {
+                    showAlert('info', 'No fire_data with EMERGENCY or ACKNOWLEDGED status found. All fire incidents are currently safe.');
+                }
                 return;
             }
 
@@ -1627,19 +1749,33 @@ function locateEmergency() {
             const address = criticalBuilding.address || 'Location from fire_data GPS coordinates';
             const { status, timestamp } = criticalBuilding;
             
-            // Check if device is within a building's 100m area
+            // Validate GPS coordinates
+            if (!latitude || !longitude || isNaN(latitude) || isNaN(longitude)) {
+                showAlert('warning', 'Invalid GPS coordinates for emergency location.');
+                return;
+            }
+            
+            // For emergency/acknowledged statuses, always display regardless of building area
+            // GPS coordinates from fire_data represent the actual device location
             const areaCheck = isWithinBuildingArea(latitude, longitude);
             if (!areaCheck.within) {
-                const errorMessage = `Cannot locate device: ${areaCheck.message}. Device must be within 100 meters of a building to be located.`;
-                showAlert('warning', errorMessage);
-                speakText(errorMessage, 'normal');
-                return;
+                console.log('Emergency location not within building area, but displaying anyway:', areaCheck.message);
             }
             
             // Format timestamp for display
             const criticalTime = new Date(timestamp).toLocaleString();
             
-            map.flyTo([latitude, longitude], 16);
+            // Don't auto-zoom if emergency alert is active - let user interact with alarm first
+            const isAlertActive = window.emergencyAlertActive || 
+                                 (typeof Swal !== 'undefined' && Swal.getContainer() && Swal.getContainer().classList.contains('swal2-show'));
+            
+            if (!isAlertActive) {
+                map.flyTo([latitude, longitude], 16);
+            } else {
+                // Just set view without animation if alert is active - don't interfere with alarm
+                console.log('Emergency alert active - skipping auto-zoom to allow user interaction');
+                map.setView([latitude, longitude], 16, { animate: false });
+            }
 
             // Determine marker color and alert type based on status
             const isEmergency = status.toUpperCase() === 'EMERGENCY';
@@ -1647,25 +1783,14 @@ function locateEmergency() {
             const alertType = isEmergency ? 'danger' : 'warning';
             const statusIcon = isEmergency ? '🚨' : '⚠️';
 
-            // Create custom colored marker based on status
-            const customIcon = L.divIcon({
-                className: 'custom-marker',
-                html: `<div style="
-                    background-color: ${markerColor}; 
-                    width: 20px; 
-                    height: 20px; 
-                    border-radius: 50%; 
-                    border: 3px solid white; 
-                    box-shadow: 0 0 10px rgba(0,0,0,0.5);
-                    display: flex; 
-                    align-items: center; 
-                    justify-content: center;
-                    color: white;
-                    font-weight: bold;
-                    font-size: 12px;
-                ">${isEmergency ? 'E' : 'A'}</div>`,
-                iconSize: [20, 20],
-                iconAnchor: [10, 10]
+            // Create icon based on status
+            const iconUrl = isEmergency ? './fire.png' : './acknowledged.png';
+            
+            const customIcon = L.icon({
+                iconUrl: iconUrl,
+                iconSize: [40, 40],
+                iconAnchor: [20, 40],
+                popupAnchor: [0, -40]
             });
 
             // Create marker first
@@ -2369,19 +2494,19 @@ function updateUserLocation(lat, lng) {
         map.removeLayer(userMarker);
     }
     
-    // Create new user marker
-    const userIcon = L.icon({
-        iconUrl: 'https://cdn-icons-png.flaticon.com/512/2972/2972035.png',
-        iconSize: [30, 30],
-        iconAnchor: [15, 30],
-        popupAnchor: [0, -30]
-    });
+    // Create new user marker (removed - icon no longer displayed)
+    // const userIcon = L.icon({
+    //     iconUrl: 'https://cdn-icons-png.flaticon.com/512/2972/2972035.png',
+    //     iconSize: [30, 30],
+    //     iconAnchor: [15, 30],
+    //     popupAnchor: [0, -30]
+    // });
     
-    userMarker = L.marker([lat, lng], { 
-        icon: userIcon,
-        zIndexOffset: 1000 
-    })
-    .addTo(map);
+    // userMarker = L.marker([lat, lng], { 
+    //     icon: userIcon,
+    //     zIndexOffset: 1000 
+    // })
+    // .addTo(map);
 }
 
 // Send user location to server

@@ -1,0 +1,8 @@
+2025-11-25 20:54:43 | Phone: 09318261972 | Code: 198413 | HTTP: 200 | Response: {"success":false,"code":406,"errors":["API Key mismatch","API key not acceptable"]} | Error: 
+2025-11-26 08:40:33 | Phone: 09318261972 | Code: 273983 | HTTP: 200 | Response: {"success":false,"code":406,"errors":["API Key mismatch","API key not acceptable"]} | Error: 
+2025-11-26 08:46:26 | Phone: 09318261972 | Code: 237296 | HTTP: 200 | Response: {"success":false,"code":406,"errors":["API Key mismatch","API key not acceptable"]} | Error: 
+2025-11-26 09:01:44 | Phone: 09318261972 | Code: 604010 | HTTP: 200 | Response: {"success":false,"code":406,"errors":["API Key mismatch","API key not acceptable"]} | Error: 
+2025-11-28 08:37:45 | Phone: 09976575527 | Code: 482680 | HTTP: 200 | Response: {"success":false,"code":422,"errors":["API key must be required on request header"]} | Error: 
+2025-11-28 08:39:31 | Phone: 09976575527 | Code: 772111 | HTTP: 200 | Response: {"success":false,"code":422,"errors":["API key must be required on request header"]} | Error: 
+2025-11-28 08:39:41 | Phone: 09976575527 | Code: 317321 | HTTP: 200 | Response: {"success":false,"code":422,"errors":["API key must be required on request header"]} | Error: 
+2025-11-28 08:39:54 | Phone: 09976575527 | Code: 375704 | HTTP: 200 | Response: {"success":false,"code":422,"errors":["API key must be required on request header"]} | Error: 

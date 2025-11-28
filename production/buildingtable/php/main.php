@@ -62,9 +62,9 @@ $buildings = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 <!-- Include header components -->
 <?php include '../../components/header.php'; ?>
+<?php include '../../css/building_table.css'; ?>
 
-<!-- Building Table CSS -->
-<link rel="stylesheet" href="../css/building_table.css">
+
 </head>
 <body class="nav-md">
     <div class="container body">
@@ -206,7 +206,61 @@ $buildings = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 </thead>
                                 <tbody>
                                     <?php foreach ($buildings as $building): ?>
-                                        <tr>
+                                        <?php 
+                                        // Calculate inspection status for data attributes
+                                        $inspectionStatus = 'never';
+                                        $daysSince = 0;
+                                        if ($building['last_inspected']): 
+                                            $inspectionDate = new DateTime($building['last_inspected']);
+                                            $now = new DateTime();
+                                            $diff = $now->diff($inspectionDate);
+                                            $daysSince = $diff->days;
+                                            if ($daysSince <= 30) {
+                                                $inspectionStatus = 'recent';
+                                            } elseif ($daysSince <= 90) {
+                                                $inspectionStatus = 'due';
+                                            } else {
+                                                $inspectionStatus = 'overdue';
+                                            }
+                                        endif;
+                                        
+                                        // Calculate device status for data attributes
+                                        $deviceStatus = 'none';
+                                        if ($building['device_count'] > 0): 
+                                            $statuses = explode(', ', $building['device_statuses']);
+                                            $onlineCount = 0;
+                                            $offlineCount = 0;
+                                            $faultyCount = 0;
+                                            
+                                            foreach ($statuses as $status) {
+                                                if ($status === 'online') {
+                                                    $onlineCount++;
+                                                } elseif ($status === 'offline') {
+                                                    $offlineCount++;
+                                                } elseif ($status === 'faulty') {
+                                                    $faultyCount++;
+                                                }
+                                            }
+                                            
+                                            if ($onlineCount > 0 && $offlineCount == 0 && $faultyCount == 0) {
+                                                $deviceStatus = 'online';
+                                            } elseif ($faultyCount > 0) {
+                                                $deviceStatus = 'faulty';
+                                            } elseif ($offlineCount > 0) {
+                                                $deviceStatus = 'offline';
+                                            }
+                                        endif;
+                                        ?>
+                                        <tr data-building-name="<?php echo htmlspecialchars(strtolower($building['building_name'])); ?>"
+                                            data-building-type="<?php echo htmlspecialchars(strtolower($building['building_type'])); ?>"
+                                            data-owner-name="<?php echo htmlspecialchars(strtolower($building['user_name'] ?? '')); ?>"
+                                            data-owner-email="<?php echo htmlspecialchars(strtolower($building['email_address'] ?? '')); ?>"
+                                            data-location="<?php echo htmlspecialchars(strtolower($building['address'] . ' ' . ($building['barangay_name'] ?? ''))); ?>"
+                                            data-floors="<?php echo $building['total_floors']; ?>"
+                                            data-device-status="<?php echo $deviceStatus; ?>"
+                                            data-inspection-status="<?php echo $inspectionStatus; ?>"
+                                            data-inspection-date="<?php echo $building['last_inspected'] ? date('Y-m-d', strtotime($building['last_inspected'])) : ''; ?>"
+                                            data-days-since="<?php echo $daysSince; ?>">
                                             <td>
                                                 <strong><?php echo htmlspecialchars($building['building_name']); ?></strong>
                                                 <?php if ($building['building_area']): ?>
@@ -256,9 +310,6 @@ $buildings = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                                 <?php if ($building['last_inspected']): ?>
                                                     <?php 
                                                     $inspectionDate = new DateTime($building['last_inspected']);
-                                                    $now = new DateTime();
-                                                    $diff = $now->diff($inspectionDate);
-                                                    $daysSince = $diff->days;
                                                     ?>
                                                     <div class="inspection-info">
                                                         <div class="inspection-date"><?php echo $inspectionDate->format('M d, Y'); ?></div>
@@ -287,33 +338,17 @@ $buildings = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                             </td>
                                             <td>
                                                 <?php if ($building['device_count'] > 0): ?>
-                                                    <?php 
-                                                    $statuses = explode(', ', $building['device_statuses']);
-                                                    $onlineCount = 0;
-                                                    $offlineCount = 0;
-                                                    $faultyCount = 0;
-                                                    
-                                                    foreach ($statuses as $status) {
-                                                        if ($status === 'online') {
-                                                            $onlineCount++;
-                                                        } elseif ($status === 'offline') {
-                                                            $offlineCount++;
-                                                        } elseif ($status === 'faulty') {
-                                                            $faultyCount++;
-                                                        }
-                                                    }
-                                                    ?>
-                                                    <?php if ($onlineCount > 0 && $offlineCount == 0 && $faultyCount == 0): ?>
+                                                    <?php if ($deviceStatus === 'online'): ?>
                                                         <span class="badge badge-success">
                                                             <span class="status-indicator status-online"></span>
                                                             All Online
                                                         </span>
-                                                    <?php elseif ($faultyCount > 0): ?>
+                                                    <?php elseif ($deviceStatus === 'faulty'): ?>
                                                         <span class="badge badge-danger">
                                                             <span class="status-indicator status-faulty"></span>
                                                             Issues Detected
                                                         </span>
-                                                    <?php elseif ($offlineCount > 0): ?>
+                                                    <?php elseif ($deviceStatus === 'offline'): ?>
                                                         <span class="badge badge-warning">
                                                             <span class="status-indicator status-offline"></span>
                                                             Some Offline
@@ -339,21 +374,119 @@ $buildings = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
 
-    <!-- jQuery and DataTables JavaScript -->
+    <!-- Include header components -->
+    <?php include '../../components/scripts.php'; ?>
+    
+    <!-- Fix jQuery version conflict: Load jQuery 3.x after scripts.php to ensure DataTables compatibility -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    
+    <!-- Re-attach smartresize plugin after jQuery 3.x loads (needed by custom.min.js) -->
+    <script>
+    (function($,sr){
+        // debouncing function from John Hann
+        var debounce = function (func, threshold, execAsap) {
+          var timeout;
+            return function debounced () {
+                var obj = this, args = arguments;
+                function delayed () {
+                    if (!execAsap)
+                        func.apply(obj, args); 
+                    timeout = null; 
+                }
+                if (timeout)
+                    clearTimeout(timeout);
+                else if (execAsap)
+                    func.apply(obj, args);
+                timeout = setTimeout(delayed, threshold || 100); 
+            };
+        };
+        // smartresize plugin
+        jQuery.fn[sr] = function(fn){  return fn ? this.bind('resize', debounce(fn)) : this.trigger(sr); };
+    })(jQuery,'smartresize');
+    </script>
+    
+    <!-- Reload DataTables after jQuery 3.x is loaded -->
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-
-    <!-- SweetAlert2 CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
+    
     <!-- Enhanced DataTables JavaScript with Real-time Filters -->
     <script>
-        $(document).ready(function() {
-            var table = $('#buildingsTable').DataTable({
+        // Wait for all scripts to load, including DataTables
+        (function() {
+            var initAttempts = 0;
+            var maxInitAttempts = 50; // Maximum 5 seconds
+            
+            function initializeDataTable() {
+                initAttempts++;
+                
+                // Get jQuery - try multiple ways to ensure we get the right instance
+                var $ = null;
+                if (typeof window.jQuery !== 'undefined') {
+                    $ = window.jQuery;
+                } else if (typeof jQuery !== 'undefined') {
+                    $ = jQuery;
+                } else if (typeof window.$ !== 'undefined' && window.$.fn && window.$.fn.jquery) {
+                    $ = window.$;
+                }
+                
+                // Debug logging
+                if (initAttempts === 1) {
+                    console.log('Initializing DataTable...');
+                    console.log('jQuery available:', typeof $ !== 'undefined');
+                    if (typeof $ !== 'undefined') {
+                        console.log('jQuery version:', $.fn.jquery);
+                    }
+                    console.log('DataTables available:', typeof $ !== 'undefined' && typeof $.fn.DataTable !== 'undefined');
+                }
+                
+                if (typeof $ === 'undefined') {
+                    if (initAttempts < maxInitAttempts) {
+                        setTimeout(initializeDataTable, 100);
+                    } else {
+                        console.error('jQuery library failed to load after', maxInitAttempts, 'attempts');
+                    }
+                    return;
+                }
+                
+                // Check jQuery version compatibility
+                var jQueryVersion = parseFloat($.fn.jquery);
+                if (jQueryVersion < 3.0) {
+                    console.warn('jQuery version', $.fn.jquery, 'may not be compatible with DataTables 1.13.6. Required: jQuery 3.x');
+                }
+                
+                // Check for DataTable (capital D) or dataTable (lowercase d)
+                var hasDataTable = typeof $.fn.DataTable !== 'undefined' || typeof $.fn.dataTable !== 'undefined';
+                
+                if (!hasDataTable) {
+                    if (initAttempts < maxInitAttempts) {
+                        // Keep retrying - scripts might still be loading
+                        setTimeout(initializeDataTable, 100);
+                    } else {
+                        console.error('DataTables library failed to load after', maxInitAttempts, 'attempts');
+                        console.error('jQuery version:', $.fn.jquery);
+                        console.error('Please ensure jQuery 3.x and DataTables are properly loaded.');
+                    }
+                    return;
+                }
+                
+                // DataTables is available - proceed with initialization
+                console.log('DataTables library confirmed loaded with jQuery', $.fn.jquery);
+                
+                // Check if table is already initialized
+                var isDataTableCheck = ($.fn.DataTable && $.fn.DataTable.isDataTable) || ($.fn.dataTable && $.fn.dataTable.isDataTable);
+                if (isDataTableCheck && isDataTableCheck('#buildingsTable')) {
+                    console.log('DataTable already initialized');
+                    return;
+                }
+                
+                // Use the jQuery we found
+                $(document).ready(function() {
+            // Use the correct method name
+            var tableMethod = typeof $.fn.DataTable !== 'undefined' ? 'DataTable' : 'dataTable';
+            var table = $('#buildingsTable')[tableMethod]({
                 "responsive": true,
                 "pageLength": 10,
-                "lengthMenu": [[5, 10, 25, 50, 100], [5, 10, 25, 50, 100]],
+                "lengthMenu": [[10, 25, 50, 100], [10, 25, 50, 100]],
                 "order": [[0, "asc"]],
                 "columnDefs": [
                     { "orderable": false, "targets": [6, 8] }
@@ -376,139 +509,164 @@ $buildings = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 "stateSave": true,
                 "stateDuration": 60 * 60 * 24 // 24 hours
             });
+            
+            // Store table reference for filter functions
+            var tableNode = $('#buildingsTable')[0];
 
             // Populate building type filter
             var buildingTypes = [...new Set($('#buildingsTable tbody tr').map(function() {
-                return $(this).find('td:eq(1) .building-type').text().trim();
-            }).get())].filter(type => type !== '');
+                return $(this).attr('data-building-type');
+            }).get())].filter(type => type !== '' && type !== undefined).sort();
             
             buildingTypes.forEach(function(type) {
-                $('#buildingTypeFilter').append('<option value="' + type + '">' + type + '</option>');
+                var displayType = type.charAt(0).toUpperCase() + type.slice(1);
+                $('#buildingTypeFilter').append('<option value="' + type + '">' + displayType + '</option>');
             });
 
-            // Real-time filter functions with instant updates
-            var customFilters = [];
-            
+            // Custom filter functions using data attributes
             function applyFilters() {
                 var filters = [];
                 
-                // Clear previous custom filters
-                $.fn.dataTable.ext.search = customFilters.slice();
+                // Clear all existing custom filters first
+                $.fn.dataTable.ext.search = [];
                 
-                // Building name search (real-time)
-                var buildingName = $('#buildingNameSearch').val().trim();
+                // Building name search
+                var buildingName = $('#buildingNameSearch').val().trim().toLowerCase();
                 if (buildingName) {
-                    table.column(0).search(buildingName, false, false);
-                    filters.push('Name: ' + buildingName);
-                } else {
-                    table.column(0).search('');
+                    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                        if (settings.nTable !== tableNode) {
+                            return true;
+                        }
+                        var row = table.row(dataIndex).node();
+                        var name = $(row).attr('data-building-name') || '';
+                        return name.indexOf(buildingName) !== -1;
+                    });
+                    filters.push('Name: ' + $('#buildingNameSearch').val());
                 }
 
-                // Owner search (real-time)
-                var ownerName = $('#ownerSearch').val().trim();
-                if (ownerName) {
-                    table.column(2).search(ownerName, false, false);
-                    filters.push('Owner: ' + ownerName);
-                } else {
-                    table.column(2).search('');
+                // Owner search (searches both name and email)
+                var ownerSearch = $('#ownerSearch').val().trim().toLowerCase();
+                if (ownerSearch) {
+                    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                        if (settings.nTable !== tableNode) {
+                            return true;
+                        }
+                        var row = table.row(dataIndex).node();
+                        var ownerName = $(row).attr('data-owner-name') || '';
+                        var ownerEmail = $(row).attr('data-owner-email') || '';
+                        return ownerName.indexOf(ownerSearch) !== -1 || ownerEmail.indexOf(ownerSearch) !== -1;
+                    });
+                    filters.push('Owner: ' + $('#ownerSearch').val());
                 }
 
-                // Location search (real-time)
-                var location = $('#locationSearch').val().trim();
+                // Location search
+                var location = $('#locationSearch').val().trim().toLowerCase();
                 if (location) {
-                    table.column(3).search(location, false, false);
-                    filters.push('Location: ' + location);
-                } else {
-                    table.column(3).search('');
+                    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                        if (settings.nTable !== tableNode) {
+                            return true;
+                        }
+                        var row = table.row(dataIndex).node();
+                        var loc = $(row).attr('data-location') || '';
+                        return loc.indexOf(location) !== -1;
+                    });
+                    filters.push('Location: ' + $('#locationSearch').val());
                 }
                 
                 // Building type filter
                 var buildingType = $('#buildingTypeFilter').val();
                 if (buildingType) {
-                    table.column(1).search('^' + buildingType + '$', true, false);
-                    filters.push('Type: ' + buildingType);
-                } else {
-                    table.column(1).search('');
+                    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                        if (settings.nTable !== tableNode) {
+                            return true;
+                        }
+                        var row = table.row(dataIndex).node();
+                        return $(row).attr('data-building-type') === buildingType;
+                    });
+                    filters.push('Type: ' + $('#buildingTypeFilter option:selected').text());
                 }
 
-                // Floor filter with enhanced logic
+                // Floor filter
                 var floorFilter = $('#floorFilter').val();
                 if (floorFilter) {
-                    if (floorFilter === '5+') {
-                        table.column(5).search('[5-9]', true, false);
-                    } else {
-                        table.column(5).search('^' + floorFilter + ' floors$', true, false);
-                    }
-                    filters.push('Floors: ' + floorFilter);
-                } else {
-                    table.column(5).search('');
+                    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                        if (settings.nTable !== tableNode) {
+                            return true;
+                        }
+                        var row = table.row(dataIndex).node();
+                        var floors = parseInt($(row).attr('data-floors')) || 0;
+                        if (floorFilter === '5+') {
+                            return floors >= 5;
+                        } else {
+                            return floors === parseInt(floorFilter);
+                        }
+                    });
+                    filters.push('Floors: ' + $('#floorFilter option:selected').text());
                 }
 
                 // Device status filter
                 var deviceStatus = $('#deviceFilter').val();
                 if (deviceStatus) {
-                    if (deviceStatus === 'online') {
-                        table.column(8).search('All Online', true, false);
-                    } else if (deviceStatus === 'offline') {
-                        table.column(8).search('Some Offline', true, false);
-                    } else if (deviceStatus === 'faulty') {
-                        table.column(8).search('Issues Detected', true, false);
-                    } else if (deviceStatus === 'none') {
-                        table.column(8).search('No Devices', true, false);
-                    }
-                    filters.push('Devices: ' + deviceStatus);
-                } else {
-                    table.column(8).search('');
+                    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                        if (settings.nTable !== tableNode) {
+                            return true;
+                        }
+                        var row = table.row(dataIndex).node();
+                        return $(row).attr('data-device-status') === deviceStatus;
+                    });
+                    filters.push('Devices: ' + $('#deviceFilter option:selected').text());
                 }
 
                 // Inspection status filter
                 var inspectionStatus = $('#inspectionFilter').val();
                 if (inspectionStatus) {
-                    if (inspectionStatus === 'recent') {
-                        table.column(7).search('Recent', true, false);
-                    } else if (inspectionStatus === 'due') {
-                        table.column(7).search('Due Soon', true, false);
-                    } else if (inspectionStatus === 'overdue') {
-                        table.column(7).search('Overdue', true, false);
-                    } else if (inspectionStatus === 'never') {
-                        table.column(7).search('Never', true, false);
-                    }
-                    filters.push('Inspection: ' + inspectionStatus);
-                } else {
-                    table.column(7).search('');
+                    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                        if (settings.nTable !== tableNode) {
+                            return true;
+                        }
+                        var row = table.row(dataIndex).node();
+                        return $(row).attr('data-inspection-status') === inspectionStatus;
+                    });
+                    filters.push('Inspection: ' + $('#inspectionFilter option:selected').text());
                 }
 
-                // Enhanced date range filter for inspection dates
+                // Date range filter for inspection dates
                 var dateFrom = $('#inspectionDateFrom').val();
                 var dateTo = $('#inspectionDateTo').val();
                 
                 if (dateFrom || dateTo) {
-                    var dateFilter = function(settings, data, dataIndex) {
-                        var inspectionDate = data[7]; // Column index for inspection date
+                    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                        if (settings.nTable !== tableNode) {
+                            return true;
+                        }
+                        var row = table.row(dataIndex).node();
+                        var inspectionDate = $(row).attr('data-inspection-date');
                         
-                        if (!inspectionDate || inspectionDate.includes('Never')) {
+                        if (!inspectionDate) {
                             return false; // Skip rows with no inspection date
                         }
                         
-                        // Extract date from the inspection date string
-                        var dateMatch = inspectionDate.match(/(\w{3} \d{1,2}, \d{4})/);
-                        if (!dateMatch) {
-                            return false;
+                        var rowDate = new Date(inspectionDate);
+                        rowDate.setHours(0, 0, 0, 0);
+                        
+                        if (dateFrom) {
+                            var fromDate = new Date(dateFrom);
+                            fromDate.setHours(0, 0, 0, 0);
+                            if (rowDate < fromDate) {
+                                return false;
+                            }
                         }
                         
-                        var rowDate = new Date(dateMatch[1]);
-                        
-                        if (dateFrom && rowDate < new Date(dateFrom)) {
-                            return false;
-                        }
-                        if (dateTo && rowDate > new Date(dateTo)) {
-                            return false;
+                        if (dateTo) {
+                            var toDate = new Date(dateTo);
+                            toDate.setHours(23, 59, 59, 999);
+                            if (rowDate > toDate) {
+                                return false;
+                            }
                         }
                         
                         return true;
-                    };
-                    
-                    customFilters.push(dateFilter);
+                    });
                     
                     if (dateFrom && dateTo) {
                         filters.push('Date: ' + dateFrom + ' to ' + dateTo);
@@ -519,7 +677,7 @@ $buildings = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     }
                 }
 
-                // Update filter count and result count
+                // Update filter count
                 $('#filterCount').text(filters.length);
                 
                 // Draw the table with real-time updates
@@ -527,14 +685,16 @@ $buildings = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 
                 // Update result count after draw
                 setTimeout(function() {
-                    $('#resultCount').text(table.rows({search: 'applied'}).count());
+                    var visibleRows = table.rows({search: 'applied'}).count();
+                    $('#resultCount').text(visibleRows);
                 }, 100);
             }
 
             // Real-time event listeners for instant filtering
             $('#buildingNameSearch, #ownerSearch, #locationSearch').on('input', function() {
-                clearTimeout(this.searchTimeout);
-                this.searchTimeout = setTimeout(applyFilters, 300);
+                var self = this;
+                clearTimeout(self.searchTimeout);
+                self.searchTimeout = setTimeout(applyFilters, 300);
             });
             
             // Instant filtering for dropdowns and date inputs
@@ -551,13 +711,18 @@ $buildings = $stmt->fetchAll(PDO::FETCH_ASSOC);
             $('#clearFilters').on('click', function() {
                 $('#buildingNameSearch, #ownerSearch, #locationSearch, #buildingTypeFilter, #floorFilter, #deviceFilter, #inspectionFilter, #inspectionDateFrom, #inspectionDateTo').val('');
                 
-                customFilters = [];
+                // Clear all custom filters
                 $.fn.dataTable.ext.search = [];
                 
-                table.search('').columns().search('').draw();
+                // Redraw table
+                table.draw();
                 
+                // Update counts
                 $('#filterCount').text('0');
-                $('#resultCount').text(table.rows().count());
+                setTimeout(function() {
+                    var visibleRows = table.rows({search: 'applied'}).count();
+                    $('#resultCount').text(visibleRows);
+                }, 100);
                 
                 Swal.fire({
                     icon: 'success',
@@ -607,22 +772,52 @@ $buildings = $stmt->fetchAll(PDO::FETCH_ASSOC);
             });
 
             table.on('draw', function() {
-                $('#resultCount').text(table.rows({search: 'applied'}).count());
+                var visibleRows = table.rows({search: 'applied'}).count();
+                $('#resultCount').text(visibleRows);
             });
 
+            // Initialize counts
             $('#filterCount').text('0');
             $('#resultCount').text(table.rows().count());
             
+            // Keyboard shortcuts
             $(document).on('keydown', function(e) {
                 if (e.ctrlKey && e.key === 'r') {
                     e.preventDefault();
                     $('#clearFilters').click();
                 }
+                if (e.ctrlKey && e.key === 'f') {
+                    e.preventDefault();
+                    $('#buildingNameSearch').focus();
+                }
+                if (e.ctrlKey && e.key === 'e') {
+                    e.preventDefault();
+                    $('#exportResults').click();
+                }
             });
         });
+            }
+            
+            // Start initialization - wait for window load to ensure all scripts are loaded
+            function startInitialization() {
+                // Give scripts.php time to fully load all its scripts
+                setTimeout(initializeDataTable, 500);
+            }
+            
+            // Wait for both DOM and all resources to be ready
+            if (document.readyState === 'complete') {
+                // Page already loaded, wait a bit more for scripts
+                setTimeout(startInitialization, 100);
+            } else {
+                // Wait for window load event
+                if (window.addEventListener) {
+                    window.addEventListener('load', startInitialization);
+                } else {
+                    window.attachEvent('onload', startInitialization);
+                }
+            }
+        })();
     </script>
-    <!-- Include header components -->
-    <?php include '../../components/scripts.php'; ?>
 </body>
 </html>
 

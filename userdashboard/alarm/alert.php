@@ -1,20 +1,40 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+// Error handling - environment-aware
+$isProduction = (getenv('APP_ENV') === 'production' || 
+                (isset($_SERVER['HTTP_HOST']) && 
+                 strpos($_SERVER['HTTP_HOST'], 'localhost') === false && 
+                 strpos($_SERVER['HTTP_HOST'], '127.0.0.1') === false));
+
+if ($isProduction) {
+    error_reporting(E_ALL);
+    ini_set('display_errors', '0');
+    ini_set('log_errors', '1');
+    $logDir = __DIR__ . '/../../logs';
+    if (!is_dir($logDir)) {
+        @mkdir($logDir, 0755, true);
+    }
+    ini_set('error_log', $logDir . '/php_errors.log');
+} else {
+    error_reporting(E_ALL);
+    ini_set('display_errors', '1');
+}
 
 // Start output buffering to prevent any accidental output
 ob_start();
 
-// Start session if not already started
+// Start session first (before including session_config)
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+
+// Secure session configuration (now safe to include)
+require_once __DIR__ . '/../includes/session_config.php';
 
 // Check if this is a POST request - handle it early to prevent HTML output
 $isPostRequest = $_SERVER['REQUEST_METHOD'] === 'POST';
 
 // Check if user is logged in
-if (!isset($_SESSION['user_id'])) {
+if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id'])) {
     if ($isPostRequest) {
         // For POST requests, return JSON error
         ob_clean();
@@ -72,12 +92,53 @@ if (!$dbLoaded) {
     }
 }
 
-// SMS API configuration
+// Load environment variables helper
+if (!function_exists('getEnvVar')) {
+    function getEnvVar($key, $default = '') {
+        // UPDATED: Use centralized root-level .env file ONLY
+        $envPaths = [
+            __DIR__ . '/../../.env'
+        ];
+        
+        // Try centralized loader first
+        $coreEnvPath = __DIR__ . '/../../core/config/env.php';
+        if (file_exists($coreEnvPath)) {
+            require_once $coreEnvPath;
+            return $_ENV[$key] ?? getenv($key) ?: $default;
+        }
+        
+        // Load .env file if not already loaded
+        if (empty($_ENV)) {
+            foreach ($envPaths as $envPath) {
+                if (file_exists($envPath)) {
+                    $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                    foreach ($lines as $line) {
+                        if (strpos(trim($line), '#') === 0) continue;
+                        if (strpos($line, '=') !== false) {
+                            list($name, $value) = explode('=', $line, 2);
+                            $_ENV[trim($name)] = trim($value);
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        
+        return $_ENV[$key] ?? getenv($key) ?: $default;
+    }
+}
+
+// SMS API configuration from environment variables
 $smsConfig = [
-    'apiKey' => '6PLX3NFL2A2FLQ81RI7X6C4PJP68ANLJNYQ7XAR6',
-    'device' => 'd8d8e6131b00f1a4',
-    'url' => 'https://sms.pagenet.info/api/v1/sms/send'
+    'apiKey' => getEnvVar('SMS_API_KEY', ''),
+    'device' => getEnvVar('SMS_DEVICE_ID', ''),
+    'url' => getEnvVar('SMS_API_URL', 'https://sms.pagenet.info/api/v1/sms/send')
 ];
+
+// Validate SMS configuration
+if (empty($smsConfig['apiKey']) || empty($smsConfig['device'])) {
+    error_log('WARNING: SMS API credentials not configured. SMS alerts will not work.');
+}
 
 // Get database connection
     $pdo = getDatabaseConnection();
@@ -126,8 +187,11 @@ function send_sms_alerts($recipients, $message) {
         curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params));
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        // Enable SSL verification for security
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        // Optional: specify CA bundle path if needed
+        // curl_setopt($ch, CURLOPT_CAINFO, __DIR__ . '/cacert.pem');
         curl_setopt($ch, CURLOPT_TIMEOUT, 30);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
 
@@ -156,6 +220,21 @@ function send_sms_alerts($recipients, $message) {
 
     error_log("SMS Alert: Sent $successCount out of $totalRecipients messages successfully");
     return $successCount > 0;
+}
+
+// Helper function to validate and sanitize device IDs array
+function validateDeviceIds($deviceIds) {
+    if (empty($deviceIds) || !is_array($deviceIds)) {
+        return [];
+    }
+    
+    // Validate all device IDs are integers
+    $validatedIds = array_filter(array_map('intval', $deviceIds), function($id) {
+        return $id > 0;
+    });
+    
+    // Remove duplicates
+    return array_values(array_unique($validatedIds));
 }
 
 // Function to clean and validate phone number
@@ -271,11 +350,26 @@ function get_active_firefighters_phones() {
     }
 }
 
+// Include CSRF protection
+require_once __DIR__ . '/../includes/csrf.php';
+
 // Handle API requests
 if ($isPostRequest) {
     // Clear any output buffer before sending JSON
     ob_clean();
     header('Content-Type: application/json');
+    
+    // Validate CSRF token for state-changing requests (except acknowledgment which is already validated)
+    if (isset($_POST['acknowledge']) || isset($_POST['test_sms'])) {
+        if (!validateCSRFToken()) {
+            http_response_code(403);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Invalid security token'
+            ]);
+            exit;
+        }
+    }
     
     try {
         // Handle acknowledgment request
@@ -399,6 +493,9 @@ if ($isPostRequest) {
     $stmt->execute([$userId]);
             $userDevices = $stmt->fetchAll(PDO::FETCH_COLUMN);
             
+            // Validate and sanitize device IDs
+            $userDevices = validateDeviceIds($userDevices);
+            
             if (empty($userDevices)) {
                 echo json_encode(['success' => true, 'data' => null, 'message' => 'No active devices found for user']);
                 exit;
@@ -431,6 +528,9 @@ if ($isPostRequest) {
             ");
             $stmt->execute([$userId]);
             $userDevices = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            
+            // Validate and sanitize device IDs
+            $userDevices = validateDeviceIds($userDevices);
             
             if (empty($userDevices)) {
                 echo json_encode(['success' => true, 'alerts' => [], 'message' => 'No active devices found for user']);
@@ -524,6 +624,9 @@ if ($isPostRequest) {
                 $stmt->execute([$userId]);
                 $userDevices = $stmt->fetchAll(PDO::FETCH_COLUMN);
                 
+                // Validate and sanitize device IDs
+                $userDevices = validateDeviceIds($userDevices);
+                
                 if (empty($userDevices)) {
                     echo json_encode([
                         'success' => true,
@@ -584,6 +687,9 @@ if ($isPostRequest) {
                 ");
                 $stmt->execute([$userId]);
                 $userDevices = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                
+                // Validate and sanitize device IDs
+                $userDevices = validateDeviceIds($userDevices);
                 
                 if (empty($userDevices)) {
                     echo json_encode([
@@ -668,6 +774,9 @@ try {
     ");
     $stmt->execute([$userId]);
     $userDevices = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    
+    // Validate and sanitize device IDs
+    $userDevices = validateDeviceIds($userDevices);
     
     if (empty($userDevices)) {
         $initialData = null;

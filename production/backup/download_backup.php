@@ -1,39 +1,61 @@
 <?php
-session_start();
-// Check if user is logged in (either officer or admin)
-if (!isset($_SESSION['admin_id']) && !isset($_SESSION['admin_id'])) {
-    header('HTTP/1.1 401 Unauthorized');
-    die('Unauthorized access');
+require_once __DIR__ . '/../db/db.php';
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
 }
 
-$filename = basename($_GET['file'] ?? '');
-$type = basename($_GET['type'] ?? 'manual');
+if (!isset($_SESSION['admin_id']) && !isset($_SESSION['officer_id'])) {
+    http_response_code(401);
+    exit('Unauthorized access');
+}
+
+$filename = $_GET['file'] ?? '';
+$type = $_GET['type'] ?? 'manual';
 
 $allowed_types = ['weekly', 'monthly', 'yearly', 'manual', 'all'];
-if (!in_array($type, $allowed_types)) {
-    header('HTTP/1.1 400 Bad Request');
-    die('Invalid backup type');
+if (!in_array($type, $allowed_types, true)) {
+    http_response_code(400);
+    exit('Invalid backup type');
 }
 
-$file_path = __DIR__ . '/backups/' . $type . '/' . $filename;
-
-if (!file_exists($file_path)) {
-    header('HTTP/1.1 404 Not Found');
-    die('Backup file not found: ' . $file_path);
+$filename = basename($filename);
+if ($filename === '' || !preg_match('/^[A-Za-z0-9._-]+$/', $filename)) {
+    http_response_code(400);
+    exit('Invalid file name');
 }
 
-// Set headers for download
+if (!str_ends_with(strtolower($filename), '.sql')) {
+    http_response_code(400);
+    exit('Invalid file extension');
+}
+
+$project_root = dirname(__DIR__, 2);
+$type_directory = realpath($project_root . '/secure_storage/backups/' . $type);
+if ($type_directory === false) {
+    http_response_code(404);
+    exit('Backup not available');
+}
+
+$file_path = $type_directory . DIRECTORY_SEPARATOR . $filename;
+$real_file_path = realpath($file_path);
+
+if ($real_file_path === false || strpos($real_file_path, $type_directory) !== 0 || !is_file($real_file_path)) {
+    http_response_code(404);
+    exit('Backup not found');
+}
+
 header('Content-Type: application/octet-stream');
 header('Content-Disposition: attachment; filename="' . $filename . '"');
-header('Content-Length: ' . filesize($file_path));
-header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
-header('Pragma: public');
+header('Content-Length: ' . filesize($real_file_path));
+header('Cache-Control: no-store');
+header('Pragma: private');
 
-// Clean output buffer
-if (ob_get_level()) ob_end_clean();
+if (ob_get_level()) {
+    ob_end_clean();
+}
 
-// Output file
-readfile($file_path);
+readfile($real_file_path);
 exit;
 ?>
 

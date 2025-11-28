@@ -1,28 +1,52 @@
 <?php require_once '../functions/functions.php';?>
+<?php require_once '../../components/security.php'; ?>
 <?php
+$csrfToken = generateCSRFToken();
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $incomingToken = $_POST['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    $isAjaxSearch = isset($_POST['action']) && $_POST['action'] === 'search';
+
+    if (!validateCSRFToken($incomingToken)) {
+        http_response_code(419);
+        if ($isAjaxSearch) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Invalid CSRF token.']);
+        } else {
+            echo 'Invalid CSRF token.';
+        }
+        exit;
+    }
+}
+
 // Handle migration trigger (admin only)
 if (isset($_POST['migrate_incidents']) && isset($_SESSION['admin_id'])) {
-    $result = migrateAllIncidentsToIncidentReports();
-    if ($result['success']) {
-        $msg = "Successfully migrated {$result['inserted']} incidents.";
-        if (!empty($result['errors'])) {
-            $msg .= " Errors: " . implode('; ', $result['errors']);
-        }
-        echo "<div class='alert alert-success'>{$msg}</div>";
+    if (!checkAdminRole('superadmin')) {
+        http_response_code(403);
+        echo "<div class='alert alert-danger'>Unauthorized action.</div>";
     } else {
-        echo "<div class='alert alert-danger'>Migration failed: {$result['error']}</div>";
+        $result = migrateAllIncidentsToIncidentReports();
+        if ($result['success']) {
+            $msg = "Successfully migrated {$result['inserted']} incidents.";
+            if (!empty($result['errors'])) {
+                $msg .= " Errors: " . implode('; ', $result['errors']);
+            }
+            echo "<div class='alert alert-success'>{$msg}</div>";
+        } else {
+            echo "<div class='alert alert-danger'>Migration failed: {$result['error']}</div>";
+        }
     }
 }
 
 if (isset($_POST['action']) && $_POST['action'] === 'search') {
-    require_once '../functions/functions.php';
-    $status = $_POST['status'] ?? '';
-    $start_date = $_POST['start_date'] ?? '';
-    $end_date = $_POST['end_date'] ?? '';
-    $page = isset($_POST['page']) ? (int)$_POST['page'] : 1;
-    $perPage = isset($_POST['perPage']) ? (int)$_POST['perPage'] : 10;
+    $status = sanitizeInput($_POST['status'] ?? '');
+    $start_date = sanitizeInput($_POST['start_date'] ?? '');
+    $end_date = sanitizeInput($_POST['end_date'] ?? '');
+    $page = max(1, (int)($_POST['page'] ?? 1));
+    $perPage = min(100, max(10, (int)($_POST['perPage'] ?? 10)));
     $incidents = getAcknowledgedIncidentsFiltered($status, $start_date, $end_date, $page, $perPage);
     header('Content-Type: application/json');
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
     echo json_encode($incidents);
     exit;
 }
@@ -288,6 +312,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'search') {
                     <div class="col-md-4 text-end">
                         <form action="" method="post" style="display: inline-block;">
                             <input type="hidden" name="incident_id" value="<?= $incidentDetails['id'] ?>">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES | ENT_HTML5, 'UTF-8') ?>">
                             <button type="submit" name="generate_pdf" class="btn btn-danger">
                                 <i class="fas fa-file-pdf"></i> Generate PDF
                             </button>

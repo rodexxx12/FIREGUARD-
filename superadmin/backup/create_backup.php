@@ -21,17 +21,37 @@ try {
     // Set timezone to Philippines FIRST
     date_default_timezone_set('Asia/Manila');
     
-    error_log("=== BACKUP REQUEST STARTED ===");
-    error_log("POST data: " . print_r($_POST, true));
-    
+    // Security: Don't log sensitive POST data in production
     $backup_type = isset($_POST['backup_type']) ? $_POST['backup_type'] : 'manual';
-    error_log("Backup type: " . $backup_type);
     
-    // Remote database credentials
-    $db_host = 'srv1322.hstgr.io';
-    $db_name = 'u520834156_DBBagofire';
-    $db_user = 'u520834156_userBagofire';
-    $db_pass = 'i[#[GQ!+=C9';
+    // Validate backup type
+    $allowedTypes = ['manual', 'weekly', 'monthly', 'yearly', 'all'];
+    if (!in_array($backup_type, $allowedTypes)) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Invalid backup type'
+        ]);
+        exit;
+    }
+    
+    // Log minimal information (no sensitive data)
+    error_log("Backup request: type=" . $backup_type . ", user=" . ($_SESSION['superadmin_id'] ?? 'unknown'));
+    
+    // Security: Use environment variables for database credentials
+    $db_host = $_ENV['DB_HOST'] ?? getenv('DB_HOST') ?: 'localhost';
+    $db_name = $_ENV['DB_NAME'] ?? getenv('DB_NAME') ?: '';
+    $db_user = $_ENV['DB_USER'] ?? getenv('DB_USER') ?: '';
+    $db_pass = $_ENV['DB_PASS'] ?? getenv('DB_PASS') ?: '';
+    
+    // Validate credentials are set
+    if (empty($db_name) || empty($db_user)) {
+        error_log("CRITICAL: Database credentials not configured for backup");
+        echo json_encode([
+            'success' => false,
+            'message' => 'Database configuration error'
+        ]);
+        exit;
+    }
     
     // Create backup directory
     $backup_dir = __DIR__ . '/backups';

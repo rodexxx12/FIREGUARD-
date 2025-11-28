@@ -338,6 +338,28 @@
         .btn i { color: #ffffff !important; }
         .btn:disabled i, .btn.disabled i { color: #ffffff !important; opacity: 0.85; }
         .swal2-popup .btn i { color: #ffffff !important; }
+
+        /* Respond action button styling */
+        .respond-btn {
+            background-color: #fd7e14;
+            border-color: #fd7e14;
+            color: #ffffff !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .respond-btn:hover,
+        .respond-btn:focus,
+        .respond-btn:active {
+            background-color: #fd7e14;
+            border-color: #fd7e14;
+            color: #ffffff !important;
+            box-shadow: none;
+        }
+        .respond-btn i {
+            color: #ffffff !important;
+            font-size: 1rem;
+        }
         /* Button colors using Bootstrap classes */
         .btn-emergency { 
             background-color: #fd7e14; 
@@ -359,7 +381,38 @@
         #routeToEmergency,
         #clearRoute,
         #locate-emergency,
-        #toggle-buildings { font-size: 14px; }
+        #toggle-buildings,
+        #toggle-directions { font-size: 14px; }
+        
+        .directions-toggle-btn {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            z-index: 1010;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 15px 35px rgba(220, 53, 69, 0.35);
+            background: #dc3545;
+            color: #fff;
+            border: none;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        }
+        
+        .directions-toggle-btn:hover:not(:disabled) {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 20px 40px rgba(220, 53, 69, 0.45);
+            background: #c82333;
+        }
+        
+        .directions-toggle-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
         
         /* Map size */
         #map {
@@ -375,8 +428,8 @@
             top: 0;
             left: 0;
             right: 0;
-            background: white;
-            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.85);
+            padding: 8px 14px;
             z-index: 1001;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
             overflow: hidden;
@@ -408,13 +461,74 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            font-weight: bold;
+            font-weight: 400;
             font-size: 15px;
             color: #2c3e50;
             margin-right: 30px;
-            background: white;
-            padding: 4px 8px;
+            background: rgba(255, 255, 255, 0.85);
+            padding: 2px 6px;
             border-radius: 4px;
+        }
+        
+        .popup-info-card {
+            background: #f5fff6;
+            border: 1px solid rgba(34, 197, 94, 0.35);
+            border-radius: 18px;
+            padding: 18px;
+            box-shadow: 0 10px 30px rgba(15, 118, 110, 0.12);
+            font-family: 'Segoe UI', 'Poppins', sans-serif;
+            min-width: 260px;
+        }
+        
+        .popup-info-title {
+            font-weight: 700;
+            font-size: 1.05rem;
+            color: #0f5132;
+            margin-bottom: 12px;
+            text-align: left;
+        }
+        
+        .popup-info-item {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            padding: 10px 12px;
+            border-radius: 14px;
+            background: rgba(34, 197, 94, 0.18);
+            margin-bottom: 8px;
+        }
+        
+        .popup-info-item i {
+            color: #15803d;
+            font-size: 1rem;
+            margin-top: 2px;
+        }
+        
+        .popup-info-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #166534;
+            display: block;
+        }
+        
+        .popup-info-value {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #0f172a;
+            line-height: 1.3;
+        }
+        
+        .popup-info-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .popup-info-actions .btn {
+            flex: 1;
+            border-radius: 12px;
+            font-weight: 600;
         }
         
         .marquee-item i {
@@ -799,10 +913,13 @@
                 <!-- Main Map Column Full-Width -->
                 <div class="col-12">
                     <div class="card shadow-sm mb-3 p-3">
-                        <h5 style="font-weight: bold; font-family: Arial, sans-serif; margin-top: 10px; margin-bottom: 20px;">Locate Fire Incidents in Bago City - <?php echo date('F Y'); ?></h5>
+                        <h5 style="text-align: center; font-weight: 900; font-family: Arial, sans-serif; margin-top: 10px; margin-bottom: 20px; color: #ff7a18;">Locate Fire Incidents in Bago City - <?php echo date('F Y'); ?></h5>
                         <div class="card-body p-0">
                             <div class="control-panel">
                                 <div id="map">
+                                    <button id="toggle-directions" class="btn directions-toggle-btn" disabled title="Show Directions">
+                                        <i class="bi bi-signpost-2"></i>
+                                    </button>
                                     <!-- Fire Data Marquee -->
                                     <div class="fire-data-marquee" id="fireDataMarquee">
                                         <div class="fire-data-marquee-content" id="fireDataMarqueeContent">
@@ -997,6 +1114,11 @@ let userMarker = null;
 let userLocationWatchId = null;
 let userLocationMarker = null;
 let userLocationCircle = null;
+let lastLocatedBuildingId = null;
+let lastLocatedBuildingName = '';
+let lastLocatedFireDataId = null;
+let lastDirectionsData = null;
+let directionsPanelVisible = false;
 
 // moved earlier with globals
 
@@ -1513,19 +1635,6 @@ function createBuildingMarker(building) {
         </div>
     `);
     
-	// Add tooltip
-	marker.bindTooltip(`
-		<div class="building-tooltip">
-			<div class="fw-bold">${building.building_name}</div>
-			<div>Type: ${building.building_type}</div>
-			<div>${building.address}</div>
-		</div>
-	`, {
-		permanent: false,
-		direction: 'top',
-		className: 'building-tooltip'
-	});
-    
     return marker;
 }
 
@@ -1634,12 +1743,14 @@ function initEventListeners() {
     const routeToEmergencyBtn = document.getElementById('routeToEmergency');
     const clearRouteBtn = document.getElementById('clearRoute');
     const locateEmergencyBtn = document.getElementById('locate-emergency');
+    const toggleDirectionsBtn = document.getElementById('toggle-directions');
     
     console.log('Button elements found:', {
         routeToStation: !!routeToStationBtn,
         routeToEmergency: !!routeToEmergencyBtn,
         clearRoute: !!clearRouteBtn,
-        locateEmergency: !!locateEmergencyBtn
+        locateEmergency: !!locateEmergencyBtn,
+        toggleDirections: !!toggleDirectionsBtn
     });
     
     if (routeToStationBtn) {
@@ -1670,6 +1781,14 @@ function initEventListeners() {
             locateEmergency();
         });
     }
+    
+    if (toggleDirectionsBtn) {
+        toggleDirectionsBtn.addEventListener('click', function() {
+            handleDirectionsToggleClick();
+        });
+    }
+    
+    updateDirectionsToggleButton({ enabled: false, active: false });
     // Removed 'find-me' button and its handler
     // Toggle buildings button
     const toggleBuildingsBtn = document.getElementById('toggle-buildings');
@@ -2057,6 +2176,8 @@ function clearRoute() {
     // Close directions panel when route is cleared
     console.log('Closing directions panel');
     closeDirectionsPanel();
+    lastDirectionsData = null;
+    updateDirectionsToggleButton({ enabled: false, active: false });
     
     // Restore button state
     if (clearRouteBtn) {
@@ -2064,7 +2185,38 @@ function clearRoute() {
         clearRouteBtn.disabled = false;
     }
     
+    updateRespondButtonState(null);
     console.log('clearRoute function completed');
+}
+
+function updateRespondButtonState(buildingId, buildingName = '', fireDataId = null) {
+    const respondBtn = document.getElementById('respondToLocated');
+    if (!respondBtn) {
+        return;
+    }
+
+    const validBuilding = Number.isFinite(buildingId) && buildingId > 0;
+    const validFireData = Number.isFinite(fireDataId) && fireDataId > 0;
+
+    lastLocatedBuildingId = validBuilding ? buildingId : null;
+    lastLocatedFireDataId = validFireData ? fireDataId : null;
+    lastLocatedBuildingName = buildingName || '';
+
+    const hasValidTarget = validBuilding || validFireData;
+    respondBtn.disabled = !hasValidTarget;
+    respondBtn.title = hasValidTarget 
+        ? (buildingName ? `Respond to ${buildingName}` : 'Respond to located incident')
+        : 'Locate a device first';
+}
+
+function handleRespondToLocated() {
+    const hasValidTarget = (Number.isFinite(lastLocatedBuildingId) && lastLocatedBuildingId > 0) ||
+        (Number.isFinite(lastLocatedFireDataId) && lastLocatedFireDataId > 0);
+    if (!hasValidTarget) {
+        showAlert('info', 'Locate an incident before responding.');
+        return;
+    }
+    confirmRespond(lastLocatedBuildingId, lastLocatedBuildingName, lastLocatedFireDataId);
 }
 
 function locateEmergency() {
@@ -2077,13 +2229,16 @@ function locateEmergency() {
 
     speakText('Locating the latest ACKNOWLEDGED fire incident based on device data.');
 
+    updateRespondButtonState(null);
+
     // Use the new endpoint that only fetches ACKNOWLEDGED status
     fetchMostRecentAcknowledged()
-        .then(response => {
+        .then(async response => {
             if (!response || !response.success || !response.data) {
                 const infoMessage = (response && response.message) ? response.message : 'No ACKNOWLEDGED fire incidents were found.';
                 showAlert('info', infoMessage);
                 speakText('No ACKNOWLEDGED incidents available.');
+                updateRespondButtonState(null);
                 return;
             }
 
@@ -2096,6 +2251,7 @@ function locateEmergency() {
             if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
                 showAlert('warning', 'Latest ACKNOWLEDGED fire_data entry does not include valid coordinates.');
                 console.warn('Missing coordinates in fire_data payload:', acknowledged);
+                updateRespondButtonState(null);
                 return;
             }
 
@@ -2103,7 +2259,17 @@ function locateEmergency() {
             // Since we're only fetching ACKNOWLEDGED, this will always be false
             const isEmergency = false;
             const displayName = acknowledged.building_name || `Device ${acknowledged.device_name || acknowledged.device_id || 'Unknown'}`;
-            const address = acknowledged.address || 'Location derived from fire_data GPS coordinates.';
+            let address = (acknowledged.address && !acknowledged.address.toLowerCase().includes('location derived'))
+                ? acknowledged.address
+                : null;
+            if (!address) {
+                try {
+                    address = await reverseGeocode(latitude, longitude);
+                } catch (geoError) {
+                    console.warn('Reverse geocode failed for acknowledged incident:', geoError);
+                    address = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+                }
+            }
             const lastUpdated = acknowledged.timestamp ? new Date(acknowledged.timestamp).toLocaleString() : 'Unknown';
             
             // Show acknowledged time if available
@@ -2146,22 +2312,49 @@ function locateEmergency() {
             });
 
             const buildingId = acknowledged.building_id ? parseInt(acknowledged.building_id, 10) : null;
+            const fireDataId = acknowledged.fire_data_id ? parseInt(acknowledged.fire_data_id, 10) : null;
             const hasBuildingId = Number.isFinite(buildingId) && buildingId > 0;
+            updateRespondButtonState(hasBuildingId ? buildingId : null, displayName, fireDataId);
             const respondButtonHtml = hasBuildingId ? `
-                <button class="btn btn-outline-secondary btn-sm" onclick="confirmRespond(${buildingId})" title="Respond">
-                    <i class="bi bi-check2-circle"></i>
-                </button>` : '';
+                <button class="btn btn-sm respond-btn" onclick="confirmRespond(${buildingId}, '${safeName}', ${fireDataId ?? 'null'})" title="Respond">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                </button>` : (Number.isFinite(fireDataId) && fireDataId > 0 ? `
+                <button class="btn btn-sm respond-btn" onclick="confirmRespond(null, '${safeName}', ${fireDataId})" title="Respond">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                </button>` : '');
 
             emergencyMarker = L.marker([latitude, longitude], { icon: customIcon })
                 .addTo(map)
                 .bindPopup(`
-                    <div class="text-center">
-                        <h5 class="fw-bold">${displayName}</h5>
-                        <p class="mb-1">${address}</p>
-                        <p class="mb-1"><strong>Status:</strong> <span style="color:${markerColor}">${statusUpper}</span></p>
-                        <p class="mb-1"><strong>Last Update:</strong> ${lastUpdated}</p>
-                        <div class="mt-2 d-flex justify-content-center gap-2">
-                            <button class="btn btn-sm btn-primary" onclick="routeToThisBuildingWithSpeech(${latitude}, ${longitude}, '${safeName}', '${safeAddress}', '${statusUpper}')">
+                    <div class="popup-info-card">
+                        <div class="popup-info-title">${displayName}</div>
+                        
+                        <div class="popup-info-item">
+                            <i class="bi bi-geo-alt-fill"></i>
+                            <div>
+                                <span class="popup-info-label">Location</span>
+                                <span class="popup-info-value">${address}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="popup-info-item">
+                            <i class="bi bi-activity"></i>
+                            <div>
+                                <span class="popup-info-label">Status</span>
+                                <span class="popup-info-value" style="color:${markerColor};">${statusUpper}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="popup-info-item">
+                            <i class="bi bi-clock-history"></i>
+                            <div>
+                                <span class="popup-info-label">Last Update</span>
+                                <span class="popup-info-value">${lastUpdated}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="popup-info-actions">
+                            <button class="btn btn-sm btn-success" onclick="routeToThisBuildingWithSpeech(${latitude}, ${longitude}, '${safeName}', '${safeAddress}', '${statusUpper}')">
                                 <i class="bi bi-route me-1"></i> Route
                             </button>
                             ${respondButtonHtml}
@@ -2184,6 +2377,7 @@ function locateEmergency() {
         .catch(error => {
             console.error("Error locating fire_data incident:", error);
             showAlert('danger', 'Unable to locate the latest fire incident. Please try again.');
+            updateRespondButtonState(null);
         })
         .finally(() => {
             if (locateEmergencyBtn) {
@@ -2330,10 +2524,22 @@ function routeToThisBuilding(latitude, longitude, buildingName, address, status)
     ], { padding: [50, 50] });
 }
 
-// Respond to the latest EMERGENCY or ACKNOWLEDGED record for this building
-async function respondToBuilding(buildingId) {
+// Respond to the latest EMERGENCY or ACKNOWLEDGED record for this building/device
+async function respondToIncident(buildingId, fireDataId) {
     try {
-        const payload = { building_id: buildingId, response_type: 'Respond' };
+        const payload = { response_type: 'Respond' };
+        if (Number.isFinite(buildingId) && buildingId > 0) {
+            payload.building_id = buildingId;
+        }
+        if (Number.isFinite(fireDataId) && fireDataId > 0) {
+            payload.fire_data_id = fireDataId;
+        }
+
+        if (!payload.building_id && !payload.fire_data_id) {
+            showAlert('warning', 'Unable to determine incident reference for response.');
+            return;
+        }
+
         const res = await fetch('create_response.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2353,10 +2559,11 @@ async function respondToBuilding(buildingId) {
 }
 
 // Confirm before responding
-function confirmRespond(buildingId) {
+function confirmRespond(buildingId, buildingName = '', fireDataId = null) {
+	const locationLabel = buildingName ? buildingName : 'this building';
 	Swal.fire({
 		title: 'Confirm Response',
-		text: 'Are you sure you want to send a response to this building?',
+		text: `Are you sure you want to send a response to ${locationLabel}?`,
 		icon: 'warning',
 		showCancelButton: true,
 		confirmButtonColor: '#dc3545',
@@ -2365,7 +2572,7 @@ function confirmRespond(buildingId) {
 		cancelButtonText: 'Cancel'
 	}).then((result) => {
 		if (result.isConfirmed) {
-			respondToBuilding(buildingId);
+			respondToIncident(buildingId, fireDataId);
 		}
 	});
 }
@@ -2797,7 +3004,7 @@ function showRouteToStation() {
     speakText('Finding route to fire station from latest fire incident.');
     // Use the most recent ACKNOWLEDGED fire_data with GPS coordinates
     fetchMostRecentAcknowledged()
-        .then(response => {
+        .then(async response => {
             if (!response || !response.success || !response.data) {
                 const infoMessage = (response && response.message) ? response.message : 'No fire incidents found.';
                 speakText('No fire incidents available.');
@@ -2822,7 +3029,17 @@ function showRouteToStation() {
 
             const status = fireData.status || 'UNKNOWN';
             const building_name = fireData.building_name || `Device ${fireData.device_name || fireData.device_id || 'Unknown'}`;
-            const address = fireData.address || 'Location derived from fire_data GPS coordinates.';
+            let address = (fireData.address && !fireData.address.toLowerCase().includes('location derived'))
+                ? fireData.address
+                : null;
+            if (!address) {
+                try {
+                    address = await reverseGeocode(latitude, longitude);
+                } catch (geoError) {
+                    console.warn('Reverse geocode failed for route-to-station marker:', geoError);
+                    address = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+                }
+            }
 
             clearRoute();
 
@@ -2894,12 +3111,40 @@ function showRouteToStation() {
 
                 if (emergencyMarker) {
                     emergencyMarker.bindPopup(`
-                        <div class="text-center">
-                            <h5 class="fw-bold">${building_name}</h5>
-                            <p class="mb-1">${address}</p>
-                            <p class="mb-1"><strong>Status:</strong> <span style="color:${routeColor}">${statusUpper}</span></p>
-                            <p class="mb-1"><strong>Distance to Station:</strong> ${distanceKm} km</p>
-                            <p class="mb-1"><strong>ETA:</strong> ${durationFormatted}</p>
+                        <div class="popup-info-card">
+                            <div class="popup-info-title">${building_name}</div>
+                            
+                            <div class="popup-info-item">
+                                <i class="bi bi-geo-alt-fill"></i>
+                                <div>
+                                    <span class="popup-info-label">Location</span>
+                                    <span class="popup-info-value">${address}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="popup-info-item">
+                                <i class="bi bi-activity"></i>
+                                <div>
+                                    <span class="popup-info-label">Status</span>
+                                    <span class="popup-info-value" style="color:${routeColor};">${statusUpper}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="popup-info-item">
+                                <i class="bi bi-rulers"></i>
+                                <div>
+                                    <span class="popup-info-label">Distance to Station</span>
+                                    <span class="popup-info-value">${distanceKm} km</span>
+                                </div>
+                            </div>
+                            
+                            <div class="popup-info-item">
+                                <i class="bi bi-stopwatch"></i>
+                                <div>
+                                    <span class="popup-info-label">ETA</span>
+                                    <span class="popup-info-value">${durationFormatted}</span>
+                                </div>
+                            </div>
                         </div>
                     `).openPopup();
                 }
@@ -3423,12 +3668,45 @@ function routeToThisBuildingWithSpeech(latitude, longitude, buildingName, addres
     routeToThisBuilding(latitude, longitude, buildingName, address, status);
 }
 
+function updateDirectionsToggleButton({ enabled, active } = {}) {
+    const btn = document.getElementById('toggle-directions');
+    if (!btn) return;
+    
+    if (typeof enabled === 'boolean') {
+        btn.disabled = !enabled;
+    }
+    
+    const isActive = typeof active === 'boolean' ? active : directionsPanelVisible;
+    btn.classList.toggle('directions-active', isActive);
+    btn.classList.toggle('directions-inactive', !isActive);
+    btn.innerHTML = isActive
+        ? '<i class="bi bi-signpost-2-fill"></i>'
+        : '<i class="bi bi-signpost-2"></i>';
+    btn.title = isActive ? 'Hide Directions' : 'Show Directions';
+}
+
+function handleDirectionsToggleClick() {
+    if (!lastDirectionsData) {
+        showAlert('info', 'Generate a route first to view directions.');
+        return;
+    }
+    
+    if (directionsPanelVisible) {
+        closeDirectionsPanel();
+    } else {
+        createDirectionsPanel(lastDirectionsData.instructions, lastDirectionsData.destination);
+    }
+}
+
 // Function to speak detailed turn-by-turn directions
 function speakDetailedDirections(instructions, destination) {
     if (!instructions || !Array.isArray(instructions)) {
         console.log('No detailed instructions available');
         return;
     }
+    
+    lastDirectionsData = { instructions, destination };
+    updateDirectionsToggleButton({ enabled: true });
     
     // Create or update directions panel
     createDirectionsPanel(instructions, destination);
@@ -3536,6 +3814,9 @@ function createDirectionsPanel(instructions, destination) {
     } else {
         document.body.appendChild(panel);
     }
+    
+    directionsPanelVisible = true;
+    updateDirectionsToggleButton({ active: true, enabled: true });
     
     // Add event listener for speech rate slider
     setTimeout(() => {
@@ -3875,6 +4156,8 @@ function closeDirectionsPanel() {
     }
     console.log('Cancelling speech synthesis');
     window.speechSynthesis.cancel();
+    directionsPanelVisible = false;
+    updateDirectionsToggleButton({ active: false, enabled: !!lastDirectionsData });
     console.log('closeDirectionsPanel function completed');
 }
 

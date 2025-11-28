@@ -1,6 +1,25 @@
 <?php
+/**
+ * Get Building History API Endpoint
+ * 
+ * SECURITY FIXES APPLIED:
+ * - Restricted CORS to specific origins
+ * - Added CSRF protection
+ * - Added security headers
+ * - Enhanced input validation
+ * - Improved error handling
+ * - Added rate limiting
+ * - Limited input size
+ */
+
 // Include centralized database connection
 require_once '../../db/db.php';
+
+// Include security functions if available
+$securityPath = __DIR__ . '/../../login/functions/security.php';
+if (file_exists($securityPath)) {
+    require_once $securityPath;
+}
 
 // Start session and enforce admin authentication
 if (session_status() == PHP_SESSION_NONE) {
@@ -11,10 +30,52 @@ if (session_status() == PHP_SESSION_NONE) {
     }
 }
 
-if (!isset($_SESSION['admin_id'])) {
-    if (!headers_sent()) {
-        header('Content-Type: application/json');
+// Set security headers before any output
+if (!headers_sent()) {
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: DENY');
+    header('X-XSS-Protection: 1; mode=block');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+    
+    // Restrict CORS - allow same origin and configured origins
+    $host = $_SERVER['HTTP_HOST'] ?? '';
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $currentOrigin = $protocol . '://' . $host;
+    
+    $allowedOrigins = [
+        $currentOrigin, // Same origin
+        'http://localhost',
+        'http://127.0.0.1'
+    ];
+    
+    // Add configured origins from environment if available
+    $configuredOrigins = getenv('ALLOWED_ORIGINS');
+    if ($configuredOrigins) {
+        $allowedOrigins = array_merge($allowedOrigins, explode(',', $configuredOrigins));
     }
+    
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    if ($origin && in_array($origin, $allowedOrigins, true)) {
+        header('Access-Control-Allow-Origin: ' . $origin);
+    } else {
+        // Fallback to same origin
+        header('Access-Control-Allow-Origin: ' . $currentOrigin);
+    }
+    
+    header('Access-Control-Allow-Credentials: true');
+    header('Access-Control-Allow-Methods: POST');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-CSRF-Token');
+    
+    // HTTPS only in production
+    if ($protocol === 'https' || ($_SERVER['SERVER_PORT'] ?? 443) == 443) {
+        header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+    }
+    
+    header('Content-Type: application/json');
+}
+
+// Check authentication
+if (!isset($_SESSION['admin_id'])) {
     http_response_code(401);
     echo json_encode([
         'success' => false,
@@ -24,20 +85,150 @@ if (!isset($_SESSION['admin_id'])) {
     exit;
 }
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST');
-header('Access-Control-Allow-Headers: Content-Type');
+// Rate limiting
+function checkRateLimit($key, $maxRequests = 60, $windowSeconds = 60) {
+    $cacheDir = sys_get_temp_dir() . '/rate_limits';
+    if (!is_dir($cacheDir)) {
+        @mkdir($cacheDir, 0700, true);
+    }
+    
+    $cacheFile = $cacheDir . '/' . md5($key) . '.json';
+    $now = time();
+    
+    if (file_exists($cacheFile)) {
+        $data = json_decode(file_get_contents($cacheFile), true);
+        if ($data && isset($data['time']) && $data['time'] > ($now - $windowSeconds)) {
+            if ($data['count'] >= $maxRequests) {
+                return false;
+            }
+            $data['count']++;
+        } else {
+            $data = ['time' => $now, 'count' => 1];
+        }
+    } else {
+        $data = ['time' => $now, 'count' => 1];
+    }
+    
+    @file_put_contents($cacheFile, json_encode($data), LOCK_EX);
+    return true;
+}
 
-// Get JSON input
-$input = json_decode(file_get_contents('php://input'), true);
+$rateLimitKey = 'building_history_' . ($_SESSION['admin_id'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown');
+if (!checkRateLimit($rateLimitKey, 60, 60)) {
+    http_response_code(429);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Too many requests. Please try again later.'
+    ]);
+    exit;
+}
 
-if (!isset($input['building_id']) || empty($input['building_id'])) {
-    echo json_encode(['success' => false, 'message' => 'Building ID is required']);
+// Validate Content-Type
+$contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+if ($contentType && strpos($contentType, 'application/json') === false) {
+    http_response_code(415);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Content-Type must be application/json'
+    ]);
+    exit;
+}
+
+// Get JSON input with size limit
+$maxInputSize = 1024; // 1KB max
+$inputRaw = file_get_contents('php://input');
+if (strlen($inputRaw) > $maxInputSize) {
+    http_response_code(413);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Request payload too large'
+    ]);
+    exit;
+}
+
+$input = json_decode($inputRaw, true);
+if (json_last_error() !== JSON_ERROR_NONE) {
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Invalid JSON format'
+    ]);
+    exit;
+}
+
+// CSRF protection (optional if security functions exist)
+if (function_exists('validateCsrfToken')) {
+    $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? $input['csrf_token'] ?? null;
+    if (!$csrfToken || !validateCsrfToken($csrfToken)) {
+        http_response_code(403);
+        echo json_encode([
+            'success' => false,
+            'message' => 'CSRF token validation failed'
+        ]);
+        exit;
+    }
+}
+
+// Validate date input
+function validateDateInput($dateString) {
+    if (empty($dateString)) {
+        return null;
+    }
+    
+    // Check format (YYYY-MM-DD)
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateString)) {
+        return null;
+    }
+    
+    // Validate actual date
+    $date = DateTime::createFromFormat('Y-m-d', $dateString);
+    if (!$date || $date->format('Y-m-d') !== $dateString) {
+        return null;
+    }
+    
+    // Sanitize: only allow dates within reasonable range
+    $minDate = new DateTime('1900-01-01');
+    $maxDate = new DateTime('+10 years');
+    if ($date >= $minDate && $date <= $maxDate) {
+        return $dateString;
+    }
+    
+    return null;
+}
+
+// Validate building_id
+if (!isset($input['building_id']) || !is_numeric($input['building_id'])) {
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Building ID is required and must be numeric'
+    ]);
     exit;
 }
 
 $buildingId = (int)$input['building_id'];
+if ($buildingId <= 0) {
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Invalid building ID'
+    ]);
+    exit;
+}
+
+// Validate and sanitize date inputs
+$startDate = validateDateInput($input['start_date'] ?? null);
+$endDate = validateDateInput($input['end_date'] ?? null);
+
+// Ensure end date is after start date
+if ($startDate && $endDate && $startDate > $endDate) {
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => 'End date must be after start date'
+    ]);
+    exit;
+}
 
 try {
     $conn = getDatabaseConnection();
@@ -63,14 +254,15 @@ try {
     $building = $stmt->fetch();
     
     if (!$building) {
-        echo json_encode(['success' => false, 'message' => 'Building not found']);
+        http_response_code(404);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Building not found'
+        ]);
         exit;
     }
     
     // Fetch fire incident history with optional date filtering
-    $startDate = isset($input['start_date']) ? $input['start_date'] : null;
-    $endDate = isset($input['end_date']) ? $input['end_date'] : null;
-    
     $incidentsQuery = "
         SELECT 
             fd.*,
@@ -147,13 +339,37 @@ try {
         'stats' => $stats,
         'incident_count' => count($incidents),
         'device_count' => count($devices)
-    ]);
+    ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
     
 } catch(PDOException $e) {
-    error_log("Error fetching building data: " . $e->getMessage());
+    // Log full error details server-side only
+    error_log(sprintf(
+        "Error fetching building data [User: %s, IP: %s, Building ID: %d]: %s",
+        $_SESSION['admin_id'] ?? 'unknown',
+        $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+        $buildingId ?? 0,
+        $e->getMessage()
+    ));
+    
+    // Return generic error to client
+    http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Failed to fetch building data'
+        'message' => 'Failed to fetch building data. Please try again later.'
     ]);
+    exit;
+} catch(Exception $e) {
+    error_log(sprintf(
+        "Unexpected error in get_building_history.php [User: %s, IP: %s]: %s",
+        $_SESSION['admin_id'] ?? 'unknown',
+        $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+        $e->getMessage()
+    ));
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => 'An unexpected error occurred'
+    ]);
+    exit;
 }
 ?>

@@ -1,11 +1,41 @@
 <?php
+// Suppress error output for JSON responses
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
+ini_set('log_errors', 1);
+
+// Start output buffering to catch any accidental output
+if (!ob_get_level()) {
+    ob_start();
+}
+
 require_once 'common/database_utils.php';
 
 try {
     // Get filter parameters
-    $startDate = $_GET['start_date'] ?? '';
-    $endDate = $_GET['end_date'] ?? '';
-    $barangay = $_GET['barangay'] ?? '';
+    $startDateRaw = $_GET['start_date'] ?? null;
+    $startDate = DatabaseUtils::sanitizeDate($startDateRaw);
+    if ($startDateRaw && !$startDate) {
+        DatabaseUtils::sendError('Invalid start date. Use YYYY-MM-DD format.');
+    }
+
+    $endDateRaw = $_GET['end_date'] ?? null;
+    $endDate = DatabaseUtils::sanitizeDate($endDateRaw);
+    if ($endDateRaw && !$endDate) {
+        DatabaseUtils::sendError('Invalid end date. Use YYYY-MM-DD format.');
+    }
+
+    $barangayRaw = $_GET['barangay'] ?? null;
+    $barangay = DatabaseUtils::sanitizeInt($barangayRaw, 1);
+    if ($barangayRaw !== null && $barangay === null) {
+        DatabaseUtils::sendError('Invalid barangay identifier.');
+    }
+
+    // Default to current month when no custom range is provided
+    if (!$startDate && !$endDate) {
+        $startDate = date('Y-m-01');
+        $endDate = date('Y-m-t');
+    }
     
     $summaryData = [];
     
@@ -15,11 +45,18 @@ try {
                     COUNT(*) as count
                 FROM fire_data fd
                 " . DatabaseUtils::getFireDataJoins() . "
-                WHERE fd.timestamp IS NOT NULL
-                " . DatabaseUtils::getCurrentMonthYearFilter();
+                WHERE fd.timestamp IS NOT NULL";
     
     $alarmParams = [];
     DatabaseUtils::buildBarangayFilter($barangay, $alarmSql, $alarmParams);
+    if ($startDate) {
+        $alarmSql .= " AND DATE(fd.timestamp) >= :alarm_start_date";
+        $alarmParams[':alarm_start_date'] = $startDate;
+    }
+    if ($endDate) {
+        $alarmSql .= " AND DATE(fd.timestamp) <= :alarm_end_date";
+        $alarmParams[':alarm_end_date'] = $endDate;
+    }
     $alarmSql .= " GROUP BY fd.status";
     
     $alarmResults = DatabaseUtils::executeQuery($alarmSql, $alarmParams);
@@ -58,13 +95,20 @@ try {
                     COUNT(fd.id) as total_readings
                 FROM barangay b
                 " . DatabaseUtils::getBarangayJoins() . "
-                WHERE fd.timestamp IS NOT NULL
-                " . DatabaseUtils::getCurrentMonthYearFilter();
+                WHERE fd.timestamp IS NOT NULL";
     
     $heatParams = [];
     if (!empty($barangay)) {
         $heatSql .= " AND b.id = :barangay";
         $heatParams[':barangay'] = $barangay;
+    }
+    if ($startDate) {
+        $heatSql .= " AND DATE(fd.timestamp) >= :heat_start_date";
+        $heatParams[':heat_start_date'] = $startDate;
+    }
+    if ($endDate) {
+        $heatSql .= " AND DATE(fd.timestamp) <= :heat_end_date";
+        $heatParams[':heat_end_date'] = $endDate;
     }
     
     $heatResult = DatabaseUtils::executeSingleQuery($heatSql, $heatParams);
@@ -87,11 +131,18 @@ try {
                 LEFT JOIN barangay bld_barangay ON bld.barangay_id = bld_barangay.id
                 LEFT JOIN barangay fd_barangay ON fd.barangay_id = fd_barangay.id
                 WHERE fd.timestamp IS NOT NULL
-                AND fd.status IN ('EMERGENCY', 'ACKNOWLEDGED', 'fire')
-                " . DatabaseUtils::getCurrentMonthYearFilter();
+                AND fd.status IN ('EMERGENCY', 'ACKNOWLEDGED', 'fire')";
     
     $fireParams = [];
     DatabaseUtils::buildBarangayFilter($barangay, $fireSql, $fireParams);
+    if ($startDate) {
+        $fireSql .= " AND DATE(fd.timestamp) >= :fire_start_date";
+        $fireParams[':fire_start_date'] = $startDate;
+    }
+    if ($endDate) {
+        $fireSql .= " AND DATE(fd.timestamp) <= :fire_end_date";
+        $fireParams[':fire_end_date'] = $endDate;
+    }
     
     $fireResult = DatabaseUtils::executeSingleQuery($fireSql, $fireParams);
     
@@ -112,11 +163,18 @@ try {
                     LEFT JOIN devices d ON fd.device_id = d.device_id
                     LEFT JOIN buildings bld ON (fd.building_id = bld.id OR d.building_id = bld.id)
                     LEFT JOIN barangay b ON (fd.barangay_id = b.id OR bld.barangay_id = b.id)
-                    WHERE MONTH(r.timestamp) = MONTH(CURRENT_DATE())
-                    AND YEAR(r.timestamp) = YEAR(CURRENT_DATE())";
+                    WHERE 1=1";
     
     $responseParams = [];
     DatabaseUtils::buildBarangayFilter($barangay, $responseSql, $responseParams);
+    if ($startDate) {
+        $responseSql .= " AND r.timestamp >= :response_start_date";
+        $responseParams[':response_start_date'] = "{$startDate} 00:00:00";
+    }
+    if ($endDate) {
+        $responseSql .= " AND r.timestamp <= :response_end_date";
+        $responseParams[':response_end_date'] = "{$endDate} 23:59:59";
+    }
     
     $responseResult = DatabaseUtils::executeSingleQuery($responseSql, $responseParams);
     
@@ -127,8 +185,16 @@ try {
         'response_days' => (int)$responseResult['response_days']
     ];
     
-    // Get current month name
-    $currentMonth = date('F Y');
+    // Describe current reporting period
+    if ($startDate && $endDate) {
+        $currentMonth = date('M d, Y', strtotime($startDate)) . ' - ' . date('M d, Y', strtotime($endDate));
+    } elseif ($startDate) {
+        $currentMonth = 'From ' . date('M d, Y', strtotime($startDate));
+    } elseif ($endDate) {
+        $currentMonth = 'Up to ' . date('M d, Y', strtotime($endDate));
+    } else {
+        $currentMonth = date('F Y');
+    }
     
     DatabaseUtils::sendResponse(true, $summaryData, 'Fire system monthly summary statistics loaded successfully', [
         'filters' => [

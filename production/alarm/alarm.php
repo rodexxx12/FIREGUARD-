@@ -149,6 +149,95 @@ function cleanPhoneNumber($phone) {
     return (strlen($clean) == 10 && substr($clean, 0, 1) == '9') ? $clean : false;
 }
 
+function reverseGeocode($latitude, $longitude) {
+    if (!$latitude || !$longitude) {
+        return null;
+    }
+    
+    // Use OpenStreetMap Nominatim API (free, no API key required)
+    // Add delay to respect rate limits (max 1 request per second)
+    static $lastRequestTime = 0;
+    $timeSinceLastRequest = microtime(true) - $lastRequestTime;
+    if ($timeSinceLastRequest < 1.0) {
+        usleep((1.0 - $timeSinceLastRequest) * 1000000);
+    }
+    
+    $url = "https://nominatim.openstreetmap.org/reverse?format=json&lat=" . urlencode($latitude) . "&lon=" . urlencode($longitude) . "&zoom=18&addressdetails=1";
+    
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+        CURLOPT_URL => $url,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_USERAGENT => 'FireAlertSystem/1.0', // Required by Nominatim
+        CURLOPT_HTTPHEADER => ['Accept: application/json'],
+        CURLOPT_TIMEOUT => 5,
+        CURLOPT_CONNECTTIMEOUT => 3,
+        CURLOPT_SSL_VERIFYHOST => false,
+        CURLOPT_SSL_VERIFYPEER => false
+    ]);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    curl_close($ch);
+    
+    $lastRequestTime = microtime(true);
+    
+    if ($error || $httpCode !== 200) {
+        error_log("Reverse geocoding error: " . ($error ?: "HTTP $httpCode"));
+        return null;
+    }
+    
+    $data = json_decode($response, true);
+    
+    if (!isset($data['display_name'])) {
+        return null;
+    }
+    
+    // Format address nicely
+    $address = $data['display_name'];
+    
+    // Try to extract more readable format from address components
+    if (isset($data['address'])) {
+        $addr = $data['address'];
+        $parts = [];
+        
+        if (isset($addr['house_number']) && isset($addr['road'])) {
+            $parts[] = $addr['house_number'] . ' ' . $addr['road'];
+        } elseif (isset($addr['road'])) {
+            $parts[] = $addr['road'];
+        }
+        
+        if (isset($addr['suburb'])) {
+            $parts[] = $addr['suburb'];
+        } elseif (isset($addr['neighbourhood'])) {
+            $parts[] = $addr['neighbourhood'];
+        }
+        
+        if (isset($addr['city'])) {
+            $parts[] = $addr['city'];
+        } elseif (isset($addr['town'])) {
+            $parts[] = $addr['town'];
+        } elseif (isset($addr['municipality'])) {
+            $parts[] = $addr['municipality'];
+        }
+        
+        if (isset($addr['state'])) {
+            $parts[] = $addr['state'];
+        }
+        
+        if (isset($addr['postcode'])) {
+            $parts[] = $addr['postcode'];
+        }
+        
+        if (!empty($parts)) {
+            $address = implode(', ', $parts);
+        }
+    }
+    
+    return $address;
+}
+
 function getFireDataDetails($fireDataId) {
     global $pdo;
     try {
@@ -254,12 +343,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         if (isset($_POST['acknowledge'])) {
             $fireDataId = filter_input(INPUT_POST, 'fire_data_id', FILTER_VALIDATE_INT);
-            
-            // Enhanced validation with better error messages
-            if ($fireDataId === false || $fireDataId === null || $fireDataId <= 0) {
-                error_log("Invalid fire_data_id received: " . $_POST['fire_data_id'] ?? 'NULL');
-                sendJsonError("Invalid fire_data_id: " . ($_POST['fire_data_id'] ?? 'NULL'));
-                exit();
+            if (!$fireDataId || $fireDataId <= 0) {
+                sendJsonError("Invalid fire_data_id");
             }
 
             $pdo->beginTransaction();
@@ -296,14 +381,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($_POST['get_latest_data'])) {
             $stmt = $pdo->prepare("SELECT * FROM fire_data ORDER BY timestamp DESC LIMIT 1");
             $stmt->execute();
-            $data = $stmt->fetch();
-            
-            // Ensure we return a valid structure even if no data exists
-            if ($data) {
-                sendJsonSuccess(['data' => $data]);
-            } else {
-                sendJsonSuccess(['data' => null]);
-            }
+            sendJsonSuccess(['data' => $stmt->fetch()]);
         }
         
         if (isset($_POST['check_emergency'])) {
@@ -336,6 +414,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
             } else {
                 sendJsonError('No active firefighters found', 400);
+            }
+        }
+        
+        if (isset($_POST['reverse_geocode'])) {
+            $latitude = filter_input(INPUT_POST, 'latitude', FILTER_VALIDATE_FLOAT);
+            $longitude = filter_input(INPUT_POST, 'longitude', FILTER_VALIDATE_FLOAT);
+            
+            if ($latitude === false || $longitude === false) {
+                sendJsonError("Invalid latitude or longitude");
+            }
+            
+            $address = reverseGeocode($latitude, $longitude);
+            
+            if ($address) {
+                sendJsonSuccess(['address' => $address]);
+            } else {
+                sendJsonError("Could not retrieve address for coordinates");
             }
         }
         
@@ -419,12 +514,12 @@ if (!$headerLoaded) {
         .sensor-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 6px;
-            margin: 8px 0;
+            gap: 4px;
+            margin: 4px 0;
         }
 
         .sensor-box {
-            padding: 6px;
+            padding: 4px;
             border-radius: 4px;
             background: #f8f9fa;
             text-align: center;
@@ -432,14 +527,21 @@ if (!$headerLoaded) {
         }
 
         .sensor-title {
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             color: #6c757d;
-            margin-bottom: 2px;
+            margin-bottom: 1px;
+            font-weight: bold !important;
         }
 
         .sensor-reading {
-            font-size: 0.85rem;
-            font-weight: bold;
+            font-size: 1.1rem;
+            font-weight: bold !important;
+        }
+        
+        .sensor-reading.flame-detected {
+            color: #dc3545;
+            font-size: 1.3rem;
+            font-weight: bold !important;
         }
 
         .sensor-critical { color: var(--color-emergency); font-weight: bold; }
@@ -448,14 +550,39 @@ if (!$headerLoaded) {
         .alert-details {
             text-align: left;
             max-width: 100%;
-            font-size: 0.8rem;
-            line-height: 1.3;
+            font-size: 0.85rem;
+            line-height: 1.2;
+            font-weight: bold !important;
         }
 
-        .alert-details p { margin: 4px 0; }
+        .alert-details p { 
+            margin: 2px 0; 
+            font-weight: bold !important;
+            font-size: 0.85rem;
+            line-height: 1.2;
+        }
+        
+        .alert-details p * {
+            font-weight: bold !important;
+            font-size: 0.85rem;
+        }
+        
+        .alert-details .sensor-value {
+            font-weight: bold !important;
+            font-size: 0.85rem;
+        }
+        
+        .alert-details .sensor-grid * {
+            font-weight: bold !important;
+        }
+        
+        .alert-details .ml-analysis-section * {
+            font-weight: bold !important;
+            font-size: 0.85rem;
+        }
 
         .alert-divider {
-            margin: 8px 0;
+            margin: 4px 0;
             border: 0;
             height: 1px;
             background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,0.1), rgba(0,0,0,0));
@@ -499,6 +626,115 @@ if (!$headerLoaded) {
         .swal2-timer-progress-bar {
             transition: width 0.1s linear !important;
         }
+
+        /* Emergency alert styles - ensure it's always on top */
+        .emergency-alert-container {
+            z-index: 99999 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .emergency-alert-popup {
+            z-index: 99999 !important;
+            position: fixed !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            margin: 0 !important;
+            max-width: 90% !important;
+        }
+
+        .emergency-alert-popup .swal2-title {
+            margin-bottom: 0.5rem !important;
+            padding-bottom: 0.25rem !important;
+        }
+
+        .emergency-alert-popup .swal2-content {
+            margin-top: 0.5rem !important;
+            padding-top: 0 !important;
+        }
+
+        .emergency-alert-popup .swal2-actions {
+            margin-top: 0.75rem !important;
+            padding-top: 0.5rem !important;
+        }
+
+        /* Fire particles canvas */
+        .fire-particles-canvas {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            pointer-events: none !important;
+            z-index: 99998 !important;
+        }
+
+        /* Prevent body scroll when alert is active */
+        body.swal2-shown.swal2-height-auto {
+            overflow: hidden !important;
+        }
+        
+        /* Fire icon animation */
+        .emergency-alert-popup .swal2-icon {
+            animation: fireGlow 1.5s ease-in-out infinite !important;
+        }
+
+        /* Emergency title animation - light red to dark red with transitions */
+        .emergency-alert-popup .swal2-title.emergency-title-animated,
+        .emergency-alert-popup .swal2-title .emergency-title-animated,
+        .emergency-title-animated {
+            color: #dc3545 !important;
+            font-weight: bold !important;
+            animation: emergencyTitleAnimation 3s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
+            display: inline-block;
+            transition: color 0.5s cubic-bezier(0.4, 0, 0.6, 1), transform 0.5s cubic-bezier(0.4, 0, 0.6, 1) !important;
+        }
+
+        @keyframes emergencyTitleAnimation {
+            0% {
+                color: #ff4444; /* Light red */
+                transform: scale(1);
+            }
+            12.5% {
+                color: #ff3333;
+                transform: scale(1.01);
+            }
+            25% {
+                color: #cc0000;
+                transform: scale(1.02);
+            }
+            37.5% {
+                color: #aa0000;
+                transform: scale(1.035);
+            }
+            50% {
+                color: #8b0000; /* Dark red */
+                transform: scale(1.05);
+            }
+            62.5% {
+                color: #aa0000;
+                transform: scale(1.035);
+            }
+            75% {
+                color: #cc0000;
+                transform: scale(1.02);
+            }
+            87.5% {
+                color: #ff3333;
+                transform: scale(1.01);
+            }
+            100% {
+                color: #ff4444; /* Light red */
+                transform: scale(1);
+            }
+        }
     </style>
 </head>
 <body>
@@ -526,7 +762,11 @@ if (!$headerLoaded) {
             currentAlert: null,
             pollingInterval: null,
             alarmAudio: null,
-            audioEnabled: false
+            audioEnabled: false,
+            fireParticles: null,
+            fireCanvas: null,
+            fireCtx: null,
+            fireAnimationId: null
         };
         
         const elements = {
@@ -540,8 +780,10 @@ if (!$headerLoaded) {
             setupEventListeners();
             startPolling();
             
+            // Show alarm FIRST before any mapping interactions
             if (appState.currentFireData && appState.currentFireData.status === 'EMERGENCY') {
-                setTimeout(() => checkAndShowAlert(appState.currentFireData), 1000);
+                // Immediate check - don't wait
+                checkAndShowAlert(appState.currentFireData);
             }
             
             setTimeout(preloadAndTestAudio, 2000);
@@ -712,9 +954,13 @@ if (!$headerLoaded) {
                     fetchLatestDataFromServer();
                     if (appState.currentFireData && appState.currentFireData.status === 'EMERGENCY') {
                         setTimeout(() => checkForEmergencyAlerts(), 500);
+                        if (appState.currentAlert) {
+                            initFireParticles();
+                        }
                     }
                 } else {
                     stopAlarm();
+                    stopFireParticles();
                 }
             });
             
@@ -780,12 +1026,6 @@ if (!$headerLoaded) {
         function processNewData(newData) {
             if (!newData) return false;
             
-            // Validate that newData has an id field
-            if (!newData.id || typeof newData.id === 'undefined') {
-                console.error('processNewData: Invalid data structure - missing id', newData);
-                return false;
-            }
-            
             const isNewAlert = !appState.currentFireData || 
                               appState.currentFireData.id !== newData.id ||
                               appState.currentFireData.status !== newData.status;
@@ -794,6 +1034,8 @@ if (!$headerLoaded) {
                 appState.currentFireData = newData;
                 
                 if (newData.status === 'EMERGENCY') {
+                    // Prevent map interactions before showing alert
+                    preventMapInteractions();
                     showFireAlert(newData);
                     return true;
                 }
@@ -805,15 +1047,12 @@ if (!$headerLoaded) {
         function checkAndShowAlert(data) {
             if (!data) return false;
             
-            // Validate that data has an id field
-            if (!data.id || typeof data.id === 'undefined') {
-                console.error('checkAndShowAlert: Invalid data structure - missing id', data);
-                return false;
-            }
-            
             const isEmergency = data.status === 'EMERGENCY';
             
             if (isEmergency) {
+                // Prevent any other page interactions first
+                preventMapInteractions();
+                // Show alert immediately
                 showFireAlert(data);
                 return true;
             }
@@ -821,35 +1060,165 @@ if (!$headerLoaded) {
             return false;
         }
 
+        function initFireParticles() {
+            // Create canvas for fire particles
+            if (!appState.fireCanvas) {
+                appState.fireCanvas = document.createElement('canvas');
+                appState.fireCanvas.className = 'fire-particles-canvas';
+                document.body.appendChild(appState.fireCanvas);
+                appState.fireCtx = appState.fireCanvas.getContext('2d');
+                
+                // Set canvas size
+                function resizeCanvas() {
+                    appState.fireCanvas.width = window.innerWidth;
+                    appState.fireCanvas.height = window.innerHeight;
+                }
+                resizeCanvas();
+                window.addEventListener('resize', resizeCanvas);
+            }
+            
+            // Initialize particles
+            appState.fireParticles = [];
+            const particleCount = 150;
+            
+            for (let i = 0; i < particleCount; i++) {
+                appState.fireParticles.push({
+                    x: Math.random() * appState.fireCanvas.width,
+                    y: Math.random() * appState.fireCanvas.height,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: -Math.random() * 2 - 1,
+                    life: Math.random(),
+                    decay: Math.random() * 0.02 + 0.01,
+                    size: Math.random() * 3 + 1,
+                    color: Math.random() > 0.5 ? '#ff4500' : '#ff8c00'
+                });
+            }
+            
+            animateFireParticles();
+        }
+
+        function animateFireParticles() {
+            if (!appState.fireCtx || !appState.fireParticles) return;
+            
+            const ctx = appState.fireCtx;
+            const canvas = appState.fireCanvas;
+            const popup = document.querySelector('.emergency-alert-popup');
+            
+            // Clear canvas with fade effect
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Get popup position for particle generation
+            let popupX = canvas.width / 2;
+            let popupY = canvas.height / 2;
+            let popupWidth = 500;
+            let popupHeight = 400;
+            
+            if (popup) {
+                const rect = popup.getBoundingClientRect();
+                popupX = rect.left + rect.width / 2;
+                popupY = rect.top + rect.height;
+                popupWidth = rect.width;
+                popupHeight = rect.height;
+            }
+            
+            // Update and draw particles
+            for (let i = appState.fireParticles.length - 1; i >= 0; i--) {
+                const p = appState.fireParticles[i];
+                
+                // Reset particles that are off screen or dead
+                if (p.life <= 0 || p.y < -10 || p.x < -10 || p.x > canvas.width + 10 || p.y > canvas.height + 10) {
+                    // Respawn at bottom of popup (fire source)
+                    p.x = popupX + (Math.random() - 0.5) * popupWidth * 0.8;
+                    p.y = popupY + Math.random() * 10;
+                    p.vx = (Math.random() - 0.5) * 0.8;
+                    p.vy = -Math.random() * 3 - 1.5;
+                    p.life = 1;
+                    p.decay = Math.random() * 0.015 + 0.008;
+                    p.size = Math.random() * 4 + 2;
+                    // Color gradient: yellow at bottom, red in middle, orange at top
+                    const colorRand = Math.random();
+                    if (colorRand < 0.3) {
+                        p.color = '#ffff00'; // Yellow (hot)
+                    } else if (colorRand < 0.7) {
+                        p.color = '#ff4500'; // Red-orange
+                    } else {
+                        p.color = '#ff8c00'; // Orange
+                    }
+                }
+                
+                // Update particle physics
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vx += (Math.random() - 0.5) * 0.1; // Random horizontal movement
+                p.vy -= 0.05; // Upward force (fire rises)
+                p.life -= p.decay;
+                p.size *= 0.98; // Shrink as it rises
+                
+                // Draw particle with glow
+                const alpha = Math.max(0, p.life);
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                
+                // Create gradient for particle
+                const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+                gradient.addColorStop(0, p.color);
+                gradient.addColorStop(0.5, p.color + '80');
+                gradient.addColorStop(1, 'transparent');
+                
+                ctx.fillStyle = gradient;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
+            }
+            
+            appState.fireAnimationId = requestAnimationFrame(animateFireParticles);
+        }
+
+        function stopFireParticles() {
+            if (appState.fireAnimationId) {
+                cancelAnimationFrame(appState.fireAnimationId);
+                appState.fireAnimationId = null;
+            }
+            if (appState.fireCtx && appState.fireCanvas) {
+                appState.fireCtx.clearRect(0, 0, appState.fireCanvas.width, appState.fireCanvas.height);
+            }
+            // Optionally remove canvas (but keep it for reuse)
+            // if (appState.fireCanvas && appState.fireCanvas.parentNode) {
+            //     appState.fireCanvas.parentNode.removeChild(appState.fireCanvas);
+            //     appState.fireCanvas = null;
+            //     appState.fireCtx = null;
+            // }
+        }
+
         function showFireAlert(data) {
             if (data.status !== 'EMERGENCY') return;
             
-            // Validate that data has an id field
-            if (!data || !data.id || typeof data.id === 'undefined') {
-                console.error('showFireAlert: Invalid data structure - missing id', data);
-                showFastToast('❌ Alert Error', 'Invalid alert data. Please refresh the page.', 'error', 3000);
-                return;
-            }
-            
             const statusClass = data.status.toLowerCase().replace('_', '-');
             
+            // Close any existing alert first
             if (appState.currentAlert) {
                 Swal.close();
+                appState.currentAlert = null;
             }
             
             const sensorGridHTML = createSensorGridHTML(data);
             
             const html = `
-                <div class="alert-details">
-                    <p><strong>Status:</strong> <span class="status-badge status-${statusClass}">${data.status}</span></p>
-                    <p><strong>Location:</strong> <span class="sensor-value">${data.building_type || 'Unknown location'}</span></p>
-                    <p><strong>Detected at:</strong> <span class="sensor-value">${formatTimestamp(data.timestamp)}</span></p>
+                <div class="alert-details" style="font-weight: bold !important; font-size: 0.85rem; line-height: 1.2;">
+                    <p style="font-weight: bold !important; margin: 2px 0; font-size: 0.85rem; line-height: 1.2;"><strong>Status:</strong> <span class="status-badge status-${statusClass}" style="font-weight: bold !important;">${data.status}</span></p>
+                    ${getGpsCoordinatesDisplay(data)}
+                    <p style="font-weight: bold !important; margin: 2px 0; font-size: 0.85rem; line-height: 1.2;"><strong>Detected at:</strong> <span class="sensor-value" style="font-weight: bold !important; font-size: 0.85rem;">${formatTimestamp(data.timestamp)}</span></p>
                     ${sensorGridHTML}
                 </div>
             `;
             
             const alertConfig = {
-                title: '🚨 EMERGENCY STATUS DETECTED',
+                title: '<span class="emergency-title-animated">🚨 EMERGENCY STATUS DETECTED</span>',
                 html: html,
                 icon: 'error',
                 confirmButtonText: 'ACKNOWLEDGE',
@@ -857,35 +1226,96 @@ if (!$headerLoaded) {
                 showCancelButton: false,
                 showCloseButton: false,
                 allowOutsideClick: false,
-                backdrop: 'rgba(0,0,0,0.9)',
+                allowEscapeKey: false,
+                allowEnterKey: true,
+                backdrop: 'rgba(0,0,0,0.95)',
                 width: '500px',
-                padding: '1.5rem',
-                focusConfirm: false,
+                padding: '1rem',
+                focusConfirm: true,
+                customClass: {
+                    container: 'emergency-alert-container',
+                    popup: 'emergency-alert-popup'
+                },
                 didOpen: () => {
+                    // Apply red animated styling to the title with transitions
+                    const titleElement = document.querySelector('.emergency-alert-popup .swal2-title');
+                    if (titleElement) {
+                        titleElement.classList.add('emergency-title-animated');
+                        titleElement.style.color = '#dc3545';
+                        titleElement.style.fontWeight = 'bold';
+                        titleElement.style.transition = 'color 0.5s cubic-bezier(0.4, 0, 0.6, 1), transform 0.5s cubic-bezier(0.4, 0, 0.6, 1)';
+                        titleElement.style.animation = 'emergencyTitleAnimation 3s cubic-bezier(0.4, 0, 0.6, 1) infinite';
+                    }
+                    
+                    // Fetch and display readable address using reverse geocoding
+                    const lat = data.gps_latitude || data.geo_lat;
+                    const lng = data.gps_longitude || data.geo_long;
+                    if (lat && lng) {
+                        setTimeout(() => fetchAndDisplayAddress(lat, lng), 500);
+                    }
+                    
                     startAlarm();
+                    // Prevent map interactions from closing the alert
+                    preventMapInteractions();
+                    // Start fire particles
+                    setTimeout(() => initFireParticles(), 100);
                 },
                 willClose: () => {
                     stopAlarm();
+                    stopFireParticles();
                     appState.currentAlert = null;
+                    restoreMapInteractions();
                 }
             };
             
-            appState.currentAlert = Swal.fire(alertConfig).then((result) => {
-                if (result.isConfirmed) {
-                    stopAlarm();
-                    appState.currentAlert = null;
-                    if (appState.currentFireData && appState.currentFireData.id === data.id) {
-                        appState.currentFireData.status = 'ACKNOWLEDGED';
-                    }
-                    // Validate data.id before calling acknowledgeAlert
-                    if (data && data.id && typeof data.id !== 'undefined') {
+            // Use setTimeout to ensure alert shows first, before any mapping interactions
+            setTimeout(() => {
+                appState.currentAlert = Swal.fire(alertConfig).then((result) => {
+                    if (result.isConfirmed) {
+                        stopAlarm();
+                        stopFireParticles();
+                        appState.currentAlert = null;
+                        restoreMapInteractions();
+                        if (appState.currentFireData && appState.currentFireData.id === data.id) {
+                            appState.currentFireData.status = 'ACKNOWLEDGED';
+                        }
                         acknowledgeAlert(data.id);
-                    } else {
-                        console.error('Cannot acknowledge: data.id is invalid or missing', data);
-                        showFastToast('❌ Acknowledgment Failed', 'Invalid alert data. Please refresh the page.', 'error', 3000);
                     }
+                });
+            }, 100);
+        }
+        
+        function preventMapInteractions() {
+            // Add a flag to prevent map interactions
+            window.emergencyAlertActive = true;
+            
+            // Prevent map zoom/pan events from interfering
+            if (window.map && typeof window.map === 'object') {
+                try {
+                    window.map.scrollWheelZoom.disable();
+                    window.map.doubleClickZoom.disable();
+                    window.map.boxZoom.disable();
+                    window.map.keyboard.disable();
+                } catch (e) {
+                    console.log("Map interaction prevention:", e);
                 }
-            });
+            }
+        }
+        
+        function restoreMapInteractions() {
+            window.emergencyAlertActive = false;
+            
+            // Restore map interactions
+            if (window.map && typeof window.map === 'object') {
+                try {
+                    window.map.scrollWheelZoom.enable();
+                    window.map.doubleClickZoom.enable();
+                    window.map.boxZoom.enable();
+                    window.map.keyboard.enable();
+                } catch (e) {
+                    console.log("Map interaction restoration:", e);
+                }
+            }
         }
 
         function createSensorGridHTML(data) {
@@ -896,29 +1326,29 @@ if (!$headerLoaded) {
             return `
                 <div class="sensor-grid">
                     <div class="sensor-box">
-                        <div class="sensor-title">Temperature</div>
-                        <div class="sensor-reading ${tempClass}">${data.temp || 0}°C</div>
+                        <div class="sensor-title" style="font-weight: bold !important;">Temperature</div>
+                        <div class="sensor-reading ${tempClass}" style="font-weight: bold !important;">${data.temp || 0}°C</div>
                     </div>
                     <div class="sensor-box">
-                        <div class="sensor-title">Heat Index</div>
-                        <div class="sensor-reading ${heatClass}">${data.heat || 0}°C</div>
+                        <div class="sensor-title" style="font-weight: bold !important;">Heat Index</div>
+                        <div class="sensor-reading ${heatClass}" style="font-weight: bold !important;">${data.heat || 0}°C</div>
                     </div>
                     <div class="sensor-box">
-                        <div class="sensor-title">Smoke Level</div>
-                        <div class="sensor-reading ${smokeClass}">${data.smoke || 0} ppm</div>
+                        <div class="sensor-title" style="font-weight: bold !important;">Smoke Level</div>
+                        <div class="sensor-reading ${smokeClass}" style="font-weight: bold !important;">${data.smoke || 0} ppm</div>
                     </div>
                     <div class="sensor-box">
-                        <div class="sensor-title">Flame Detected</div>
-                        <div class="sensor-reading">${data.flame_detected ? '✅ Yes' : '❌ No'}</div>
+                        <div class="sensor-title" style="font-weight: bold !important;">Flame Detected</div>
+                        <div class="sensor-reading flame-detected" style="font-weight: bold !important; color: #dc3545; font-size: 1.3rem;">${data.flame_detected ? '✅ Yes' : '❌ No'}</div>
                     </div>
                 </div>
                 <div class="alert-divider"></div>
-                <div class="ml-analysis-section">
-                    <h6 style="margin: 0 0 4px 0; color: #495057; font-weight: bold; font-size: 0.8rem;">🤖 AI/ML Analysis</h6>
-                    <div class="ml-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin: 4px 0;">
-                        <div class="ml-box" style="padding: 6px; border-radius: 4px; background: #f8f9fa; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                            <div class="ml-title" style="font-size: 0.7rem; color: #6c757d; margin-bottom: 2px;">AI Prediction</div>
-                            <div class="ml-reading" style="font-size: 0.8rem; font-weight: bold; color: ${data.ai_prediction && data.ai_prediction.includes('FIRE') ? '#dc3545' : '#28a745'};">${data.ai_prediction || 'N/A'}</div>
+                <div class="ml-analysis-section" style="text-align: center;">
+                    <h6 style="margin: 2px 0; color: #dc3545; font-weight: bold !important; font-size: 1.1rem; line-height: 1.2; text-align: center;">🤖 AI/ML Analysis</h6>
+                    <div class="ml-grid" style="display: flex; justify-content: center; align-items: center; gap: 4px; margin: 2px 0;">
+                        <div class="ml-box" style="padding: 4px; border-radius: 4px; background: #f8f9fa; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); min-width: 150px;">
+                            <div class="ml-title" style="font-size: 0.9rem; color: #dc3545; margin-bottom: 1px; font-weight: bold !important;">AI Prediction</div>
+                            <div class="ml-reading" style="font-size: 1.1rem; font-weight: bold !important; color: #dc3545;">${data.ai_prediction || 'N/A'}</div>
                         </div>
                     </div>
                 </div>
@@ -944,15 +1374,85 @@ if (!$headerLoaded) {
             });
         }
 
-        function acknowledgeAlert(fireDataId) {
-            stopAlarm();
+        function formatGpsCoordinates(data) {
+            // Prioritize gps_latitude/gps_longitude, fallback to geo_lat/geo_long
+            let lat = data.gps_latitude || data.geo_lat;
+            let lng = data.gps_longitude || data.geo_long;
             
-            // Validate fireDataId before proceeding
-            if (!fireDataId || typeof fireDataId === 'undefined' || fireDataId <= 0) {
-                console.error('Invalid fireDataId:', fireDataId);
-                showFastToast('❌ Acknowledgment Failed', 'Invalid alert ID. Please refresh the page.', 'error', 3000);
+            if (!lat || !lng) return null;
+            
+            // Format to 6 decimal places for accuracy
+            const formattedLat = parseFloat(lat).toFixed(6);
+            const formattedLng = parseFloat(lng).toFixed(6);
+            
+            return `${formattedLat}, ${formattedLng}`;
+        }
+
+        function getGpsCoordinatesDisplay(data) {
+            const coords = formatGpsCoordinates(data);
+            if (!coords) return '<p style="font-weight: bold !important; margin: 2px 0; font-size: 0.85rem; line-height: 1.2;"><strong>Device Location:</strong> <span class="sensor-value" style="font-weight: bold !important; font-size: 0.85rem;">N/A</span></p>';
+            
+            // Create a clickable Google Maps link
+            const lat = data.gps_latitude || data.geo_lat;
+            const lng = data.gps_longitude || data.geo_long;
+            const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+            
+            // Return with placeholder for address that will be fetched asynchronously
+            return `<p id="device-location-display" style="font-weight: bold !important; margin: 2px 0; font-size: 0.85rem; line-height: 1.2;"><strong>Device Location:</strong><br>
+                    <span class="sensor-value" style="display: inline-block; margin-top: 2px; font-weight: bold !important; font-size: 0.85rem; line-height: 1.2;">
+                        <span id="device-address" style="color: #28a745; font-weight: bold !important; font-size: 0.85rem;">Loading address...</span>
+                    </span></p>`;
+        }
+
+        function fetchAndDisplayAddress(latitude, longitude) {
+            if (!latitude || !longitude) {
+                const addressElement = document.getElementById('device-address');
+                if (addressElement) {
+                    addressElement.textContent = 'Address unavailable';
+                    addressElement.style.color = '#6c757d';
+                    addressElement.style.fontWeight = 'bold';
+                    addressElement.style.fontStyle = 'italic';
+                }
                 return;
             }
+            
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `reverse_geocode=1&latitude=${latitude}&longitude=${longitude}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                const addressElement = document.getElementById('device-address');
+                if (addressElement) {
+                    if (data.success && data.address) {
+                        addressElement.textContent = data.address;
+                        addressElement.style.color = '#28a745';
+                        addressElement.style.fontWeight = 'bold';
+                        addressElement.style.fontStyle = 'normal';
+                    } else {
+                        addressElement.textContent = 'Address unavailable';
+                        addressElement.style.color = '#6c757d';
+                        addressElement.style.fontWeight = 'bold';
+                        addressElement.style.fontStyle = 'italic';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error("Error fetching address:", error);
+                const addressElement = document.getElementById('device-address');
+                if (addressElement) {
+                    addressElement.textContent = 'Address unavailable (network error)';
+                    addressElement.style.color = '#6c757d';
+                    addressElement.style.fontWeight = 'bold';
+                    addressElement.style.fontStyle = 'italic';
+                }
+            });
+        }
+
+        function acknowledgeAlert(fireDataId) {
+            stopAlarm();
+            stopFireParticles();
             
             // Show immediate feedback
             showToast('⏳ Processing...', 'Acknowledging alert and sending SMS...', 'info');
@@ -1087,7 +1587,7 @@ if (!$headerLoaded) {
             })
             .then(response => response.json())
             .then(data => {
-                if (data.success && data.data && data.data.id) {
+                if (data.success && data.data) {
                     const isNewEmergency = !appState.currentFireData || 
                                          appState.currentFireData.status !== 'EMERGENCY' ||
                                          appState.currentFireData.id !== data.data.id;

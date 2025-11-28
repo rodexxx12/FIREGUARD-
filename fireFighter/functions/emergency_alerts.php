@@ -1,28 +1,28 @@
 <?php
 /**
  * Emergency Alerts Component
- * Handles fetching recent emergency alerts
+ * Handles fetching recent emergency alerts with caching and pagination guards.
  */
 
-function getEmergencyAlerts($pdo) {
-    // Query to get recent EMERGENCY alerts
-    $sql = "SELECT * FROM fire_data WHERE UPPER(status) = 'EMERGENCY' ORDER BY timestamp DESC LIMIT 5";
-    $stmt = $pdo->query($sql);
+require_once __DIR__ . '/../components/cache.php';
 
-    $alerts = [];
-    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $alerts[] = [
-            'id' => $row['id'],
-            'status' => $row['status'],
-            'building_type' => $row['building_type'],
-            'smoke' => $row['smoke'],
-            'temp' => $row['temp'],
-            'heat' => $row['heat'],
-            'flame_detected' => $row['flame_detected'],
-            'timestamp' => $row['timestamp'],
-        ];
-    }
+function getEmergencyAlerts(PDO $pdo, int $limit = 5, int $ttl = 15): array {
+    $limit = max(1, min($limit, 25)); // keep payloads bounded
+    $cacheKey = FirefighterCache::key('emergency_alerts', ['limit' => $limit]);
 
-    return $alerts;
+    return FirefighterCache::remember($cacheKey, $ttl, function () use ($pdo, $limit) {
+        $sql = "SELECT id, status, building_type, smoke, temp, heat, flame_detected, timestamp 
+                FROM fire_data 
+                WHERE status = :status 
+                ORDER BY timestamp DESC 
+                LIMIT :limit";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->bindValue(':status', 'EMERGENCY', PDO::PARAM_STR);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    });
 }
-?> 
+?>

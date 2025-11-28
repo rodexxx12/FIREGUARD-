@@ -1,38 +1,90 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 0);
+/**
+ * Backup Creation Script
+ * SECURITY: Production-ready with environment-based configuration
+ */
 
-session_start();
-// Check if user is logged in
-if (!isset($_SESSION['admin_id']) && !isset($_SESSION['admin_id'])) {
+require_once __DIR__ . '/../db/db.php';
+require_once __DIR__ . '/../components/security.php';
+
+// Set error reporting based on environment
+$appEnv = getenv('APP_ENV') ?: 'production';
+if ($appEnv === 'production') {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 0);
+    ini_set('log_errors', 1);
+} else {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+}
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+if (php_sapi_name() !== 'cli') {
+    $incomingToken = $_POST[getenv('CSRF_TOKEN_NAME') ?: 'csrf_token'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
+    if (!validateCSRFToken($incomingToken)) {
+        http_response_code(419);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Invalid CSRF token.']);
+        exit;
+    }
+}
+
+if (!isset($_SESSION['admin_id'])) {
+    http_response_code(401);
+    header('Content-Type: application/json');
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
 }
 
 header('Content-Type: application/json');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+
+$rateWindow = (int)(getenv('BACKUP_RATE_LIMIT_WINDOW') ?: 300);
+$rateLimit = (int)(getenv('BACKUP_RATE_LIMIT_ATTEMPTS') ?: 3);
+$rateResult = rateLimitCheck('backup_create', $rateLimit, $rateWindow);
+if (!$rateResult['allowed']) {
+    http_response_code(429);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Backup rate limit exceeded. Please retry after ' . ($rateResult['reset_time'] - time()) . ' seconds.'
+    ]);
+    exit;
+}
 
 try {
-    $backup_type = isset($_POST['backup_type']) ? $_POST['backup_type'] : 'manual';
+    $backup_type = isset($_POST['backup_type']) ? preg_replace('/[^a-z]/i', '', $_POST['backup_type']) : 'manual';
+    $allowed_types = ['manual', 'weekly', 'monthly', 'yearly', 'all'];
+    if (!in_array($backup_type, $allowed_types, true)) {
+        $backup_type = 'manual';
+    }
     
-    // Remote database credentials
-    $db_host = 'srv1322.hstgr.io';
-    $db_name = 'u520834156_DBBagofire';
-    $db_user = 'u520834156_userBagofire';
-    $db_pass = 'i[#[GQ!+=C9';
+    // Get database credentials from environment variables
+    $db_host = getenv('DB_HOST') ?: 'localhost';
+    $db_name = getenv('DB_NAME') ?: '';
+    $db_user = getenv('DB_USER') ?: '';
+    $db_pass = getenv('DB_PASS') ?: '';
     
-    // Create backup directory
-    $backup_dir = __DIR__ . '/backups';
-    if (!is_dir($backup_dir)) {
-        if (!mkdir($backup_dir, 0755, true)) {
-            throw new Exception('Could not create backup directory');
-        }
+    // Validate configuration
+    if ($db_name === '' || $db_user === '') {
+        throw new Exception('Database configuration incomplete. Check .env file.');
+    }
+    
+    // Create secure backup directory outside the web root
+    $project_root = dirname(__DIR__, 2);
+    $backup_dir = $project_root . '/secure_storage/backups';
+    if (!is_dir($backup_dir) && !mkdir($backup_dir, 0700, true)) {
+        throw new Exception('Could not create secure backup directory');
     }
     
     $type_dir = $backup_dir . '/' . $backup_type;
-    if (!is_dir($type_dir)) {
-        if (!mkdir($type_dir, 0755, true)) {
-            throw new Exception('Could not create type directory');
-        }
+    if (!is_dir($type_dir) && !mkdir($type_dir, 0700, true)) {
+        throw new Exception('Could not create backup type directory');
     }
     
     // Generate filename
@@ -160,9 +212,13 @@ try {
     
 } catch (Exception $e) {
     error_log("Backup Error: " . $e->getMessage());
+    $safeMessage = $appEnv === 'production'
+        ? 'Backup failed. Please retry or contact an administrator.'
+        : 'Backup failed: ' . $e->getMessage();
+    http_response_code(500);
     echo json_encode([
         'success' => false, 
-        'message' => 'Backup failed: ' . $e->getMessage()
+        'message' => $safeMessage
     ]);
 }
 ?>

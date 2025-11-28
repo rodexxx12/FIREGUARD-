@@ -1,4 +1,8 @@
-<?php require_once '../functions/functions.php'; ?>
+<?php 
+require_once '../functions/functions.php';
+require_once __DIR__ . '/../../includes/csrf.php';
+require_once __DIR__ . '/../../includes/escape.php';
+?>
 <?php include('../../components/header.php'); ?>
     <link rel="stylesheet" href="../css/style.css">
 </head>
@@ -27,8 +31,8 @@
                             </div>
                             <span class="status-badge <?php echo $user['status'] === 'Active' ? 'status-active' : 'status-inactive'; ?>"></span>
                         </div>
-                        <h4 class="mt-3 mb-0"><?php echo htmlspecialchars($user['fullname']); ?></h4>
-                        <p class="text-white-50"><?php echo htmlspecialchars($user['email_address']); ?></p>
+                        <h4 class="mt-3 mb-0"><?php echo escapeHtml($user['fullname'] ?? ''); ?></h4>
+                        <p class="text-white-50"><?php echo escapeHtml($user['email_address'] ?? ''); ?></p>
                     </div>
                     <div class="card-body">
                         <ul class="list-group list-group-flush">
@@ -84,6 +88,7 @@
                                 <!-- Multi-step Form -->
                                 <form method="POST" id="profileForm">
                                     <input type="hidden" name="form_type" value="profile_update">
+                                    <input type="hidden" name="csrf_token" value="<?php echo escapeHtml(generateCSRFToken()); ?>">
                                     <!-- Step Indicator -->
                                     <div class="step-indicator">
                                         <div class="step active" id="step1">
@@ -646,48 +651,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-
-<!-- jQuery -->
-<script src="../../../vendors/jquery/dist/jquery.min.js"></script>
-<!-- Bootstrap -->
-<script src="../../../vendors/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-<!-- FastClick -->
-<script src="../../../vendors/fastclick/lib/fastclick.js"></script>
-<!-- NProgress -->
-<script src="../../../vendors/nprogress/nprogress.js"></script>
-<!-- Chart.js -->
-<script src="../../../vendors/Chart.js/dist/Chart.min.js"></script>
-<!-- gauge.js -->
-<script src="../../../vendors/gauge.js/dist/gauge.min.js"></script>
-<!-- bootstrap-progressbar -->
-<script src="../../../vendors/bootstrap-progressbar/bootstrap-progressbar.min.js"></script>
-<!-- iCheck -->
-<script src="../../../vendors/iCheck/icheck.min.js"></script>
-<!-- Skycons -->
-<script src="../../../vendors/skycons/skycons.js"></script>
-<!-- Flot -->
-<script src="../../../vendors/Flot/jquery.flot.js"></script>
-<script src="../../../vendors/Flot/jquery.flot.pie.js"></script>
-<script src="../../../vendors/Flot/jquery.flot.time.js"></script>
-<script src="../../../vendors/Flot/jquery.flot.stack.js"></script>
-<script src="../../../vendors/Flot/jquery.flot.resize.js"></script>
-<!-- Flot plugins -->
-<script src="../../../vendors/flot.orderbars/js/jquery.flot.orderBars.js"></script>
-<script src="../../../vendors/flot-spline/js/jquery.flot.spline.min.js"></script>
-<script src="../../../vendors/flot.curvedlines/curvedLines.js"></script>
-<!-- DateJS -->
-<script src="../../../vendors/DateJS/build/date.js"></script>
-<!-- JQVMap -->
-<script src="../../../vendors/jqvmap/dist/jquery.vmap.js"></script>
-<script src="../../../vendors/jqvmap/dist/maps/jquery.vmap.world.js"></script>
-<script src="../../../vendors/jqvmap/examples/js/jquery.vmap.sampledata.js"></script>
-<!-- bootstrap-daterangepicker -->
-<script src="../../../vendors/moment/min/moment.min.js"></script>
-<script src="../../../vendors/bootstrap-daterangepicker/daterangepicker.js"></script>
-
-<!-- Custom Theme Scripts -->
-<script src="../../../build/js/custom.min.js"></script>
-
 <!-- Profile Picture Upload Modal -->
 <div class="modal" id="profileImageModal" tabindex="-1" aria-labelledby="profileImageModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -744,6 +707,6 @@
         </div>
     </div>
 </div>
-
+<?php include('../../components/scripts.php'); ?>
 </body>
 </html>

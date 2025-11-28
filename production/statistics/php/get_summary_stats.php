@@ -1,12 +1,22 @@
 <?php
-header('Content-Type: application/json');
+// Suppress error output for JSON responses
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
+ini_set('log_errors', 1);
 
-// Include database connection
-require_once '../../../db/db.php';
+require_once 'common/database_utils.php';
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+if (empty($_SESSION['user_id'])) {
+    DatabaseUtils::sendError('Unauthorized access.');
+}
 
 try {
     // Get database connection
-    $conn = getDatabaseConnection();
+    $conn = DatabaseUtils::getConnection();
     
     // Get total users count
     $usersQuery = "SELECT COUNT(*) as total_users FROM users WHERE status = 'Active'";
@@ -28,19 +38,14 @@ try {
     $devicesResult = $conn->query($devicesQuery);
     $totalDevices = $devicesResult->fetch()['total_devices'];
 
-    // Return the statistics
-    echo json_encode([
-        'success' => true,
-        'total_users' => $totalUsers,
-        'total_buildings' => $totalBuildings,
-        'total_acknowledgments' => $totalAcknowledgments,
-        'total_devices' => $totalDevices
-    ]);
-
+    DatabaseUtils::sendResponse(true, [
+        'total_users' => (int)$totalUsers,
+        'total_buildings' => (int)$totalBuildings,
+        'total_acknowledgments' => (int)$totalAcknowledgments,
+        'total_devices' => (int)$totalDevices
+    ], 'Summary statistics loaded successfully');
+    
 } catch (Exception $e) {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Error fetching statistics: ' . $e->getMessage()
-    ]);
+    DatabaseUtils::sendError('Error fetching statistics', $e->getMessage());
 }
 ?>

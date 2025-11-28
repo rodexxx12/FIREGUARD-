@@ -1,29 +1,33 @@
 <?php
 /**
  * Status Counts Component
- * Handles counting fire data by status
+ * Handles counting fire data by status with caching to avoid repeated scans.
  */
 
-function getStatusCounts($pdo) {
-    // Normalize all status values to uppercase
-    $sql = "SELECT UPPER(status) as status, COUNT(*) as count FROM fire_data GROUP BY UPPER(status)";
-    $stmt = $pdo->query($sql);
+require_once __DIR__ . '/../components/cache.php';
 
-    $counts = [
-        "SAFE" => 0,
-        "MONITORING" => 0,
-        "PRE-DISPATCH" => 0,
-        "EMERGENCY" => 0
-    ];
+function getStatusCounts(PDO $pdo, int $ttl = 30): array {
+    $cacheKey = FirefighterCache::key('status_counts');
 
-    // Fetch data and update the counts array
-    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $status = strtoupper($row['status']);
-        if (array_key_exists($status, $counts)) {
-            $counts[$status] = $row['count'];
+    return FirefighterCache::remember($cacheKey, $ttl, function () use ($pdo) {
+        $sql = "SELECT UPPER(status) AS status, COUNT(*) AS count FROM fire_data GROUP BY UPPER(status)";
+        $stmt = $pdo->query($sql);
+
+        $counts = [
+            "SAFE" => 0,
+            "MONITORING" => 0,
+            "PRE-DISPATCH" => 0,
+            "EMERGENCY" => 0
+        ];
+
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $status = strtoupper($row['status'] ?? '');
+            if (array_key_exists($status, $counts)) {
+                $counts[$status] = (int) $row['count'];
+            }
         }
-    }
 
-    return $counts;
+        return $counts;
+    });
 }
-?> 
+?>

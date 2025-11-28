@@ -1,8 +1,14 @@
 <?php
-// Enable detailed error reporting
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+// Load environment variables from config.env or .env file if it exists
+if (file_exists(__DIR__ . '/env_setup.php')) {
+    require_once __DIR__ . '/env_setup.php';
+}
+
+// Respect debug mode from environment variable
+$debugMode = filter_var(getenv('APP_DEBUG') ?? '0', FILTER_VALIDATE_BOOLEAN);
+ini_set('display_errors', $debugMode ? '1' : '0');
+ini_set('display_startup_errors', $debugMode ? '1' : '0');
+error_reporting($debugMode ? E_ALL : E_ERROR);
 
 session_start();
 
@@ -68,7 +74,7 @@ try {
     error_log("Error in get_geo_fences.php: " . $e->getMessage());
     echo json_encode([
         'success' => false,
-        'message' => 'Error retrieving geo-fences: ' . $e->getMessage(),
+        'message' => 'Error retrieving geo-fences. Please contact support.',
         'fences' => []
     ]);
 }

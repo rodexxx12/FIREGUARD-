@@ -198,22 +198,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
     <h1>Superadmin Registration</h1>
     
-    <!-- Debug Information -->
-    <div class="debug">
-        <strong>Debug Information:</strong><br>
-        Database: <?php echo $db; ?><br>
-        Host: <?php echo $host; ?><br>
-        User: <?php echo $user; ?><br>
-        <?php
-        try {
-            $stmt = $pdo->query("SELECT COUNT(*) as count FROM superadmin");
-            $result = $stmt->fetch();
-            echo "Superadmin table exists. Records: " . $result['count'] . "<br>";
-        } catch (PDOException $e) {
-            echo "Error checking superadmin table: " . $e->getMessage() . "<br>";
-        }
-        ?>
-    </div>
+    <!-- Security: Debug information removed - never expose system details in production -->
     
     <?php if ($success): ?>
         <p class="success">Registration successful! You can now login.</p>

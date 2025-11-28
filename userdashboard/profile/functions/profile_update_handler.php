@@ -1,6 +1,25 @@
 <?php
+// Include CSRF protection
+if (!function_exists('validateCSRFToken')) {
+    require_once __DIR__ . '/../../includes/csrf.php';
+}
+
 function handleProfileUpdate($conn, $currentAdmin) {
     global $errors;
+    
+    // Validate CSRF token for POST requests
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        if (!validateCSRFToken()) {
+            $errors['general'] = 'Invalid security token. Please refresh the page and try again.';
+            $_SESSION['swal'] = [
+                'title' => 'Security Error',
+                'text' => 'Invalid security token. Please refresh the page and try again.',
+                'icon' => 'error',
+                'confirmButtonText' => 'OK'
+            ];
+            return;
+        }
+    }
     
     $updates = [];
     $validationRules = [

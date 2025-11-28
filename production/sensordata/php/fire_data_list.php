@@ -9,7 +9,7 @@ require_once __DIR__ . '/../../../db/db.php';
 
 $pdo = getDatabaseConnection();
 
-// Fetch fire_data with related device, user
+// Only fetch the latest record for gauges (much faster)
 $stmt = $pdo->prepare(
     "SELECT fd.id, fd.status, fd.building_type, fd.smoke, fd.temp, fd.heat,
             fd.flame_detected, fd.timestamp, fd.user_id, u.username,
@@ -22,12 +22,11 @@ $stmt = $pdo->prepare(
      LEFT JOIN users u ON u.user_id = fd.user_id
      LEFT JOIN barangay br ON br.id = fd.barangay_id
      LEFT JOIN devices d ON d.device_id = fd.device_id
-     ORDER BY fd.id DESC"
+     ORDER BY fd.id DESC
+     LIMIT 1"
 );
 $stmt->execute();
-$rows = $stmt->fetchAll();
-// Latest (most recent) record for gauges
-$latest = $rows[0] ?? null;
+$latest = $stmt->fetch() ?: null;
 ?>
 <?php include '../../components/header.php'; ?>
     <link rel="stylesheet" href="../css/style.css">
@@ -51,11 +50,80 @@ $latest = $rows[0] ?? null;
     /* Date filter active state */
     .date-filter-active { border-color: #007bff !important; box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25) !important; }
     .date-filter-error { border-color: #dc3545 !important; box-shadow: 0 0 0 0.2rem rgba(220,53,69,.25) !important; }
+    
+    /* DataTables Pagination and Search Visibility */
+    .dataTables_wrapper {
+      margin-top: 1rem;
+    }
+    .dataTables_length,
+    .dataTables_filter {
+      margin-bottom: 1rem;
+      display: block !important;
+      visibility: visible !important;
+    }
+    .dataTables_paginate {
+      margin-top: 1rem;
+      text-align: right;
+      display: block !important;
+      visibility: visible !important;
+      padding: 0.5rem 0;
+    }
+    .dataTables_info {
+      margin-top: 1rem;
+      padding-top: 0.75rem;
+      display: block !important;
+      visibility: visible !important;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+      padding: 0.5rem 0.75rem;
+      margin: 0 0.25rem;
+      border: 1px solid #dee2e6;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      display: inline-block;
+      color: #495057;
+      background-color: #fff;
+      transition: all 0.2s ease;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+      background: #007bff !important;
+      color: #fff !important;
+      border-color: #007bff !important;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+      background: #007bff !important;
+      color: #fff !important;
+      border-color: #007bff !important;
+      font-weight: 600;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    .dataTables_filter input {
+      margin-left: 0.5rem;
+      padding: 0.375rem 0.75rem;
+      border: 1px solid #ced4da;
+      border-radius: 0.25rem;
+    }
+    .dataTables_length select {
+      margin-left: 0.5rem;
+      margin-right: 0.5rem;
+      padding: 0.375rem 1.75rem 0.375rem 0.75rem;
+      border: 1px solid #ced4da;
+      border-radius: 0.25rem;
+    }
+    /* Ensure pagination wrapper is visible */
+    .dataTables_wrapper .row {
+      display: flex !important;
+      flex-wrap: wrap !important;
+    }
+    .dataTables_wrapper .row > div {
+      display: block !important;
+    }
     </style>
-    <!-- DataTables per-column filter row -->
 </head>
-  <!-- Include header with all necessary libraries -->
-  <?php include '../../components/header.php'; ?>
   <body class="nav-md">
     <div class="container body">
       <div class="main_container">
@@ -141,7 +209,7 @@ $latest = $rows[0] ?? null;
                 <div class="card card-modern h-100">
                     <div class="card-body">
                         <div class="d-flex align-items-center justify-content-between mb-2">
-                            <div class="gauge-icon" style="background-color:#dc3545"></div>
+                            <div class="gauge-icon" style="background-color:#28a745"></div>
                             <div class="text-end">
                                 <div class="gauge-card-title">Temperature</div>
                                 <div class="gauge-value"><span id="tempValueNum">--</span> <span class="text-muted" style="font-weight:600;">°C</span></div>
@@ -149,9 +217,9 @@ $latest = $rows[0] ?? null;
                         </div>
                         <svg class="gauge-svg" viewBox="0 0 160 120" preserveAspectRatio="xMidYMid meet">
                             <path class="gauge-arc-track" d="M20,80 A60,60 0 0 1 140,80" />
-                            <path id="tempArc" class="gauge-arc-value" stroke="#dc3545" d="M20,80 A60,60 0 0 1 140,80" />
+                            <path id="tempArc" class="gauge-arc-value" stroke="#28a745" d="M20,80 A60,60 0 0 1 140,80" />
                         </svg>
-                        <div class="mt-2"><span class="legend-dot legend-danger"></span><span id="tempLegend" class="gauge-legend">--</span></div>
+                        <div class="mt-2"><span class="legend-dot legend-ok"></span><span id="tempLegend" class="gauge-legend">--</span></div>
                         <div class="mt-2 small text-muted">
                             <div><strong>Device:</strong> <span id="tempDeviceName">--</span></div>
                             <div><strong>Date:</strong> <span id="tempDate">--</span></div>
@@ -187,7 +255,7 @@ $latest = $rows[0] ?? null;
                 <div class="card card-modern h-100">
                     <div class="card-body">
                         <div class="d-flex align-items-center justify-content-between mb-2">
-                            <div class="gauge-icon" style="background-color:#28a745"></div>
+                            <div class="gauge-icon" style="background-color:#dc3545"></div>
                             <div class="text-end">
                                 <div class="gauge-card-title">Flame Detection</div>
                                 <div class="gauge-value"><span id="flameValueText">--</span></div>
@@ -195,9 +263,9 @@ $latest = $rows[0] ?? null;
                         </div>
                         <svg class="gauge-svg" viewBox="0 0 160 120" preserveAspectRatio="xMidYMid meet">
                             <path class="gauge-arc-track" d="M20,80 A60,60 0 0 1 140,80" />
-                            <path id="flameArc" class="gauge-arc-value" stroke="#28a745" d="M20,80 A60,60 0 0 1 140,80" />
+                            <path id="flameArc" class="gauge-arc-value" stroke="#dc3545" d="M20,80 A60,60 0 0 1 140,80" />
                         </svg>
-                        <div class="mt-2"><span id="flameLegendDot" class="legend-dot legend-ok"></span><span id="flameLegend" class="gauge-legend">--</span></div>
+                        <div class="mt-2"><span id="flameLegendDot" class="legend-dot legend-danger"></span><span id="flameLegend" class="gauge-legend">--</span></div>
                         <div class="mt-2 small text-muted">
                             <div><strong>Device:</strong> <span id="flameDeviceName">--</span></div>
                             <div><strong>Date:</strong> <span id="flameDate">--</span></div>
@@ -245,11 +313,11 @@ $latest = $rows[0] ?? null;
                         <div class="row g-2">
                             <div class="col-6">
                                 <label for="dateFrom" class="form-label small text-muted">Start Date</label>
-                                <input id="dateFrom" type="date" class="form-control form-control-sm" placeholder="Start date" title="Filter records from this date">
+                                <input id="dateFrom" type="date" class="form-control form-control-sm" title="Filter records from this date">
                             </div>
                             <div class="col-6">
                                 <label for="dateTo" class="form-label small text-muted">End Date</label>
-                                <input id="dateTo" type="date" class="form-control form-control-sm" placeholder="End date" title="Filter records until this date">
+                                <input id="dateTo" type="date" class="form-control form-control-sm" title="Filter records until this date">
                             </div>
                             <div class="col-12">
                                 <div class="d-flex gap-2 mt-2">
@@ -284,21 +352,7 @@ $latest = $rows[0] ?? null;
                             </tr>
                         </thead>
                         <tbody>
-                        <?php foreach ($rows as $r): ?>
-                            <tr>
-                                <td><?php echo htmlspecialchars($r['id']); ?></td>
-                                <td><span class="badge <?php echo renderBadgeClass('status', $r['status']); ?>"><?php echo htmlspecialchars($r['status']); ?></span></td>
-                                <td><?php echo htmlspecialchars($r['building_type']); ?></td>
-                                <td><span class="badge <?php echo renderBadgeClass('level', $r['smoke'], 200, 400); ?>"><?php echo htmlspecialchars($r['smoke']); ?></span></td>
-                                <td><span class="badge <?php echo renderBadgeClass('level', $r['temp'], 50, 80); ?>"><?php echo htmlspecialchars($r['temp']); ?></span></td>
-                                <td><span class="badge <?php echo renderBadgeClass('level', $r['heat'], 60, 85); ?>"><?php echo htmlspecialchars($r['heat']); ?></span></td>
-                                <td><span class="badge <?php echo renderBadgeClass('yesno', $r['flame_detected']); ?>"><?php echo (int)$r['flame_detected'] === 1 ? 'Yes' : 'No'; ?></span></td>
-                                <td><?php echo htmlspecialchars($r['timestamp']); ?></td>
-                                <td><?php echo htmlspecialchars($r['username'] ?? ('User #' . $r['user_id'])); ?></td>
-                                <td><?php echo htmlspecialchars($r['barangay_name'] ?? ''); ?></td>
-                                <td><span class="badge <?php echo renderBadgeClass('device', $r['device_name'] ?? null); ?>"><?php echo htmlspecialchars($r['device_name'] ?? ('Device #' . ($r['device_id'] ?? 'N/A'))); ?></span></td>
-                            </tr>
-                        <?php endforeach; ?>
+                            <!-- Data will be loaded via server-side processing -->
                         </tbody>
                         <tfoot>
                             <tr>
@@ -323,16 +377,185 @@ $latest = $rows[0] ?? null;
     </div>
 
 <script>
-$(function() {
-  var table = $('#fireDataTable').DataTable({
-    order: [[0, 'desc']],
+// Defer initialization until after scripts.php loads
+// This script will be executed after scripts.php includes jQuery
+window.dataTableInitPending = true;
+
+// Main initialization function
+function initializeApp() {
+  // Declare table variable in outer scope
+  var table;
+  
+  // Function to initialize DataTable
+  function initializeDataTable() {
+    // Double-check DataTables is loaded
+    if (typeof $ === 'undefined' || typeof $.fn === 'undefined' || typeof $.fn.DataTable === 'undefined') {
+      console.error('DataTables not available. Initialization aborted.');
+      console.error('jQuery version:', typeof $ !== 'undefined' && typeof $.fn !== 'undefined' ? $.fn.jquery : 'not available');
+      console.error('$.fn.DataTable:', typeof $.fn !== 'undefined' ? typeof $.fn.DataTable : '$.fn not available');
+      // Try one more time after a delay
+      setTimeout(function() {
+        if (typeof $ !== 'undefined' && typeof $.fn !== 'undefined' && typeof $.fn.DataTable !== 'undefined') {
+          console.log('DataTables now available. Retrying initialization...');
+          initializeDataTable();
+        }
+      }, 1000);
+      return;
+    }
+    
+    // Wait for table element to be ready
+    var $table = $('#fireDataTable');
+    if ($table.length === 0) {
+      console.error('Table #fireDataTable not found');
+      return;
+    }
+    
+    // Destroy existing DataTable if it exists
+    if ($.fn.DataTable.isDataTable('#fireDataTable')) {
+      $table.DataTable().destroy();
+    }
+    
+    // Initialize DataTable with server-side processing for faster loading
+    table = $('#fireDataTable').DataTable({
+    processing: true,
+    serverSide: true,
+    paging: true,
     pageLength: 25,
-    lengthMenu: [10, 25, 50, 100],
+    lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+    order: [[0, 'desc']],
     stateSave: false,
+    searching: true,
+    info: true,
+    responsive: true,
+    pagingType: 'full_numbers',
+    dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rt<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+    ajax: {
+      url: 'get_fire_data.php',
+      type: 'GET',
+      data: function(d) {
+        // Add custom filters to DataTables request
+        // Read filter values directly from DOM elements each time this function is called
+        const filterData = {
+          building_type: ($('#filterBuildingType').length ? $('#filterBuildingType').val() : '') || '',
+          barangay: ($('#filterBarangay').length ? $('#filterBarangay').val() : '') || '',
+          user: ($('#filterUser').length ? $('#filterUser').val() : '') || '',
+          device: ($('#filterDevice').length ? $('#filterDevice').val() : '') || '',
+          date_from: ($('#dateFrom').length ? $('#dateFrom').val() : '') || '',
+          date_to: ($('#dateTo').length ? $('#dateTo').val() : '') || ''
+        };
+        console.log('Ajax data function called with filters:', filterData);
+        // Merge with DataTables default parameters
+        return $.extend({}, d, filterData);
+      },
+      error: function(xhr, error, thrown) {
+        console.error('DataTables Ajax error:', error, thrown);
+        if (xhr.status === 401) {
+          alert('Session expired. Please refresh and log in again.');
+          window.location.reload();
+        }
+      }
+    },
+    language: {
+      search: "Search:",
+      lengthMenu: "Show _MENU_ entries",
+      info: "Showing _START_ to _END_ of _TOTAL_ entries",
+      infoEmpty: "Showing 0 to 0 of 0 entries",
+      infoFiltered: "(filtered from _MAX_ total entries)",
+      paginate: {
+        first: "First",
+        last: "Last",
+        next: "Next",
+        previous: "Previous"
+      },
+      emptyTable: "No data available in table",
+      zeroRecords: "No matching records found",
+      processing: "Loading data..."
+    },
     columnDefs: [
       { targets: 0, visible: false, searchable: true }
-    ]
+    ],
+    initComplete: function() {
+      console.log('DataTable initialized successfully with server-side processing');
+      // Force show pagination and search controls
+      $('.dataTables_length').css({'display': 'block', 'visibility': 'visible'});
+      $('.dataTables_filter').css({'display': 'block', 'visibility': 'visible'});
+      $('.dataTables_paginate').css({'display': 'block', 'visibility': 'visible'});
+      $('.dataTables_info').css({'display': 'block', 'visibility': 'visible'});
+      
+      // Ensure pagination buttons are visible
+      $('.dataTables_paginate .paginate_button').css({'display': 'inline-block', 'visibility': 'visible'});
+      
+      // Set up filter event handlers after table is initialized
+      setupFilterHandlers();
+      
+      // Initialize filter options after table loads
+      setTimeout(function() {
+        if (typeof initializeFilters === 'function') {
+          initializeFilters();
+        }
+      }, 800);
+    },
+    drawCallback: function(settings) {
+      // Ensure pagination is visible on every draw
+      $('.dataTables_paginate').css({'display': 'block', 'visibility': 'visible'});
+      $('.dataTables_info').css({'display': 'block', 'visibility': 'visible'});
+      $('.dataTables_paginate .paginate_button').css({'display': 'inline-block', 'visibility': 'visible'});
+      
+      // Update gauges with first row data if available
+      var api = this.api();
+      var firstRow = api.row(0).data();
+      if (firstRow && firstRow.length > 0) {
+        // Extract data from HTML badges
+        var tempDiv = document.createElement('div');
+        tempDiv.innerHTML = firstRow[3] || ''; // Smoke
+        var smokeText = (tempDiv.textContent || tempDiv.innerText || '').trim();
+        tempDiv.innerHTML = firstRow[4] || ''; // Temp
+        var tempText = (tempDiv.textContent || tempDiv.innerText || '').trim();
+        tempDiv.innerHTML = firstRow[5] || ''; // Heat
+        var heatText = (tempDiv.textContent || tempDiv.innerText || '').trim();
+        tempDiv.innerHTML = firstRow[6] || ''; // Flame
+        var flameText = (tempDiv.textContent || tempDiv.innerText || '').trim();
+        var timestampText = firstRow[7] || '';
+        tempDiv.innerHTML = firstRow[10] || ''; // Device
+        var deviceText = (tempDiv.textContent || tempDiv.innerText || '').trim();
+        
+        var cont = document.getElementById('latestSensorData');
+        if (cont) {
+          cont.setAttribute('data-smoke', smokeText || '');
+          cont.setAttribute('data-temp', tempText || '');
+          cont.setAttribute('data-heat', heatText || '');
+          cont.setAttribute('data-flame', (flameText && flameText.toLowerCase() === 'yes') ? '1' : '0');
+          cont.setAttribute('data-timestamp', timestampText || '');
+          cont.setAttribute('data-device-name', deviceText || '');
+        }
+        if (typeof updateGaugesFromDataset === 'function') {
+          updateGaugesFromDataset();
+        }
+      }
+    }
   });
+  
+  // Force show controls after initialization
+  setTimeout(function() {
+    $('.dataTables_length').css({'display': 'block', 'visibility': 'visible'});
+    $('.dataTables_filter').css({'display': 'block', 'visibility': 'visible'});
+    $('.dataTables_paginate').css({'display': 'block', 'visibility': 'visible'});
+    $('.dataTables_info').css({'display': 'block', 'visibility': 'visible'});
+    $('.dataTables_paginate .paginate_button').css({'display': 'inline-block', 'visibility': 'visible'});
+  }, 100);
+  
+  // Additional check after a longer delay to ensure pagination is visible
+  setTimeout(function() {
+    if (table && typeof table.page !== 'undefined') {
+      $('.dataTables_paginate').css({'display': 'block', 'visibility': 'visible', 'opacity': '1'});
+      $('.dataTables_info').css({'display': 'block', 'visibility': 'visible', 'opacity': '1'});
+    }
+  }, 500);
+  
+  }
+  
+  // Start initialization
+  initializeDataTable();
 
   // Optimized utility functions
   const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
@@ -637,105 +860,187 @@ $(function() {
   
   pollLatest();
 
-  // Optimized filter management
-  const filterManager = {
-    populateUniqueOptions(columnIndex, selectId) {
-      const opts = new Set(['']);
-      table.column(columnIndex).data().each(function(v) {
-        const t = cellText(v);
-        if (t && t !== 'N/A' && t !== 'Building #N/A' && t !== 'Device #N/A') opts.add(t);
-      });
-      const select = $(selectId);
-      select.find('option:not(:first)').remove();
-      Array.from(opts).sort().forEach(v => {
-        if (v) select.append($('<option>').val(v).text(v));
-      });
-    },
-
-    rebuildDeviceOptionsForUser() {
-      const selectedUser = $('#filterUser').val();
-      const deviceSelect = $('#filterDevice');
-      const previousDevice = deviceSelect.val();
-
-      const devices = new Set(['']);
-      if (!selectedUser) {
-        table.column(10).data().each(function(v) {
-          const t = cellText(v);
-          if (t && t !== 'Device #N/A') devices.add(t);
-        });
-      } else {
-        table.rows().every(function() {
-          const d = this.data();
-          const userText = cellText(d[8] || '');
-          const deviceText = cellText(d[10] || '');
-          if (userText === selectedUser && deviceText && deviceText !== 'Device #N/A') {
-            devices.add(deviceText);
-          }
-        });
-      }
-
-      deviceSelect.find('option:not(:first)').remove();
-      Array.from(devices).sort().forEach(v => {
-        if (v) deviceSelect.append($('<option>').val(v).text(v));
-      });
-
-      deviceSelect.val(previousDevice && devices.has(previousDevice) ? previousDevice : '');
-    },
-
-    rebuildUserOptionsForBarangay() {
-      const selectedBarangay = $('#filterBarangay').val();
-      const userSelect = $('#filterUser');
-      const previousUser = userSelect.val();
-
-      const users = new Set(['']);
-      if (!selectedBarangay) {
-        table.column(8).data().each(function(v) {
-          const t = cellText(v);
-          if (t && t !== 'User #N/A') users.add(t);
-        });
-      } else {
-        table.rows().every(function() {
-          const d = this.data();
-          const userText = cellText(d[8] || '');
-          const brgyText = cellText(d[9] || '');
-          if (brgyText === selectedBarangay && userText && userText !== 'User #N/A') {
-            users.add(userText);
-          }
-        });
-      }
-
-      userSelect.find('option:not(:first)').remove();
-      Array.from(users).sort().forEach(v => {
-        if (v) userSelect.append($('<option>').val(v).text(v));
-      });
-
-      userSelect.val(previousUser && users.has(previousUser) ? previousUser : '');
+  // Helper function to get table reference safely
+  function getTable() {
+    // Try to get table from closure variable first
+    if (table && typeof table.draw === 'function') {
+      return table;
     }
-  };
+    // Fallback: get table from DataTables API
+    if ($.fn.DataTable.isDataTable('#fireDataTable')) {
+      return $('#fireDataTable').DataTable();
+    }
+    return null;
+  }
 
-  // Initialize filters
-  filterManager.populateUniqueOptions(2, '#filterBuildingType');
-  filterManager.populateUniqueOptions(9, '#filterBarangay');
-  filterManager.populateUniqueOptions(8, '#filterUser');
-  filterManager.populateUniqueOptions(10, '#filterDevice');
-  filterManager.rebuildDeviceOptionsForUser();
-  filterManager.rebuildUserOptionsForBarangay();
+  // Initialize filters - fetch unique values from server
+  function initializeFilters() {
+    var currentTable = getTable();
+    if (!currentTable) {
+      console.log('Table not ready, retrying filter initialization...');
+      setTimeout(initializeFilters, 300);
+      return;
+    }
+    
+    console.log('Initializing filters...');
+    
+    // Fetch all data once to populate filter options (with a reasonable limit)
+    $.get('get_fire_data.php', {
+      start: 0,
+      length: 10000, // Get more records for filter options
+      draw: 1,
+      order: [{column: 0, dir: 'desc'}]
+    })
+    .done(function(response) {
+      console.log('Filter initialization response:', response);
+      if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
+        // Extract unique values from response data
+        const buildingTypes = new Set();
+        const barangays = new Set();
+        const users = new Set();
+        const devices = new Set();
+        
+        response.data.forEach(function(row) {
+          // Parse HTML to get text values
+          const tempDiv = document.createElement('div');
+          
+          // Building Type (column index 2)
+          if (row[2]) {
+            tempDiv.innerHTML = row[2];
+            const bt = (tempDiv.textContent || tempDiv.innerText || '').trim();
+            if (bt && bt !== 'All Building Types') buildingTypes.add(bt);
+          }
+          
+          // Barangay (column index 9)
+          if (row[9]) {
+            tempDiv.innerHTML = row[9];
+            const brgy = (tempDiv.textContent || tempDiv.innerText || '').trim();
+            if (brgy && brgy !== 'All Barangays') barangays.add(brgy);
+          }
+          
+          // User (column index 8)
+          if (row[8]) {
+            tempDiv.innerHTML = row[8];
+            const user = (tempDiv.textContent || tempDiv.innerText || '').trim();
+            if (user && !user.startsWith('User #') && user !== 'All Users') users.add(user);
+          }
+          
+          // Device (column index 10)
+          if (row[10]) {
+            tempDiv.innerHTML = row[10];
+            const dev = (tempDiv.textContent || tempDiv.innerText || '').trim();
+            // Remove HTML tags and extract text
+            const devText = dev.replace(/<[^>]*>/g, '').trim();
+            if (devText && !devText.startsWith('Device #') && devText !== 'N/A' && devText !== 'All Devices') {
+              devices.add(devText);
+            }
+          }
+        });
+        
+        // Populate filter dropdowns
+        const $btSelect = $('#filterBuildingType');
+        if ($btSelect.length) {
+          $btSelect.find('option:not(:first)').remove();
+          Array.from(buildingTypes).sort().forEach(v => {
+            if (v) $btSelect.append($('<option>').val(v).text(v));
+          });
+          console.log('Building Types populated:', buildingTypes.size);
+        }
+        
+        const $brgySelect = $('#filterBarangay');
+        if ($brgySelect.length) {
+          $brgySelect.find('option:not(:first)').remove();
+          Array.from(barangays).sort().forEach(v => {
+            if (v) $brgySelect.append($('<option>').val(v).text(v));
+          });
+          console.log('Barangays populated:', barangays.size);
+        }
+        
+        const $userSelect = $('#filterUser');
+        if ($userSelect.length) {
+          $userSelect.find('option:not(:first)').remove();
+          Array.from(users).sort().forEach(v => {
+            if (v) $userSelect.append($('<option>').val(v).text(v));
+          });
+          console.log('Users populated:', users.size);
+        }
+        
+        const $devSelect = $('#filterDevice');
+        if ($devSelect.length) {
+          $devSelect.find('option:not(:first)').remove();
+          Array.from(devices).sort().forEach(v => {
+            if (v) $devSelect.append($('<option>').val(v).text(v));
+          });
+          console.log('Devices populated:', devices.size);
+        }
+        
+        console.log('Filter options populated successfully:', {
+          buildingTypes: buildingTypes.size,
+          barangays: barangays.size,
+          users: users.size,
+          devices: devices.size
+        });
+      } else {
+        console.warn('No data received for filter initialization. Response:', response);
+        // Retry once more after a delay
+        setTimeout(function() {
+          var retryTable = getTable();
+          if (retryTable) {
+            console.log('Retrying filter initialization...');
+            initializeFilters();
+          }
+        }, 1000);
+      }
+    })
+    .fail(function(xhr, status, error) {
+      console.warn('Failed to load filter options:', error, xhr);
+    });
+  }
+  
+  // Start filter initialization after table loads (fallback if initComplete doesn't trigger it)
+  // The main initialization happens in initComplete callback, this is just a safety net
+  setTimeout(function() {
+    if (typeof initializeFilters === 'function') {
+      var currentTable = getTable();
+      if (currentTable) {
+        initializeFilters();
+      }
+    }
+  }, 2000);
 
-  // Optimized core filter application
+  // Optimized core filter application - reloads table with new filters
   function applyCoreFilters() {
+    console.log('applyCoreFilters called');
+    var currentTable = getTable();
+    if (!currentTable) {
+      console.warn('Table not initialized, cannot apply filters. Retrying...');
+      // Retry after a short delay if table isn't ready
+      setTimeout(function() {
+        var retryTable = getTable();
+        if (retryTable) {
+          applyCoreFilters();
+        } else {
+          console.warn('Table still not initialized after retry');
+        }
+      }, 100);
+      return;
+    }
+    
     const filters = {
-      bt: $('#filterBuildingType').val(),
-      brgy: $('#filterBarangay').val(),
-      usr: $('#filterUser').val(),
-      dev: $('#filterDevice').val(),
-      from: $('#dateFrom').val(),
-      to: $('#dateTo').val()
+      building_type: $('#filterBuildingType').val() || '',
+      barangay: $('#filterBarangay').val() || '',
+      user: $('#filterUser').val() || '',
+      device: $('#filterDevice').val() || '',
+      date_from: $('#dateFrom').val() || '',
+      date_to: $('#dateTo').val() || ''
     };
+    
+    console.log('Applying filters:', filters);
 
     // Validate date range
-    if (filters.from && filters.to) {
-      const fromDate = new Date(filters.from + 'T00:00:00');
-      const toDate = new Date(filters.to + 'T23:59:59');
+    if (filters.date_from && filters.date_to) {
+      const fromDate = new Date(filters.date_from + 'T00:00:00');
+      const toDate = new Date(filters.date_to + 'T23:59:59');
       if (fromDate > toDate) {
         if (typeof toastr !== 'undefined') {
           toastr.error('Start date cannot be after end date. Please correct the date range.');
@@ -748,48 +1053,251 @@ $(function() {
       }
     }
 
-    // Clear previous custom filter
-    $.fn.dataTable.ext.search = $.fn.dataTable.ext.search.filter(fn => !fn._isCore);
-
-    // Create optimized filter function
-    const filterFunction = function(settings, data) {
-      const buildingType = cellText(data[2] || '');
-      const barangay = cellText(data[9] || '');
-      const user = cellText(data[8] || '');
-      const device = cellText(data[10] || '');
-      const ts = cellText(data[7] || '');
-
-      // Apply filters
-      if (filters.bt && buildingType !== filters.bt) return false;
-      if (filters.brgy && barangay !== filters.brgy) return false;
-      if (filters.usr && user !== filters.usr) return false;
-      if (filters.dev && device !== filters.dev) return false;
-
-      // Apply date filters
-      if (filters.from || filters.to) {
-        const recordDate = parseTimestamp(ts);
-        
-        if (isNaN(recordDate.getTime())) return true;
-        
-        if (filters.from) {
-          const fromDate = new Date(filters.from + 'T00:00:00');
-          if (recordDate < fromDate) return false;
+    // Reload table with new filters (server-side processing handles filtering)
+    // Use draw() instead of ajax.reload() to ensure ajax.data function is called
+    console.log('Reloading table with filters...');
+    currentTable.draw(false);
+    
+    if (typeof updateDateFilterVisuals === 'function') {
+      updateDateFilterVisuals();
+    }
+  }
+  
+  // Set up filter event handlers
+  function setupFilterHandlers() {
+    console.log('Setting up filter handlers...');
+    
+    // Remove any existing handlers to avoid duplicates
+    $('#filterBuildingType,#filterBarangay,#filterUser,#filterDevice,#dateFrom,#dateTo').off('change');
+    
+    // Set up dropdown filter handlers
+    var filterElements = $('#filterBuildingType,#filterBarangay,#filterUser,#filterDevice');
+    if (filterElements.length > 0) {
+      filterElements.on('change', function() {
+        console.log('Filter changed:', this.id, $(this).val());
+        applyCoreFilters();
+      });
+      console.log('Dropdown filter handlers attached');
+    }
+    
+    // Date filter handlers with visual feedback
+    var dateFromEl = $('#dateFrom');
+    var dateToEl = $('#dateTo');
+    if (dateFromEl.length > 0) {
+      dateFromEl.on('change', function() {
+        console.log('Date from changed:', $(this).val());
+        updateDateFilterVisuals();
+        applyCoreFilters();
+      });
+    }
+    if (dateToEl.length > 0) {
+      dateToEl.on('change', function() {
+        console.log('Date to changed:', $(this).val());
+        updateDateFilterVisuals();
+        applyCoreFilters();
+      });
+    }
+    
+    // Initialize date filter visuals on load
+    if (typeof updateDateFilterVisuals === 'function') {
+      updateDateFilterVisuals();
+    }
+    
+    // Reset filters button
+    var resetFiltersEl = $('#resetFilters');
+    if (resetFiltersEl.length > 0) {
+      resetFiltersEl.off('click'); // Remove existing handlers
+      resetFiltersEl.on('click', function() {
+        var currentTable = getTable();
+        if (!currentTable) {
+          console.warn('Table not initialized, retrying...');
+          setTimeout(function() {
+            var retryTable = getTable();
+            if (!retryTable) {
+              console.error('Table not initialized after retry');
+              return;
+            }
+            $('#filterBuildingType,#filterBarangay,#filterUser,#filterDevice,#dateFrom,#dateTo').val('');
+            retryTable.search(''); // Clear global search
+            retryTable.draw(false); // Reload with empty filters
+            if (typeof updateDateFilterVisuals === 'function') {
+              updateDateFilterVisuals();
+            }
+          }, 200);
+          return;
         }
         
-        if (filters.to) {
-          const toDate = new Date(filters.to + 'T23:59:59');
-          if (recordDate > toDate) return false;
+        $('#filterBuildingType,#filterBarangay,#filterUser,#filterDevice,#dateFrom,#dateTo').val('');
+        currentTable.search(''); // Clear global search
+        currentTable.draw(false); // Reload with empty filters
+        
+        if (typeof updateDateFilterVisuals === 'function') {
+          updateDateFilterVisuals();
         }
-      }
       
-      return true;
-    };
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            title: 'Success!',
+            text: 'All filters have been reset successfully.',
+            icon: 'success',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#28a745'
+          });
+        }
+      });
+      console.log('Reset button handler attached');
+    }
     
-    filterFunction._isCore = true;
-    $.fn.dataTable.ext.search.push(filterFunction);
-    table.draw();
+    // Export CSV button
+    var exportCSVEl = $('#exportCSV');
+    if (exportCSVEl.length > 0) {
+      exportCSVEl.off('click'); // Remove existing handlers
+      exportCSVEl.on('click', function() {
+        var currentTable = getTable();
+        if (!currentTable) {
+          console.warn('Table not initialized, retrying...');
+          setTimeout(function() {
+            var retryTable = getTable();
+            if (!retryTable) {
+              console.error('Table not initialized after retry');
+              if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                  title: 'Error',
+                  text: 'Table is not ready. Please wait a moment and try again.',
+                  icon: 'error',
+                  confirmButtonText: 'OK'
+                });
+              }
+              return;
+            }
+            // Retry with the table
+            exportCSVData(retryTable);
+          }, 200);
+          return;
+        }
+        
+        exportCSVData(currentTable);
+      });
+      console.log('Export CSV button handler attached');
+    }
     
-    updateDateFilterVisuals();
+    // Helper function to export CSV data
+    function exportCSVData(currentTable) {
+        // Show loading indicator
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            title: 'Exporting...',
+            text: 'Please wait while we prepare your data.',
+            allowOutsideClick: false,
+            didOpen: () => {
+              Swal.showLoading();
+            }
+          });
+        }
+        
+        // Fetch all filtered data (with large limit)
+        const filters = {
+          building_type: $('#filterBuildingType').val() || '',
+          barangay: $('#filterBarangay').val() || '',
+          user: $('#filterUser').val() || '',
+          device: $('#filterDevice').val() || '',
+          date_from: $('#dateFrom').val() || '',
+          date_to: $('#dateTo').val() || '',
+          search: (currentTable && typeof currentTable.search === 'function') ? currentTable.search() : ''
+        };
+        
+        $.get('get_fire_data.php', $.extend({
+          start: 0,
+          length: 100000, // Large limit to get all filtered records
+          draw: 1,
+          order: [{column: 0, dir: 'desc'}]
+        }, filters))
+        .done(function(response) {
+          if (!response || !response.data || response.data.length === 0) {
+            if (typeof Swal !== 'undefined') {
+              Swal.fire({
+                title: 'No Data',
+                text: 'There are no records to export. Please adjust your filters.',
+                icon: 'warning',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#ffc107'
+              });
+            } else {
+              alert('There are no records to export. Please adjust your filters.');
+            }
+            return;
+          }
+        
+          const headers = [
+            'ID', 'Status', 'Building Type', 'Smoke (ppm)', 'Temperature (°C)', 
+            'Heat Index (°C)', 'Flame Detected', 'Timestamp', 'User', 
+            'Barangay', 'Device'
+          ];
+          
+          let csvContent = headers.join(',') + '\n';
+          
+          response.data.forEach(row => {
+            const csvRow = row.map(cell => {
+              let cellContent = '';
+              if (cell) {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = cell;
+                cellContent = tempDiv.textContent || tempDiv.innerText || '';
+              }
+              
+              if (cellContent.includes(',') || cellContent.includes('"') || cellContent.includes('\n')) {
+                cellContent = '"' + cellContent.replace(/"/g, '""') + '"';
+              }
+              
+              return cellContent;
+            });
+            
+            csvContent += csvRow.join(',') + '\n';
+          });
+          
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          const url = URL.createObjectURL(blob);
+          link.setAttribute('href', url);
+          
+          const now = new Date();
+          const dateStr = now.getFullYear() + '-' + 
+                        String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+                        String(now.getDate()).padStart(2, '0') + '_' +
+                        String(now.getHours()).padStart(2, '0') + '-' + 
+                        String(now.getMinutes()).padStart(2, '0');
+          
+          link.setAttribute('download', 'fire_data_export_' + dateStr + '.csv');
+          link.style.visibility = 'hidden';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          if (typeof Swal !== 'undefined') {
+            Swal.fire({
+              title: 'Export Successful!',
+              text: 'Fire data has been exported to CSV successfully.',
+              icon: 'success',
+              confirmButtonText: 'OK',
+              confirmButtonColor: '#28a745'
+            });
+          }
+        })
+        .fail(function() {
+          if (typeof Swal !== 'undefined') {
+            Swal.fire({
+              title: 'Export Failed',
+              text: 'Unable to export data. Please try again.',
+              icon: 'error',
+              confirmButtonText: 'OK'
+            });
+          } else {
+            alert('Unable to export data. Please try again.');
+          }
+        });
+    }
+    
+    console.log('Filter handlers setup complete');
   }
 
   // Optimized visual feedback
@@ -814,140 +1322,147 @@ $(function() {
     }
   }
 
-  // Event handlers
-  $('#filterBuildingType,#filterBarangay,#filterUser,#filterDevice,#dateFrom,#dateTo').on('change keyup', applyCoreFilters);
-  
-  $('#filterBarangay').on('change', function() {
-    filterManager.rebuildUserOptionsForBarangay();
-    filterManager.rebuildDeviceOptionsForUser();
-    applyCoreFilters();
-  });
-  
-  $('#filterUser').on('change', function() {
-    filterManager.rebuildDeviceOptionsForUser();
-    applyCoreFilters();
-  });
+  // Event handlers will be set up in initComplete callback via setupFilterHandlers()
 
-  // Reset filters
-  $('#resetFilters').on('click', function() {
-    table.search('');
-    $('#filterBuildingType,#filterBarangay,#filterUser,#filterDevice,#dateFrom,#dateTo').val('');
-    $.fn.dataTable.ext.search = $.fn.dataTable.ext.search.filter(fn => !fn._isCore);
-    table.draw();
-    filterManager.rebuildDeviceOptionsForUser();
-    filterManager.rebuildUserOptionsForBarangay();
-    updateDateFilterVisuals();
-    
-    Swal.fire({
-      title: 'Success!',
-      text: 'All filters have been reset successfully.',
-      icon: 'success',
-      confirmButtonText: 'OK',
-      confirmButtonColor: '#28a745'
-    });
-  });
-
-  // Optimized CSV export
-  $('#exportCSV').on('click', function() {
-    const filteredData = table.rows({search: 'applied'}).data().toArray();
-    
-    if (filteredData.length === 0) {
-      Swal.fire({
-        title: 'No Data',
-        text: 'There are no records to export. Please adjust your filters.',
-        icon: 'warning',
-        confirmButtonText: 'OK',
-        confirmButtonColor: '#ffc107'
-      });
-      return;
-    }
-    
-    const headers = [
-      'ID', 'Status', 'Building Type', 'Smoke (ppm)', 'Temperature (°C)', 
-      'Heat Index (°C)', 'Flame Detected', 'Timestamp', 'User', 
-      'Barangay', 'Device'
-    ];
-    
-    let csvContent = headers.join(',') + '\n';
-    
-    filteredData.forEach(row => {
-      const csvRow = row.map(cell => {
-        let cellContent = '';
-        if (cell) {
-          const tempDiv = document.createElement('div');
-          tempDiv.innerHTML = cell;
-          cellContent = tempDiv.textContent || tempDiv.innerText || '';
-        }
-        
-        if (cellContent.includes(',') || cellContent.includes('"') || cellContent.includes('\n')) {
-          cellContent = '"' + cellContent.replace(/"/g, '""') + '"';
-        }
-        
-        return cellContent;
-      });
-      
-      csvContent += csvRow.join(',') + '\n';
-    });
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    
-    const now = new Date();
-    const dateStr = now.getFullYear() + '-' + 
-                  String(now.getMonth() + 1).padStart(2, '0') + '-' + 
-                  String(now.getDate()).padStart(2, '0') + '_' +
-                  String(now.getHours()).padStart(2, '0') + '-' + 
-                  String(now.getMinutes()).padStart(2, '0');
-    
-    link.setAttribute('download', 'fire_data_export_' + dateStr + '.csv');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    Swal.fire({
-      title: 'Export Successful!',
-      text: 'Fire data has been exported to CSV successfully.',
-      icon: 'success',
-      confirmButtonText: 'OK',
-      confirmButtonColor: '#28a745'
-    });
-  });
-
-  // Update gauges on table draw
-  table.on('draw', function() {
-    const first = table.row(0).data();
-    if (!first) return;
-    
-    const smokeCell = $(table.row(0).node()).find('td').eq(3).text().trim();
-    const tempCell = $(table.row(0).node()).find('td').eq(4).text().trim();
-    const heatCell = $(table.row(0).node()).find('td').eq(5).text().trim();
-    const flameCell = $(table.row(0).node()).find('td').eq(6).text().trim();
-    const timestampCell = $(table.row(0).node()).find('td').eq(7).text().trim();
-    const deviceCell = $(table.row(0).node()).find('td').eq(10).text().trim();
-
-    const cont = document.getElementById('latestSensorData');
-    if (cont) {
-      cont.setAttribute('data-smoke', smokeCell || '');
-      cont.setAttribute('data-temp', tempCell || '');
-      cont.setAttribute('data-heat', heatCell || '');
-      cont.setAttribute('data-flame', (flameCell && flameCell.toLowerCase() === 'yes') ? '1' : '0');
-      cont.setAttribute('data-timestamp', timestampCell || '');
-      cont.setAttribute('data-device-name', deviceCell || '');
-    }
-    updateGaugesFromDataset();
-  });
+  // CSV export handler is set up in setupFilterHandlers()
 
   // Cleanup on page unload
   $(window).on('beforeunload', function() {
     if (pollTimeout) clearTimeout(pollTimeout);
   });
-});
+} // End of initializeApp function
 </script>
  <!-- Include header components -->
  <?php include '../../components/scripts.php'; ?>
+ 
+ <!-- Initialize DataTables after scripts.php loads -->
+ <script>
+ (function() {
+   'use strict';
+   
+   var maxRetries = 5; // Reduced retries
+   var retryCount = 0;
+   var initialized = false;
+   var dataTablesLoading = false;
+   
+   function initializeDataTable() {
+     if (initialized) return;
+     
+     // Check if jQuery is available
+     if (typeof jQuery === 'undefined' || typeof $ === 'undefined') {
+       retryCount++;
+       if (retryCount < maxRetries) {
+         setTimeout(initializeDataTable, 200);
+       } else {
+         console.error('jQuery not available after maximum retries');
+       }
+       return;
+     }
+     
+     // Check if DataTables is available
+     if (typeof $.fn === 'undefined' || typeof $.fn.DataTable === 'undefined') {
+       // If we're already loading DataTables, don't retry
+       if (dataTablesLoading) {
+         return;
+       }
+       
+       // Check if DataTables scripts are in the page
+       var dataTablesScripts = document.querySelectorAll('script[src*="datatables"], script[src*="DataTables"]');
+       
+       if (dataTablesScripts.length > 0) {
+         // Scripts exist, wait for them to load (but limit retries)
+         retryCount++;
+         if (retryCount < maxRetries) {
+           setTimeout(initializeDataTable, 300);
+         } else {
+           // After limited retries, try loading dynamically
+           loadDataTablesDynamically();
+         }
+       } else {
+         // Scripts not found, load them immediately
+         loadDataTablesDynamically();
+       }
+       return;
+     }
+     
+     // All dependencies ready
+     console.log('✓ DataTables ready. jQuery version:', $.fn.jquery);
+     initialized = true;
+     retryCount = 0; // Reset counter
+     
+     // Initialize the app
+     jQuery(document).ready(function($) {
+       if (typeof initializeApp === 'function') {
+         initializeApp();
+       } else {
+         console.error('initializeApp function not found');
+       }
+     });
+   }
+   
+   function loadDataTablesDynamically() {
+     if (dataTablesLoading) return; // Prevent multiple loads
+     dataTablesLoading = true;
+     console.log('Loading DataTables dynamically...');
+     
+     // Check if CSS is loaded
+     var cssLoaded = document.querySelector('link[href*="datatables"]');
+    if (!cssLoaded) {
+      var link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://cdn.jsdelivr.net/npm/datatables.net-bs5@1.13.6/css/dataTables.bootstrap5.min.css';
+      document.head.appendChild(link);
+    }
+     
+     // Load DataTables core
+    var script1 = document.createElement('script');
+    script1.src = 'https://cdn.jsdelivr.net/npm/datatables.net@1.13.6/js/jquery.dataTables.min.js';
+     script1.onload = function() {
+       // Load Bootstrap integration
+      var script2 = document.createElement('script');
+      script2.src = 'https://cdn.jsdelivr.net/npm/datatables.net-bs5@1.13.6/js/dataTables.bootstrap5.min.js';
+       script2.onload = function() {
+         console.log('✓ DataTables loaded dynamically');
+         dataTablesLoading = false;
+         retryCount = 0; // Reset counter
+         setTimeout(initializeDataTable, 100);
+       };
+       script2.onerror = function() {
+         console.error('Failed to load DataTables Bootstrap integration');
+         dataTablesLoading = false;
+       };
+       document.head.appendChild(script2);
+     };
+     script1.onerror = function() {
+       console.error('Failed to load DataTables core library');
+       dataTablesLoading = false;
+     };
+     document.head.appendChild(script1);
+   }
+   
+   // Suppress run_customtabs console.log from custom.min.js
+   (function() {
+     var originalLog = console.log;
+     console.log = function() {
+       // Suppress the run_customtabs message
+       if (arguments.length > 0 && typeof arguments[0] === 'string' && arguments[0].trim() === 'run_customtabs') {
+         return;
+       }
+       originalLog.apply(console, arguments);
+     };
+   })();
+   
+   // Start initialization
+   // Use window.load to ensure all scripts including scripts.php are loaded
+   if (document.readyState === 'complete') {
+     setTimeout(initializeDataTable, 200);
+   } else {
+     window.addEventListener('load', function() {
+       setTimeout(initializeDataTable, 200);
+     });
+   }
+ })();
+ </script>
 </body>
 </html>
 

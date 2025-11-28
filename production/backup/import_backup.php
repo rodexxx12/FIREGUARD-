@@ -44,11 +44,18 @@ try {
         throw new Exception('Failed to read uploaded file');
     }
     
-  // Database credentials for import
-  $db_host = 'srv1322.hstgr.io';
-  $db_name = 'u520834156_DBBagofire';
-  $db_user = 'u520834156_userBagofire';
-  $db_pass = 'i[#[GQ!+=C9';
+    // Database credentials for import - SECURITY FIX: Now uses environment variables
+    // Load configuration
+    require_once __DIR__ . '/../../core/config/config.php';
+    
+    $db_host = config('db.host', getenv('DB_HOST') ?: 'localhost');
+    $db_name = config('db.name', getenv('DB_NAME') ?: '');
+    $db_user = config('db.user', getenv('DB_USER') ?: '');
+    $db_pass = config('db.pass', getenv('DB_PASS') ?: '');
+    
+    if (empty($db_name) || empty($db_user)) {
+        throw new Exception('Database configuration incomplete. Please set DB_NAME and DB_USER in .env file.');
+    }
     
     // Connect to database
     $conn = new mysqli($db_host, $db_user, $db_pass, $db_name);

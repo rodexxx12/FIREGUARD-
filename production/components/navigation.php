@@ -881,25 +881,52 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function getAlarmPaths() {
         const origin = window.location.origin || '';
-        return [
-            // Corrected paths - remove double production
-            'truck.mp3',
-            './alarm.mp3',
-            '../alarm.mp3',
-            '../../alarm.mp3',
-            // Common component locations
-            'components/alarm.mp3',
-            './components/alarm.mp3',
-            '../components/alarm.mp3',
-            '../../components/alarm.mp3',
-            // Correct production path (no double production)
-            'production/components/alarm.mp3',
-            '../production/components/alarm.mp3',
-            '../../production/components/alarm.mp3',
-            // Absolute paths
-            origin + '/production/components/alarm.mp3',
-            origin + '/components/alarm.mp3'
-        ];
+        const currentPath = window.location.pathname || '';
+        
+        // Detect if we're in the mapping directory
+        const isMappingPage = currentPath.includes('/mapping/');
+        const isMappingPhp = currentPath.includes('/mapping/php/');
+        
+        // Build paths array with priority based on current location
+        const paths = [];
+        
+        // Priority 1: If in mapping/php directory, alarm.mp3 is in same directory
+        if (isMappingPhp) {
+            paths.push('./alarm.mp3');
+            paths.push('alarm.mp3');
+        }
+        
+        // Priority 2: If in mapping directory, try php subdirectory
+        if (isMappingPage) {
+            paths.push('./php/alarm.mp3');
+            paths.push('php/alarm.mp3');
+        }
+        
+        // Priority 3: Common relative paths from mapping directory
+        paths.push('../alarm.mp3');
+        paths.push('../../alarm.mp3');
+        
+        // Priority 4: Production components (most common location)
+        paths.push(origin + '/production/components/alarm.mp3');
+        paths.push('./production/components/alarm.mp3');
+        paths.push('../production/components/alarm.mp3');
+        paths.push('../../production/components/alarm.mp3');
+        
+        // Priority 5: Components directory
+        paths.push('./components/alarm.mp3');
+        paths.push('../components/alarm.mp3');
+        paths.push('../../components/alarm.mp3');
+        paths.push(origin + '/components/alarm.mp3');
+        
+        // Priority 6: Root level
+        paths.push('./alarm.mp3');
+        paths.push('alarm.mp3');
+        
+        // Priority 7: Fallback paths
+        paths.push('truck.mp3');
+        
+        // Remove duplicates while preserving order
+        return [...new Set(paths)];
     }
 
     function playAnnouncementSound() {
@@ -1390,19 +1417,44 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         try {
-            // Create audio element
-            const audio = new Audio();
-            audio.loop = true;
-            audio.volume = 0.8;
+            // Create audio element (reuse if exists)
+            let audio = window.emergencyAlarm;
+            if (!audio || audio.constructor !== HTMLAudioElement) {
+                audio = new Audio();
+                audio.loop = true;
+                audio.volume = 0.8;
+            }
             
             // Try different paths
             const paths = getAlarmPaths();
             
             let pathIndex = 0;
             let attempts = 0;
+            let loadTimeout = null;
+            let errorHandler = null;
+            let canPlayHandler = null;
             const maxAttempts = 3;
             
+            // Cleanup function
+            function cleanup() {
+                if (loadTimeout) {
+                    clearTimeout(loadTimeout);
+                    loadTimeout = null;
+                }
+                if (errorHandler) {
+                    audio.removeEventListener('error', errorHandler);
+                    errorHandler = null;
+                }
+                if (canPlayHandler) {
+                    audio.removeEventListener('canplaythrough', canPlayHandler);
+                    canPlayHandler = null;
+                }
+            }
+            
             function tryNextPath() {
+                // Clean up previous listeners
+                cleanup();
+                
                 if (pathIndex >= paths.length) {
                     attempts++;
                     if (attempts < maxAttempts) {
@@ -1418,29 +1470,56 @@ document.addEventListener('DOMContentLoaded', function() {
                 const currentPath = paths[pathIndex];
                 console.log(`🎵 Trying path ${pathIndex + 1}: ${currentPath}`);
                 
-                audio.src = currentPath;
-                
-                // Try to play
-                const playPromise = audio.play();
-                
-                if (playPromise !== undefined) {
-                    playPromise.then(() => {
-                        console.log(`✅ SUCCESS! Alarm playing from: ${currentPath}`);
-                        window.emergencyAlarm = audio; // Store globally
-                        
-                        // Update speaker icon to red
-                        updateSpeakerIconColor(true);
-                        
-                    }).catch((error) => {
-                        console.log(`❌ Failed: ${currentPath} - ${error.message}`);
-                        pathIndex++;
-                        setTimeout(tryNextPath, 100);
-                    });
-                } else {
-                    console.log(`⚠️ play() returned undefined for: ${currentPath}`);
+                // Set up error handler
+                errorHandler = () => {
+                    console.log(`❌ Failed to load: ${currentPath} - 404 or invalid path`);
+                    cleanup();
                     pathIndex++;
                     setTimeout(tryNextPath, 100);
-                }
+                };
+                
+                // Set up success handler
+                canPlayHandler = () => {
+                    cleanup();
+                    
+                    // Try to play
+                    const playPromise = audio.play();
+                    
+                    if (playPromise !== undefined) {
+                        playPromise.then(() => {
+                            console.log(`✅ SUCCESS! Alarm playing from: ${currentPath}`);
+                            window.emergencyAlarm = audio; // Store globally
+                            
+                            // Update speaker icon to red
+                            updateSpeakerIconColor(true);
+                            
+                        }).catch((error) => {
+                            console.log(`❌ Failed: ${currentPath} - play() failed: ${error.message}`);
+                            pathIndex++;
+                            setTimeout(tryNextPath, 100);
+                        });
+                    } else {
+                        console.log(`⚠️ play() returned undefined for: ${currentPath}`);
+                        pathIndex++;
+                        setTimeout(tryNextPath, 100);
+                    }
+                };
+                
+                // Add event listeners
+                audio.addEventListener('error', errorHandler);
+                audio.addEventListener('canplaythrough', canPlayHandler);
+                
+                // Set timeout for loading (3 seconds max per path)
+                loadTimeout = setTimeout(() => {
+                    console.log(`⏱️ Timeout loading: ${currentPath}`);
+                    cleanup();
+                    pathIndex++;
+                    setTimeout(tryNextPath, 100);
+                }, 3000);
+                
+                // Set src to trigger loading
+                audio.src = currentPath;
+                audio.load();
             }
             
             tryNextPath();

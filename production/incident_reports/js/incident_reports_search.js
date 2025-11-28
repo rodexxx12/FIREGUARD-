@@ -5,7 +5,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const tableBody = document.getElementById('incidents-table-body');
     const dateStartInput = document.getElementById('incident-date-start');
     const dateEndInput = document.getElementById('incident-date-end');
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
     let debounceTimeout = null;
+    let activeController = null;
 
     function renderTable(incidents) {
         if (!incidents.length) {
@@ -48,24 +51,52 @@ document.addEventListener('DOMContentLoaded', function () {
         return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
     }
 
-    function fetchIncidents() {
-        const status = filterSelect.value;
-        const startDate = dateStartInput.value;
-        const endDate = dateEndInput.value;
-        const formData = new FormData();
-        formData.append('action', 'search');
-        formData.append('status', status);
-        formData.append('start_date', startDate);
-        formData.append('end_date', endDate);
+    function performFetch() {
+        if (activeController) {
+            activeController.abort();
+        }
+        activeController = new AbortController();
+
+        const payload = new URLSearchParams();
+        payload.append('action', 'search');
+        payload.append('status', filterSelect.value || '');
+        payload.append('start_date', dateStartInput.value || '');
+        payload.append('end_date', dateEndInput.value || '');
+        if (csrfToken) {
+            payload.append('csrf_token', csrfToken);
+        }
+
+        const headers = {
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'Accept': 'application/json'
+        };
+        if (csrfToken) {
+            headers['X-CSRF-Token'] = csrfToken;
+        }
+
         fetch('reports.php', {
             method: 'POST',
-            body: formData
+            headers,
+            body: payload.toString(),
+            cache: 'no-store',
+            credentials: 'same-origin',
+            signal: activeController.signal
         })
-        .then(res => res.json())
-        .then(data => renderTable(data))
-        .catch(() => {
+        .then(res => {
+            if (!res.ok) throw new Error('Failed to load incidents');
+            return res.json();
+        })
+        .then(data => renderTable(Array.isArray(data) ? data : []))
+        .catch(err => {
+            if (err.name === 'AbortError') return;
             tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading incidents.</td></tr>';
+            console.error('Incident fetch error:', err);
         });
+    }
+
+    function fetchIncidents() {
+        clearTimeout(debounceTimeout);
+        debounceTimeout = setTimeout(performFetch, 250);
     }
 
     filterSelect.addEventListener('change', fetchIncidents);

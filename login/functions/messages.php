@@ -10,10 +10,10 @@ function saveContactMessage($name, $email, $subject, $message) {
             VALUES (?, ?, ?, ?)
         ");
         $stmt->execute([
-            sanitizeInput($name),
+            sanitizeInput($name, 80),
             filter_var($email, FILTER_SANITIZE_EMAIL),
-            sanitizeInput($subject),
-            sanitizeInput($message)
+            sanitizeInput($subject, 120),
+            sanitizeInput($message, 2000)
         ]);
         return $stmt->rowCount() > 0;
     } catch(PDOException $e) {
@@ -28,19 +28,18 @@ function handleContactFormSubmission() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             throw new Exception('Invalid request method');
         }
-        if (!isset($_POST['csrf_token']) || !validateCsrfToken($_POST['csrf_token'])) {
+        if (!isset($_POST['csrf_token']) || !validateCsrfToken($_POST['csrf_token'], 'contact_form')) {
             throw new Exception('Invalid CSRF token');
         }
-        $name = $_POST['name'] ?? '';
-        $email = $_POST['email'] ?? '';
-        $subject = $_POST['subject'] ?? '';
-        $message = $_POST['message'] ?? '';
-        if (empty($name) || empty($email) || empty($message)) {
-            throw new Exception('Please fill in all required fields');
+        $name = normalizeInput($_POST['name'] ?? '', 80);
+        $email = filter_var($_POST['email'] ?? '', FILTER_VALIDATE_EMAIL);
+        $subject = normalizeInput($_POST['subject'] ?? '', 120);
+        $message = normalizeInput($_POST['message'] ?? '', 2000);
+
+        if ($name === '' || !$email || $message === '') {
+            throw new Exception('Please provide your name, a valid email, and a message.');
         }
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            throw new Exception('Please enter a valid email address');
-        }
+
         if (saveContactMessage($name, $email, $subject, $message)) {
             echo json_encode(['success' => true, 'message' => 'Your message has been sent successfully!']);
         } else {

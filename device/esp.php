@@ -1,15 +1,47 @@
 <?php
-// Enable error reporting
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+/**
+ * Device ESP API - Secure Version
+ */
+
+// Environment-aware error handling
+$isProduction = (getenv('APP_ENV') === 'production' || 
+                 (isset($_SERVER['HTTP_HOST']) && 
+                  strpos($_SERVER['HTTP_HOST'], 'localhost') === false &&
+                  strpos($_SERVER['HTTP_HOST'], '127.0.0.1') === false));
+
+if ($isProduction) {
+    error_reporting(E_ALL);
+    ini_set('display_errors', '0');
+    ini_set('log_errors', '1');
+    $logDir = __DIR__ . '/../../logs';
+    if (!is_dir($logDir)) {
+        @mkdir($logDir, 0755, true);
+    }
+    ini_set('error_log', $logDir . '/device_api_errors.log');
+} else {
+    error_reporting(E_ALL);
+    ini_set('display_errors', '1');
+}
 
 // Set Philippine timezone
 date_default_timezone_set('Asia/Manila');
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
+// Secure CORS configuration
+$allowedOrigins = [
+    'https://your-domain.com',
+    'https://api.your-domain.com',
+    'http://localhost',
+    'http://127.0.0.1'
+];
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if (in_array($origin, $allowedOrigins) || empty($origin)) {
+    header('Access-Control-Allow-Origin: ' . ($origin ?: '*'));
+} else {
+    header('Access-Control-Allow-Origin: ' . $allowedOrigins[0]);
+}
 header('Access-Control-Allow-Methods: GET, POST');
 header('Access-Control-Allow-Headers: Content-Type');
+header('Content-Type: application/json');
 
 // Load configuration for SMS
 $config = require 'config.php';
@@ -17,34 +49,14 @@ $apiKey = $config['api_key'];
 $device = $config['device'];
 $url = $config['url'];
 
+// SECURITY FIX: Use centralized database connection instead of hardcoded credentials
+require_once __DIR__ . '/../core/config/config.php';
+require_once __DIR__ . '/../core/database/database.php';
+
 class Database {
-    private static $host = "localhost";
-    private static $dbname = "u520834156_DBBagofire";
-    private static $username = "u520834156_userBagofire";
-    private static $password = "i[#[GQ!+=C9";
-    
     public static function getConnection() {
-        static $conn = null;
-        
-        if ($conn === null) {
-            try {
-                $conn = new mysqli(
-                    self::$host, 
-                    self::$username, 
-                    self::$password, 
-                    self::$dbname
-                );
-                
-                if ($conn->connect_error) {
-                    throw new Exception("Database connection failed: " . $conn->connect_error);
-                }
-            } catch (Exception $e) {
-                error_log($e->getMessage());
-                return null;
-            }
-        }
-        
-        return $conn;
+        // Use centralized PDO connection
+        return getDatabaseConnection();
     }
 }
 

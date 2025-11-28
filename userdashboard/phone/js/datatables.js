@@ -23,6 +23,12 @@ class PhoneDataTables {
     }
 
     initializeTable() {
+        // Check if DataTables is available
+        if (typeof $.fn.DataTable === 'undefined') {
+            console.error('DataTables library is not loaded');
+            return;
+        }
+        
         // Initialize DataTable with comprehensive configuration
         this.table = $('#phoneNumbersTable').DataTable({
             // Server-side processing for better performance
@@ -542,9 +548,11 @@ class PhoneDataTables {
 
 // Initialize DataTables when document is ready
 $(document).ready(function() {
-    // Only initialize if the table exists
-    if ($('#phoneNumbersTable').length) {
+    // Only initialize if the table exists and DataTables is loaded
+    if ($('#phoneNumbersTable').length && typeof $.fn.DataTable !== 'undefined') {
         window.phoneDataTable = new PhoneDataTables();
+    } else if ($('#phoneNumbersTable').length) {
+        console.warn('DataTables library is not loaded. Please include DataTables scripts.');
     }
 });
 

@@ -335,8 +335,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     <!-- DataTables Buttons CSS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css">
     
-    <!-- Custom CSS for firefighter table -->
-    <link rel="stylesheet" href="../css/firefighter_table.css">
+  
 </head>
 <body class="nav-md">
     <div class="container body">
@@ -565,11 +564,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body compact-modal">
                     <form id="addFirefighterForm">
                         <div class="row">
                             <div class="col-md-6">
-                                <div class="mb-3">
+                                <div class="mb-2">
                                     <label for="addName" class="form-label">Full Name <span class="text-danger">*</span></label>
                                     <div class="input-group">
                                         <input type="text" class="form-control" id="addName" name="name" required>
@@ -579,7 +578,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="mb-3">
+                                <div class="mb-2">
                                     <label for="addEmail" class="form-label">Email Address <span class="text-danger">*</span></label>
                                     <div class="input-group">
                                         <input type="email" class="form-control" id="addEmail" name="email" required>
@@ -590,10 +589,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                 </div>
                             </div>
                         </div>
-                        
                         <div class="row">
                             <div class="col-md-6">
-                                <div class="mb-3">
+                                <div class="mb-2">
                                     <label for="addUsername" class="form-label">Username <span class="text-danger">*</span></label>
                                     <div class="input-group">
                                         <input type="text" class="form-control" id="addUsername" name="username" required>
@@ -603,7 +601,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="mb-3">
+                                <div class="mb-2">
                                     <label for="addPassword" class="form-label">Password <span class="text-danger">*</span></label>
                                     <div class="input-group">
                                         <input type="password" class="form-control" id="addPassword" name="password" required>
@@ -614,10 +612,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                 </div>
                             </div>
                         </div>
-                        
                         <div class="row">
                             <div class="col-md-6">
-                                <div class="mb-3">
+                                <div class="mb-2">
                                     <label for="addPhone" class="form-label">Phone Number <span class="text-danger">*</span></label>
                                     <div class="input-group">
                                         <input type="tel" class="form-control" id="addPhone" name="phone" required placeholder="09XXXXXXXXX">
@@ -628,7 +625,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="mb-3">
+                                <div class="mb-2">
                                     <label for="addBadgeNumber" class="form-label">Badge Number</label>
                                     <div class="input-group">
                                         <input type="text" class="form-control" id="addBadgeNumber" name="badge_number">
@@ -638,25 +635,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                 </div>
                             </div>
                         </div>
-                        
                         <div class="row">
                             <div class="col-md-6">
-                                <div class="mb-3">
+                                <div class="mb-2">
                                     <label for="addRank" class="form-label">Rank</label>
                                     <input type="text" class="form-control" id="addRank" name="rank">
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="mb-3">
+                                <div class="mb-2">
                                     <label for="addSpecialization" class="form-label">Specialization</label>
                                     <input type="text" class="form-control" id="addSpecialization" name="specialization">
                                 </div>
                             </div>
                         </div>
-                        
                         <div class="row">
                             <div class="col-md-6">
-                                <div class="mb-3">
+                                <div class="mb-2">
                                     <label for="addAvailability" class="form-label">Availability Status</label>
                                     <select class="form-select" id="addAvailability" name="availability">
                                         <option value="1">Available</option>

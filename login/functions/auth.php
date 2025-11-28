@@ -14,8 +14,84 @@ define('MAX_PROGRESSIVE_DELAY', 300); // Max delay: 5 minutes
 
 // Enhanced Rate Limiting System
 function checkRateLimit($ip, $action = 'login') {
-    $conn = getDatabaseConnection();
+    // Check environment first
+    $appEnv = loginEnv('APP_ENV', 'development');
+    $isLocal = in_array(strtolower($appEnv), ['local', 'development', 'dev']);
+    $isProduction = strtolower($appEnv) === 'production';
+    
+    // Try to get database connection
     try {
+        $conn = getDatabaseConnection();
+    } catch (Exception $e) {
+        error_log("Database connection failed in rate limit check: " . $e->getMessage());
+        
+        // In development, allow login to continue (fail open)
+        if ($isLocal) {
+            $failOpen = loginEnvBool('RATE_LIMIT_FAIL_OPEN', true);
+            if ($failOpen) {
+                error_log("Rate limiting bypassed in development due to database connection failure: " . $e->getMessage());
+                return ['allowed' => true];
+            }
+        }
+        
+        // In production, check if it's a critical error or temporary issue
+        if ($isProduction) {
+            // Log the error but try to allow login if it's a configuration issue
+            error_log("CRITICAL: Database connection failed in production rate limit check: " . $e->getMessage());
+            // For now, allow login to proceed (fail open) but log it
+            // This prevents locking out all users if there's a temporary DB issue
+            return ['allowed' => true, 'warning' => 'Rate limiting temporarily unavailable'];
+        }
+        
+        // Default: fail open for safety (better than blocking all users)
+        error_log("Rate limit check failed - allowing login to proceed: " . $e->getMessage());
+        return ['allowed' => true];
+    }
+    
+    // Ensure rate_limits table exists
+    static $tableEnsured = false;
+    if (!$tableEnsured) {
+        try {
+            $conn->exec("CREATE TABLE IF NOT EXISTS rate_limits (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                ip_address VARCHAR(45) NOT NULL,
+                action VARCHAR(50) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_ip_action_time (ip_address, action, created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            $tableEnsured = true;
+        } catch(PDOException $e) {
+            error_log("Failed to ensure rate_limits table exists: " . $e->getMessage());
+            
+            // In development, fail open
+            if ($isLocal) {
+                $failOpen = loginEnvBool('RATE_LIMIT_FAIL_OPEN', true);
+                if ($failOpen) {
+                    error_log("Rate limiting disabled in development due to table creation failure. Error: " . $e->getMessage());
+                    return ['allowed' => true];
+                }
+            }
+            
+            // In production, log but allow login (better than blocking all users)
+            if ($isProduction) {
+                error_log("WARNING: Rate limit table creation failed in production. Allowing login to proceed: " . $e->getMessage());
+                return ['allowed' => true];
+            }
+            
+            // Default: allow login
+            return ['allowed' => true];
+        }
+    }
+    
+    try {
+        // Clean up old records (older than the rate limit window)
+        $cleanupStmt = $conn->prepare("
+            DELETE FROM rate_limits 
+            WHERE created_at < DATE_SUB(NOW(), INTERVAL ? SECOND)
+        ");
+        $cleanupStmt->execute([RATE_LIMIT_WINDOW]);
+        
+        // Check current request count
         $stmt = $conn->prepare("
             SELECT COUNT(*) as request_count 
             FROM rate_limits 
@@ -26,7 +102,7 @@ function checkRateLimit($ip, $action = 'login') {
         $stmt->execute([$ip, $action, RATE_LIMIT_WINDOW]);
         $result = $stmt->fetch();
         
-        if ($result['request_count'] >= RATE_LIMIT_MAX_REQUESTS) {
+        if ($result && (int)$result['request_count'] >= RATE_LIMIT_MAX_REQUESTS) {
             return ['allowed' => false, 'message' => 'Too many requests. Please wait before trying again.'];
         }
         
@@ -40,13 +116,54 @@ function checkRateLimit($ip, $action = 'login') {
         return ['allowed' => true];
     } catch(PDOException $e) {
         error_log("Rate limit check failed: " . $e->getMessage());
-        return ['allowed' => true]; // Fail open for availability
+        
+        // In development, fail open
+        if ($isLocal) {
+            $failOpen = loginEnvBool('RATE_LIMIT_FAIL_OPEN', true);
+            if ($failOpen) {
+                error_log("Rate limiting bypassed in development due to database error. Error: " . $e->getMessage());
+                return ['allowed' => true];
+            }
+        }
+        
+        // In production, log but allow login (better than blocking all users)
+        if ($isProduction) {
+            error_log("WARNING: Rate limit check failed in production. Allowing login to proceed: " . $e->getMessage());
+            return ['allowed' => true];
+        }
+        
+        // Default: allow login
+        return ['allowed' => true];
     }
 }
 
 // Enhanced Brute Force Protection
 function recordLoginAttempt($ip, $success, $username = null) {
     $conn = getDatabaseConnection();
+    
+    // Ensure login_attempts table exists
+    static $loginAttemptsTableEnsured = false;
+    if (!$loginAttemptsTableEnsured) {
+        try {
+            $conn->exec("CREATE TABLE IF NOT EXISTS login_attempts (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                ip_address VARCHAR(45) NOT NULL,
+                username VARCHAR(255) DEFAULT NULL,
+                attempts INT DEFAULT 1,
+                last_attempt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                violation_count INT DEFAULT 1,
+                UNIQUE KEY unique_ip (ip_address),
+                INDEX idx_ip (ip_address),
+                INDEX idx_username (username),
+                INDEX idx_last_attempt (last_attempt)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            $loginAttemptsTableEnsured = true;
+        } catch(PDOException $e) {
+            error_log("Failed to ensure login_attempts table exists: " . $e->getMessage());
+            return; // Silently fail if table can't be created
+        }
+    }
+    
     try {
         if ($success) {
             // Clear all failed attempts for this IP
@@ -122,6 +239,30 @@ function applyProgressiveDelay($attempts) {
 // Security Event Logging
 function logSecurityEvent($event, $ip, $username = null, $details = null) {
     $conn = getDatabaseConnection();
+    
+    // Ensure security_logs table exists
+    static $securityLogsTableEnsured = false;
+    if (!$securityLogsTableEnsured) {
+        try {
+            $conn->exec("CREATE TABLE IF NOT EXISTS security_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                event_type VARCHAR(100) NOT NULL,
+                ip_address VARCHAR(45) NOT NULL,
+                username VARCHAR(255) DEFAULT NULL,
+                details TEXT DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_event_type (event_type),
+                INDEX idx_ip (ip_address),
+                INDEX idx_username (username),
+                INDEX idx_created_at (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            $securityLogsTableEnsured = true;
+        } catch(PDOException $e) {
+            error_log("Failed to ensure security_logs table exists: " . $e->getMessage());
+            return; // Silently fail if table can't be created
+        }
+    }
+    
     try {
         $stmt = $conn->prepare("
             INSERT INTO security_logs (event_type, ip_address, username, details, created_at) 
@@ -190,13 +331,13 @@ function authenticateUser($username, $password, $remember) {
         LIMIT 1
     ");
     $stmt->execute([$identifier]);
-    if ($stmt->rowCount() > 0) {
         $user = $stmt->fetch();
+    if ($user) {
         $status = strtolower($user['status'] ?? '');
         if ($status !== 'active') {
             recordLoginAttempt($ip, false, $identifier);
             logSecurityEvent('inactive_superadmin_login', $ip, $identifier, $status);
-            return ['success' => false, 'message' => 'Your superadmin account is inactive'];
+            return ['success' => false, 'message' => 'Invalid username or password'];
         }
         if (password_verify($password, $user['password'])) {
             recordLoginAttempt($ip, true, $identifier);
@@ -218,12 +359,12 @@ function authenticateUser($username, $password, $remember) {
         LIMIT 1
     ");
     $stmt->execute([$username]);
-    if ($stmt->rowCount() > 0) {
         $user = $stmt->fetch();
+    if ($user) {
         if ($user['status'] !== 'Active') {
             recordLoginAttempt($ip, false, $username);
             logSecurityEvent('inactive_account_login', $ip, $username, 'admin');
-            return ['success' => false, 'message' => 'Your account is inactive'];
+            return ['success' => false, 'message' => 'Invalid username or password'];
         }
         if (password_verify($password, $user['password'])) {
             recordLoginAttempt($ip, true, $username);
@@ -239,14 +380,14 @@ function authenticateUser($username, $password, $remember) {
         LIMIT 1
     ");
     $stmt->execute([$username]);
-    if ($stmt->rowCount() > 0) {
         $user = $stmt->fetch();
+    if ($user) {
         // Case-insensitive status check
         $status = strtolower(trim($user['status'] ?? ''));
         if ($status !== 'active') {
             recordLoginAttempt($ip, false, $username);
             logSecurityEvent('inactive_account_login', $ip, $username, 'user');
-            return ['success' => false, 'message' => 'Your account is inactive. Please contact administrator to activate your account.'];
+            return ['success' => false, 'message' => 'Invalid username or password'];
         }
         // Verify password
         if (empty($user['password'])) {
@@ -262,7 +403,7 @@ function authenticateUser($username, $password, $remember) {
             // Password doesn't match
             recordLoginAttempt($ip, false, $username);
             logSecurityEvent('failed_login', $ip, $username, 'invalid_password');
-            return ['success' => false, 'message' => 'Wrong password'];
+            return ['success' => false, 'message' => 'Invalid username or password'];
         }
     }
     // Check firefighters table
@@ -273,12 +414,12 @@ function authenticateUser($username, $password, $remember) {
         LIMIT 1
     ");
     $stmt->execute([$username]);
-    if ($stmt->rowCount() > 0) {
         $user = $stmt->fetch();
+    if ($user) {
         if ($user['availability'] !== 1) {
             recordLoginAttempt($ip, false, $username);
             logSecurityEvent('unavailable_account_login', $ip, $username, 'firefighter');
-            return ['success' => false, 'message' => 'Your account is currently unavailable'];
+            return ['success' => false, 'message' => 'Invalid username or password'];
         }
         if (password_verify($password, $user['password'])) {
             recordLoginAttempt($ip, true, $username);
@@ -297,17 +438,17 @@ function handleSuccessfulLogin($user, $userType, $remember, $ip) {
         // Store all relevant superadmin fields in session
         $_SESSION['superadmin_id'] = $user['superadmin_id'];
         $_SESSION['username'] = $user['username'];
-        $_SESSION['email'] = $user['email'];
-        $_SESSION['contact_number'] = $user['contact_number'];
-        $_SESSION['role'] = $user['role'];
-        $_SESSION['status'] = $user['status'];
-        $_SESSION['full_name'] = $user['full_name'];
-        $_SESSION['profile_image'] = $user['profile_image'];
-        $_SESSION['last_login'] = $user['last_login'];
-        $_SESSION['remember_token'] = $user['remember_token'];
-        $_SESSION['token_expiry'] = $user['token_expiry'];
-        $_SESSION['created_at'] = $user['created_at'];
-        $_SESSION['updated_at'] = $user['updated_at'];
+        $_SESSION['email'] = $user['email'] ?? '';
+        $_SESSION['contact_number'] = $user['contact_number'] ?? '';
+        $_SESSION['role'] = $user['role'] ?? '';
+        $_SESSION['status'] = $user['status'] ?? '';
+        $_SESSION['full_name'] = $user['full_name'] ?? '';
+        $_SESSION['profile_image'] = $user['profile_image'] ?? '';
+        $_SESSION['last_login'] = $user['last_login'] ?? null;
+        $_SESSION['remember_token'] = $user['remember_token'] ?? null;
+        $_SESSION['token_expiry'] = $user['token_expiry'] ?? null;
+        $_SESSION['created_at'] = $user['created_at'] ?? null;
+        $_SESSION['updated_at'] = $user['updated_at'] ?? null;
         $_SESSION['user_type'] = 'superadmin';
         $_SESSION['last_activity'] = time();
         updateSuperadminLastLogin($user['superadmin_id']);
@@ -316,9 +457,9 @@ function handleSuccessfulLogin($user, $userType, $remember, $ip) {
     if ($userType === 'admin') {
         $_SESSION['admin_id'] = $user['admin_id'];
         $_SESSION['admin_username'] = $user['username'];
-        $_SESSION['admin_full_name'] = $user['full_name'];
-        $_SESSION['admin_email'] = $user['email'];
-        $_SESSION['admin_role'] = $user['role'];
+        $_SESSION['admin_full_name'] = $user['full_name'] ?? '';
+        $_SESSION['admin_email'] = $user['email'] ?? '';
+        $_SESSION['admin_role'] = $user['role'] ?? '';
         $_SESSION['admin_logged_in'] = true;
         $_SESSION['admin_login_time'] = time();
         $redirect = 'production/mapping/php/map.php';
@@ -366,8 +507,8 @@ function setRememberMeCookie($userId, $userType) {
     setcookie('remember_token', $token, [
         'expires' => $expiry,
         'path' => '/',
-        'domain' => '',
-        'secure' => true,
+        'domain' => (string)loginEnv('COOKIE_DOMAIN', ''),
+        'secure' => loginEnvBool('COOKIE_SECURE', true),
         'httponly' => true,
         'samesite' => 'Strict'
     ]);
@@ -444,8 +585,8 @@ function checkRememberMeCookie() {
                     LIMIT 1
                 ");
                 $stmt->execute([$token]);
-                if ($stmt->rowCount() > 0) {
                     $user = $stmt->fetch();
+                if ($user) {
                     return handleSuccessfulLogin($user, 'superadmin', false, $_SERVER['REMOTE_ADDR']);
                 }
             }
@@ -463,8 +604,8 @@ function checkRememberMeCookie() {
                     LIMIT 1
                 ");
                 $stmt->execute([$token]);
-                if ($stmt->rowCount() > 0) {
                     $user = $stmt->fetch();
+                if ($user) {
                     return handleSuccessfulLogin($user, 'admin', false, $_SERVER['REMOTE_ADDR']);
                 }
             }
@@ -482,8 +623,8 @@ function checkRememberMeCookie() {
                     LIMIT 1
                 ");
                 $stmt->execute([$token]);
-                if ($stmt->rowCount() > 0) {
                     $user = $stmt->fetch();
+                if ($user) {
                     return handleSuccessfulLogin($user, 'user', false, $_SERVER['REMOTE_ADDR']);
                 }
             }
@@ -501,8 +642,8 @@ function checkRememberMeCookie() {
                     LIMIT 1
                 ");
                 $stmt->execute([$token]);
-                if ($stmt->rowCount() > 0) {
                     $user = $stmt->fetch();
+                if ($user) {
                     return handleSuccessfulLogin($user, 'firefighter', false, $_SERVER['REMOTE_ADDR']);
                 }
             }
@@ -511,7 +652,14 @@ function checkRememberMeCookie() {
         }
         
         // Invalid token - clear cookie
-        setcookie('remember_token', '', time() - 3600, '/');
+        setcookie('remember_token', '', [
+            'expires' => time() - 3600,
+            'path' => '/',
+            'domain' => (string)loginEnv('COOKIE_DOMAIN', ''),
+            'secure' => loginEnvBool('COOKIE_SECURE', true),
+            'httponly' => true,
+            'samesite' => 'Strict'
+        ]);
     }
     return false;
 } 

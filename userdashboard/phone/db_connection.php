@@ -1,6 +1,23 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+// Error handling - environment-aware
+$isProduction = (getenv('APP_ENV') === 'production' || 
+                (isset($_SERVER['HTTP_HOST']) && 
+                 strpos($_SERVER['HTTP_HOST'], 'localhost') === false && 
+                 strpos($_SERVER['HTTP_HOST'], '127.0.0.1') === false));
+
+if ($isProduction) {
+    error_reporting(E_ALL);
+    ini_set('display_errors', '0');
+    ini_set('log_errors', '1');
+    $logDir = __DIR__ . '/../../logs';
+    if (!is_dir($logDir)) {
+        @mkdir($logDir, 0755, true);
+    }
+    ini_set('error_log', $logDir . '/php_errors.log');
+} else {
+    error_reporting(E_ALL);
+    ini_set('display_errors', '1');
+}
 
 // Include the centralized database connection
 require_once __DIR__ . '/../../db/db.php';

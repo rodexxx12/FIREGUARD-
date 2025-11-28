@@ -684,8 +684,19 @@ require_once '../../../db/db.php';
             const status = document.getElementById('alarmStatusFilter').value;
             const startDate = document.getElementById('alarmStartDate').value;
             const endDate = document.getElementById('alarmEndDate').value;
+            const barangaySelect = document.getElementById('barangayFilter');
+            const barangay = barangaySelect ? barangaySelect.value : '';
+
+            const params = new URLSearchParams();
+            if (status) params.append('status', status);
+            if (startDate) params.append('start_date', startDate);
+            if (endDate) params.append('end_date', endDate);
+            if (barangay) params.append('barangay', barangay);
+
+            const query = params.toString();
+            const url = query ? `get_alarm_stats.php?${query}` : 'get_alarm_stats.php';
             
-            fetch(`get_alarm_stats.php?status=${status}&start_date=${startDate}&end_date=${endDate}`)
+            fetch(url)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -1274,18 +1285,6 @@ require_once '../../../db/db.php';
             setTimeout(() => {
                 container.classList.add('loaded');
             }, 2000);
-        }
-        
-        function showError(chartId, message) {
-            const element = document.getElementById(chartId);
-            if (!element) {
-                console.error(`Element with ID "${chartId}" not found`);
-                return;
-            }
-            const container = element.parentElement;
-            if (container) {
-                container.innerHTML = `<div class="error-message">${message}</div>`;
-            }
         }
         
         // Reset functions are now handled by FilterManager in chart_utils.js

@@ -10,8 +10,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 18px;
-    height: 64px;
+    padding: 0 14px;
+    height: 52px;
 }
 
 .nav.toggle {
@@ -58,19 +58,25 @@
 .user-profile {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    background: linear-gradient(90deg, #ff4d4f, #d9363e);
+    gap: 3px;
+    padding: 2px 8px;
+    background: #ff7a18;
     color: #ffffff !important;
     text-decoration: none;
     transition: all 0.25s ease;
-    box-shadow: 0 3px 10px rgba(217, 54, 62, 0.28);
-    border: 1px solid rgba(217, 54, 62, 0.4);
-    border-radius: 8px;
+    border: 1px solid #ff7a18;
+    border-radius: 30px;
     font-weight: 600;
-    font-size: 12px;
+    font-size: 13px;
     letter-spacing: 0.3px;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    text-shadow: none;
+}
+.user-profile i {
+    font-size: 16px;
+}
+.user-profile .logout-label {
+    font-size: 12px;
+    margin-left: 3px;
 }
 .user-profile span,
 .user-profile i,
@@ -81,11 +87,25 @@
 
 .user-profile:hover {
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(217, 54, 62, 0.35);
     color: #ffffff !important;
     text-decoration: none;
-    background: linear-gradient(90deg, #ff4a4d, #c62c34);
-    border-color: #c62c34;
+    background: #ff6a00;
+    border-color: #ff6a00;
+}
+
+.profile-btn {
+    background: transparent;
+    color: #ff7a18 !important;
+    border: 1px solid #ff7a18;
+    text-shadow: none;
+}
+.profile-btn i {
+    color: #ff7a18 !important;
+}
+.profile-btn:hover {
+    background: rgba(255, 122, 24, 0.1);
+    border-color: #ff6a00;
+    color: #ff6a00 !important;
 }
 
 /* Hide dropdown arrow */
@@ -112,8 +132,8 @@
 /* Mobile Responsive */
 @media (max-width: 768px) {
     .nav_menu {
-        padding: 0 12px;
-        height: 45px;
+        padding: 0 10px;
+        height: 42px;
     }
     
     .navbar-right {
@@ -122,7 +142,7 @@
     
     .user-profile {
         padding: 5px 10px;
-        font-size: 13px;
+        font-size: 0;
     }
     
     
@@ -145,10 +165,18 @@
       <ul class="navbar-right">
             
         
+        <!-- Profile Button -->
+        <li class="nav-item">
+          <a href="../../profile/php/main.php" class="user-profile profile-btn" id="profileBtn" aria-label="Profile" title="Profile">
+            <i class="bi bi-person" aria-hidden="true"></i>
+          </a>
+        </li>
+
         <!-- Logout Button -->
         <li class="nav-item">
-          <a href="javascript:;" class="user-profile" id="logoutBtn">
-            <span>Logout</span>
+          <a href="javascript:;" class="user-profile" id="logoutBtn" aria-label="Logout" title="Logout">
+            <i class="bi bi-door-closed-fill" aria-hidden="true"></i>
+            <span class="logout-label">Logout</span>
           </a>
         </li>
 

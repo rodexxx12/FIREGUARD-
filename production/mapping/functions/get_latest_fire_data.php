@@ -14,7 +14,7 @@ function getLatestFireData($pdo) {
     FROM fire_data f
     LEFT JOIN buildings b ON f.building_id = b.id
     LEFT JOIN devices d ON f.device_id = d.device_id
-    ORDER BY f.timestamp DESC 
+    ORDER BY STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s') DESC 
     LIMIT 1
     ";
     
@@ -46,7 +46,7 @@ function getLatestFireDataByBuilding($pdo, $buildingId) {
     LEFT JOIN buildings b ON f.building_id = b.id
     LEFT JOIN devices d ON f.device_id = d.device_id
     WHERE f.building_id = :building_id
-    ORDER BY f.timestamp DESC 
+    ORDER BY STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s') DESC 
     LIMIT 1
     ";
     
@@ -79,7 +79,7 @@ function getLatestFireDataByDevice($pdo, $deviceId) {
     LEFT JOIN buildings b ON f.building_id = b.id
     LEFT JOIN devices d ON f.device_id = d.device_id
     WHERE f.device_id = :device_id
-    ORDER BY f.timestamp DESC 
+    ORDER BY STR_TO_DATE(f.timestamp, '%Y-%m-%d %H:%i:%s') DESC 
     LIMIT 1
     ";
     

@@ -440,6 +440,55 @@
     padding: 20px;
 }
 
+.modal-body.compact-modal {
+    padding: 15px 20px;
+}
+
+.modal-body.compact-modal .mb-2 {
+    margin-bottom: 0.5rem !important;
+}
+
+.modal-body.compact-modal .form-label {
+    margin-bottom: 0.25rem;
+    font-size: 13px;
+}
+
+.modal-body.compact-modal .form-control,
+.modal-body.compact-modal .form-select {
+    padding: 6px 10px;
+    font-size: 13px;
+}
+
+.modal-body.compact-modal .input-group .form-control {
+    padding-right: 28px !important;
+}
+
+.modal-body.compact-modal .input-group .validation-icon {
+    right: 8px;
+    font-size: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 15;
+}
+
+.modal-body.compact-modal .form-text {
+    font-size: 11px;
+    margin-top: 2px;
+}
+
+.modal-body.compact-modal .invalid-feedback {
+    font-size: 11px;
+    margin-top: 2px;
+}
+
+.modal-body.compact-modal .row {
+    margin-bottom: 0;
+}
+
+.modal-body.compact-modal .row + .row {
+    margin-top: 0.5rem;
+}
+
 .modal-footer {
     border-top: 1px solid #dee2e6;
     padding: 15px 20px;
@@ -452,6 +501,11 @@
     top: 50%;
     transform: translateY(-50%);
     font-size: 14px;
+    z-index: 10;
+    pointer-events: none;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
 }
 
 .validation-icon.valid {
@@ -466,10 +520,6 @@
     color: #dc3545;
     font-size: 12px;
     margin-top: 4px;
-}
-
-.input-group {
-    position: relative;
 }
 
 /* Responsive */
@@ -575,6 +625,23 @@
     width: 100%;
 }
 
+/* Ensure validation icons are positioned correctly in input groups - inside the input field */
+.input-group .validation-icon {
+    position: absolute !important;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 15;
+    pointer-events: none;
+    line-height: 1;
+    height: 20px;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: auto;
+}
+
 .input-group-text {
     display: flex;
     align-items: center;
@@ -597,6 +664,37 @@
     width: 1%;
     min-width: 0;
     border-radius: 3px 0 0 3px;
+}
+
+/* Add padding for validation icons in modal forms - ensure icon is inside the input */
+.modal .input-group .form-control {
+    padding-right: 32px !important;
+}
+
+/* Remove padding for search input which has input-group-text */
+#customSearch {
+    padding-right: 10px !important;
+}
+
+/* Ensure input-group with validation icon positions correctly - icon must be inside input boundary */
+.modal .input-group {
+    position: relative;
+    overflow: visible;
+}
+
+.modal .input-group .validation-icon {
+    position: absolute !important;
+    right: 10px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    z-index: 15 !important;
+    pointer-events: none;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    flex: none !important;
+    order: 999;
 }
 
 .input-group .form-control:focus {

@@ -1,0 +1,47 @@
+# Environment Configuration (CRITICAL - Contains Secrets)
+db/config.env
+components/config.env
+*.env
+.env
+
+# Logs
+logs/
+*.log
+php_errors.log
+
+# Backup files
+backup/backups/
+secure_storage/
+*.sql
+*.sql.gz
+
+# Uploaded files (if not needed in repo)
+uploads/
+components/uploads/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Test files (remove before production)
+*test*.php
+test_*.php
+*_test.php
+
+# Sensitive configuration
+config.local.php
+config.production.php
+

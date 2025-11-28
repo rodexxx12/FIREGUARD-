@@ -12,11 +12,13 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
-// Database connection
+// Include centralized database connection
+require_once __DIR__ . '/../../db/db.php';
+
+// Get database connection
 try {
-    $pdo = new PDO("mysql:host=localhost;dbname=firedb", "root", "");
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch (PDOException $e) {
+    $pdo = getDatabaseConnection();
+} catch (Exception $e) {
     error_log("Database connection failed: " . $e->getMessage());
     return;
 }

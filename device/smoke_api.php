@@ -1,15 +1,67 @@
 <?php
-// Enable error reporting
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+/**
+ * Device Smoke API - Secure Version
+ * Handles sensor data from IoT fire detection devices
+ */
+
+// Environment-aware error handling
+$isProduction = (getenv('APP_ENV') === 'production' || 
+                 (isset($_SERVER['HTTP_HOST']) && 
+                  strpos($_SERVER['HTTP_HOST'], 'localhost') === false &&
+                  strpos($_SERVER['HTTP_HOST'], '127.0.0.1') === false));
+
+if ($isProduction) {
+    error_reporting(E_ALL);
+    ini_set('display_errors', '0');
+    ini_set('log_errors', '1');
+    $logDir = __DIR__ . '/../../logs';
+    if (!is_dir($logDir)) {
+        @mkdir($logDir, 0755, true);
+    }
+    ini_set('error_log', $logDir . '/device_api_errors.log');
+} else {
+    error_reporting(E_ALL);
+    ini_set('display_errors', '1');
+}
 
 // Set Philippine timezone
 date_default_timezone_set('Asia/Manila');
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
+// Rate limiting
+require_once __DIR__ . '/../core/config/config.php';
+require_once __DIR__ . '/../core/rate_limit/rate_limiter.php';
+$clientIp = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+$rateLimitResult = rateLimitCheck('device_api', $clientIp);
+
+if (!$rateLimitResult['allowed']) {
+    http_response_code(429);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'status' => 'error',
+        'message' => $rateLimitResult['message'] ?? 'Too many requests. Please wait before trying again.'
+    ]);
+    exit;
+}
+
+// Record this API request (rate limit check already passed)
+rateLimitRecord('device_api', $clientIp);
+
+// Secure CORS configuration
+$allowedOrigins = [
+    'https://your-domain.com',
+    'https://api.your-domain.com',
+    'http://localhost',
+    'http://127.0.0.1'
+];
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if (in_array($origin, $allowedOrigins) || empty($origin)) {
+    header('Access-Control-Allow-Origin: ' . ($origin ?: '*'));
+} else {
+    header('Access-Control-Allow-Origin: ' . $allowedOrigins[0]);
+}
 header('Access-Control-Allow-Methods: GET, POST');
 header('Access-Control-Allow-Headers: Content-Type');
+header('Content-Type: application/json');
 
 // Load configuration for SMS
 $config = require 'config.php';
@@ -17,39 +69,60 @@ $apiKey = $config['api_key'];
 $device = $config['device'];
 $url = $config['url'];
 
+/**
+ * Database Connection Class
+ * SECURITY FIX: Removed hardcoded credentials - now uses environment variables
+ * 
+ * WARNING: This class uses mysqli. For better security, consider refactoring to use PDO.
+ * All credentials are now loaded from .env file, never hardcoded.
+ */
 class Database {
-    private static $host = "localhost";
-    private static $dbname = "u520834156_DBBagofire";
-    private static $username = "u520834156_userBagofire";
-    private static $password = "i[#[GQ!+=C9";
+    private static $conn = null;
     
     public static function getConnection() {
-        static $conn = null;
-        
-        if ($conn === null) {
+        if (self::$conn === null) {
+            // Load environment configuration
+            require_once __DIR__ . '/../core/config/config.php';
+            
+            // Get database credentials from environment variables
+            $host = config('db.host', 'localhost');
+            $dbname = config('db.name', '');
+            $username = config('db.user', '');
+            $password = config('db.pass', '');
+            
+            // Validate required configuration
+            if (empty($dbname) || empty($username)) {
+                error_log("CRITICAL: Database configuration incomplete in device/smoke_api.php");
+                return null;
+            }
+            
             try {
-                $conn = new mysqli(
-                    self::$host, 
-                    self::$username, 
-                    self::$password, 
-                    self::$dbname
-                );
+                // Create mysqli connection (temporary - consider migrating to PDO)
+                $conn = new mysqli($host, $username, $password, $dbname);
                 
                 if ($conn->connect_error) {
                     throw new Exception("Database connection failed: " . $conn->connect_error);
                 }
                 
                 // Ensure MySQL uses Philippine timezone (UTC+08:00) for NOW() and TIMESTAMP fields
-                if (!$conn->query("SET time_zone = '+08:00'")) {
-                    error_log("Failed to set MySQL time_zone: " . $conn->error);
+                // SECURITY FIX: Use prepared statement for timezone setting
+                $stmt = $conn->prepare("SET time_zone = '+08:00'");
+                if ($stmt) {
+                    if (!$stmt->execute()) {
+                        error_log("Failed to set MySQL time_zone: " . $conn->error);
+                    }
+                    $stmt->close();
                 }
+                
+                self::$conn = $conn;
+                
             } catch (Exception $e) {
-                error_log($e->getMessage());
+                error_log("Database connection failed in smoke_api.php: " . $e->getMessage());
                 return null;
             }
         }
         
-        return $conn;
+        return self::$conn;
     }
 }
 
@@ -76,20 +149,71 @@ class SmokeAPI {
             $data = $_GET;
         }
         
-        $this->value = isset($data['value']) ? intval($data['value']) : 0;
-        $this->detected = isset($data['detected']) ? intval($data['detected']) : 0;
-        $this->flame_detected = isset($data['flame_detected']) ? intval($data['flame_detected']) : 0;
-        $this->temperature = isset($data['temperature']) && $data['temperature'] !== '' ? floatval($data['temperature']) : null;
-        $this->humidity = isset($data['humidity']) && $data['humidity'] !== '' ? floatval($data['humidity']) : null;
-        $this->device_id = isset($data['device_id']) ? intval($data['device_id']) : null;
-        $this->log = isset($data['log']) ? intval($data['log']) : 0;
+        // SECURITY FIX: Validate and sanitize all inputs with bounds checking
+        $this->value = isset($data['value']) ? max(0, min(1023, intval($data['value']))) : 0;
+        $this->detected = isset($data['detected']) ? (intval($data['detected']) === 1 ? 1 : 0) : 0;
+        $this->flame_detected = isset($data['flame_detected']) ? (intval($data['flame_detected']) === 1 ? 1 : 0) : 0;
         
-        // GPS data
-        $this->gps_latitude = isset($data['gps_latitude']) ? floatval($data['gps_latitude']) : 0.0;
-        $this->gps_longitude = isset($data['gps_longitude']) ? floatval($data['gps_longitude']) : 0.0;
-        $this->gps_altitude = isset($data['gps_altitude']) ? floatval($data['gps_altitude']) : 0.0;
-        $this->gps_satellites = isset($data['gps_satellites']) ? intval($data['gps_satellites']) : 0;
-        $this->gps_valid = isset($data['gps_valid']) ? intval($data['gps_valid']) : 0;
+        // Validate temperature range (-50 to 200°C is reasonable for fire detection)
+        if (isset($data['temperature']) && $data['temperature'] !== '') {
+            $temp = floatval($data['temperature']);
+            $this->temperature = ($temp >= -50 && $temp <= 200) ? $temp : null;
+        } else {
+            $this->temperature = null;
+        }
+        
+        // Validate humidity range (0-100%)
+        if (isset($data['humidity']) && $data['humidity'] !== '') {
+            $hum = floatval($data['humidity']);
+            $this->humidity = ($hum >= 0 && $hum <= 100) ? $hum : null;
+        } else {
+            $this->humidity = null;
+        }
+        
+        // Validate device ID (must be positive integer)
+        if (isset($data['device_id'])) {
+            $deviceId = intval($data['device_id']);
+            $this->device_id = ($deviceId > 0) ? $deviceId : null;
+        } else {
+            $this->device_id = null;
+        }
+        
+        $this->log = isset($data['log']) ? (intval($data['log']) === 1 ? 1 : 0) : 0;
+        
+        // GPS data validation
+        // Latitude: -90 to 90
+        if (isset($data['gps_latitude'])) {
+            $lat = floatval($data['gps_latitude']);
+            $this->gps_latitude = ($lat >= -90 && $lat <= 90) ? $lat : 0.0;
+        } else {
+            $this->gps_latitude = 0.0;
+        }
+        
+        // Longitude: -180 to 180
+        if (isset($data['gps_longitude'])) {
+            $lon = floatval($data['gps_longitude']);
+            $this->gps_longitude = ($lon >= -180 && $lon <= 180) ? $lon : 0.0;
+        } else {
+            $this->gps_longitude = 0.0;
+        }
+        
+        // Altitude: reasonable range (0 to 8848m - Mount Everest height)
+        if (isset($data['gps_altitude'])) {
+            $alt = floatval($data['gps_altitude']);
+            $this->gps_altitude = ($alt >= 0 && $alt <= 8848) ? $alt : 0.0;
+        } else {
+            $this->gps_altitude = 0.0;
+        }
+        
+        // Satellites: 0-12 is reasonable
+        if (isset($data['gps_satellites'])) {
+            $sats = intval($data['gps_satellites']);
+            $this->gps_satellites = ($sats >= 0 && $sats <= 12) ? $sats : 0;
+        } else {
+            $this->gps_satellites = 0;
+        }
+        
+        $this->gps_valid = isset($data['gps_valid']) ? (intval($data['gps_valid']) === 1 ? 1 : 0) : 0;
     }
     
     public function processRequest() {
@@ -187,40 +311,31 @@ class SmokeAPI {
         $conn = Database::getConnection();
         if (!$conn) return null;
 
-        $query = "SELECT device_id FROM devices WHERE is_active = 1 ORDER BY device_id LIMIT 1";
-        $result = $conn->query($query);
+        // SECURITY FIX: Use prepared statement instead of direct query
+        $stmt = $conn->prepare("SELECT device_id FROM devices WHERE is_active = 1 ORDER BY device_id LIMIT 1");
+        if (!$stmt) {
+            error_log("Failed to prepare statement: " . $conn->error);
+            return null;
+        }
+        
+        $stmt->execute();
+        $result = $stmt->get_result();
 
         if ($result && $result->num_rows > 0) {
             $row = $result->fetch_assoc();
+            $stmt->close();
             return $row['device_id'];
         }
 
+        $stmt->close();
         return null;
     }
     
     private function createDefaultDevice() {
-        $conn = Database::getConnection();
-        if (!$conn) return null;
-
-        // Ensure user exists
-        $conn->query("INSERT INTO users (user_id, username, email, password, first_name, last_name, phone) 
-                      VALUES (1, 'arduino_user', 'arduino@firedetection.com', 'password', 'Arduino', 'User', '+639318261972')
-                      ON DUPLICATE KEY UPDATE user_id = user_id");
-
-        // Ensure building exists
-        $conn->query("INSERT INTO buildings (building_id, building_name, building_type, address, user_id) 
-                      VALUES (1, 'Arduino Test Building', 'Residential', 'Test Address', 1)
-                      ON DUPLICATE KEY UPDATE building_id = building_id");
-
-        // Create device
-        $conn->query("INSERT INTO devices (device_id, user_id, device_name, device_number, serial_number, building_id, status, is_active) 
-                      VALUES (1, 1, 'Arduino Fire Sensor', 'ARD001', 'ESP32-FIRE-001', 1, 'online', 1)
-                      ON DUPLICATE KEY UPDATE 
-                          status = 'online',
-                          is_active = 1,
-                          last_activity = CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+08:00')");
-
-        return 1;
+        // SECURITY FIX: Do not create default users with hardcoded passwords
+        // Devices must be properly registered through the registration flow
+        error_log("SECURITY: Attempt to create default device - device registration required");
+        throw new Exception('Device not registered. Please register device through proper registration flow before sending data.');
     }
     
     private function isValidDeviceId($device_id) {
@@ -380,8 +495,13 @@ class SmokeAPI {
         if (!$conn) return ['success' => false, 'id' => null];
 
         // Ensure MySQL session timezone is set to Philippine Time before inserting
-        if (!$conn->query("SET time_zone = '+08:00'")) {
-            error_log("Failed to set MySQL time_zone before fire_data insert: " . $conn->error);
+        // SECURITY FIX: Use prepared statement
+        $stmt = $conn->prepare("SET time_zone = '+08:00'");
+        if ($stmt) {
+            if (!$stmt->execute()) {
+                error_log("Failed to set MySQL time_zone before fire_data insert: " . $conn->error);
+            }
+            $stmt->close();
         }
 
         // Get device info to extract user_id and building_id
@@ -393,6 +513,7 @@ class SmokeAPI {
 
         $user_id = $device_info['user_id'];
         $building_id = $device_info['building_id'];
+        $barangay_id = isset($device_info['barangay_id']) ? $device_info['barangay_id'] : null;
 
         // Get current Philippine time as string for timestamp field
         $philippine_timestamp = date('Y-m-d H:i:s');
@@ -400,9 +521,9 @@ class SmokeAPI {
         // Insert with status NORMAL and include timestamp field
         $stmt = $conn->prepare("INSERT INTO fire_data (
             status, building_type, smoke, temp, heat, flame_detected, timestamp,
-            user_id, building_id, smoke_reading_id, flame_reading_id, device_id,
+            user_id, building_id, barangay_id, smoke_reading_id, flame_reading_id, device_id,
             gps_latitude, gps_longitude, gps_altitude
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
         if (!$stmt) {
             error_log("Prepare failed: " . $conn->error);
@@ -415,7 +536,7 @@ class SmokeAPI {
         $heat = intval($sensor_data['heat']); // Convert to int as per table schema
 
         $stmt->bind_param(
-            "ssiiisssiiiiddd",
+            "ssiiisssiiiiiddd",
             $status,
             $building_type,
             $sensor_data['smoke'],
@@ -425,6 +546,7 @@ class SmokeAPI {
             $philippine_timestamp,
             $user_id,
             $building_id,
+            $barangay_id,
             $smoke_reading_id,
             $flame_reading_id,
             $this->device_id,
@@ -454,7 +576,7 @@ class SmokeAPI {
         $conn = Database::getConnection();
         if (!$conn) return null;
 
-        $stmt = $conn->prepare("SELECT device_id, user_id, device_name, device_number, serial_number, building_id, status FROM devices WHERE device_id = ?");
+        $stmt = $conn->prepare("SELECT device_id, user_id, device_name, device_number, serial_number, building_id, barangay_id, status FROM devices WHERE device_id = ?");
         $stmt->bind_param("i", $device_id);
         $stmt->execute();
         $result = $stmt->get_result();

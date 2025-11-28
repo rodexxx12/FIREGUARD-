@@ -276,6 +276,10 @@
     background-color: #ffc107;
 }
 
+.status-faulty {
+    background-color: #dc3545;
+}
+
 
 /* Inspection Status Styles */
 .inspection-info {

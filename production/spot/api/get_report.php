@@ -2,6 +2,18 @@
 date_default_timezone_set('Asia/Manila');
 session_start();
 require_once '../../db/db.php';
+require_once '../php/classes/RateLimiter.php';
+require_once '../php/classes/InputValidator.php';
+require_once '../php/classes/ErrorHandler.php';
+require_once '../php/classes/SecurityHeaders.php';
+
+// Initialize error handler
+$isProduction = (getenv('APP_ENV') === 'production');
+ErrorHandler::init($isProduction);
+
+// Set security headers
+$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $_SERVER['SERVER_PORT'] == 443;
+SecurityHeaders::setAll($isHttps);
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -20,12 +32,26 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit();
 }
 
-// Get report ID from URL
-$report_id = $_GET['id'] ?? null;
+// Rate limiting
+$limiter = new RateLimiter();
+$rateLimitKey = 'api_get_' . ($_SESSION['user_id'] ?? $_SERVER['REMOTE_ADDR']);
+if (!$limiter->checkLimit($rateLimitKey, 30, 60)) {
+    http_response_code(429);
+    header('Retry-After: 60');
+    echo json_encode([
+        'success' => false,
+        'message' => 'Too many requests. Please try again later.',
+        'retry_after' => 60
+    ]);
+    exit();
+}
+
+// Get report ID from URL and validate
+$report_id = InputValidator::validateInt($_GET['id'] ?? 0, 1);
 
 if (!$report_id) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Report ID is required']);
+    echo json_encode(['success' => false, 'message' => 'Invalid report ID']);
     exit();
 }
 

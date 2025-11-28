@@ -1,12 +1,28 @@
 <?php
-// Enable error reporting
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+/**
+ * Device Smoke Store API - Secure Version
+ */
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
+// Use centralized error handling
+require_once __DIR__ . '/../core/error_handler.php';
+initializeErrorHandling(__DIR__ . '/../../logs/device_api_errors.log');
+
+// Secure CORS configuration
+$allowedOrigins = [
+    'https://your-domain.com',
+    'https://api.your-domain.com',
+    'http://localhost',
+    'http://127.0.0.1'
+];
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if (in_array($origin, $allowedOrigins) || empty($origin)) {
+    header('Access-Control-Allow-Origin: ' . ($origin ?: '*'));
+} else {
+    header('Access-Control-Allow-Origin: ' . $allowedOrigins[0]);
+}
 header('Access-Control-Allow-Methods: GET, POST');
 header('Access-Control-Allow-Headers: Content-Type');
+header('Content-Type: application/json');
 
 // Load configuration for SMS
 $config = require 'config.php';
@@ -23,34 +39,14 @@ const CRITICAL_TEMPERATURE_THRESHOLD = 60;  // °C
 const HIGH_SMOKE_THRESHOLD = 2000;
 const HIGH_HEAT_INDEX_THRESHOLD = 35;  // °C
 
+// SECURITY FIX: Use centralized database connection instead of hardcoded credentials
+require_once __DIR__ . '/../core/config/config.php';
+require_once __DIR__ . '/../core/database/database.php';
+
 class Database {
-    private static $host = "localhost";
-    private static $dbname = "u520834156_DBBagofire";
-    private static $username = "u520834156_userBagofire";
-    private static $password = "i[#[GQ!+=C9";
-    
     public static function getConnection() {
-        static $conn = null;
-        
-        if ($conn === null) {
-            try {
-                $conn = new mysqli(
-                    self::$host, 
-                    self::$username, 
-                    self::$password, 
-                    self::$dbname
-                );
-                
-                if ($conn->connect_error) {
-                    throw new Exception("Database connection failed: " . $conn->connect_error);
-                }
-            } catch (Exception $e) {
-                error_log($e->getMessage());
-                return null;
-            }
-        }
-        
-        return $conn;
+        // Use centralized PDO connection
+        return getDatabaseConnection();
     }
 }
 

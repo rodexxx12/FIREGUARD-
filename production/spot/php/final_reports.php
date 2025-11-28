@@ -2,6 +2,18 @@
 date_default_timezone_set('Asia/Manila');
 session_start();
 require_once '../../db/db.php';
+require_once 'classes/SecureQueryBuilder.php';
+require_once 'classes/InputValidator.php';
+require_once 'classes/ErrorHandler.php';
+require_once 'classes/SecurityHeaders.php';
+
+// Initialize error handler
+$isProduction = (getenv('APP_ENV') === 'production');
+ErrorHandler::init($isProduction);
+
+// Set security headers
+$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $_SERVER['SERVER_PORT'] == 443;
+SecurityHeaders::setAll($isHttps);
 
 // Check if user is logged in BEFORE including header.php
 if (!isset($_SESSION['admin_id'])) {
@@ -10,46 +22,41 @@ if (!isset($_SESSION['admin_id'])) {
 }
 $conn = getDatabaseConnection();
 
-// Get filter parameters
-$startDate = $_GET['start_date'] ?? '';
-$endDate = $_GET['end_date'] ?? '';
-$barangayId = $_GET['barangay_id'] ?? '';
-$buildingType = $_GET['building_type'] ?? '';
-$investigatorName = $_GET['investigator_name'] ?? '';
+// Get filter parameters and validate
+$startDate = InputValidator::validateDate($_GET['start_date'] ?? '');
+$endDate = InputValidator::validateDate($_GET['end_date'] ?? '');
+$barangayId = InputValidator::validateInt($_GET['barangay_id'] ?? 0, 1);
+$buildingType = InputValidator::validateString($_GET['building_type'] ?? '', 100);
+$investigatorName = InputValidator::validateString($_GET['investigator_name'] ?? '', 200);
 
-// Build dynamic WHERE clause for final reports
-$whereConditions = ["sir.reports_status = 'final'"];
-$params = [];
+// Build secure dynamic WHERE clause using SecureQueryBuilder
+$builder = new SecureQueryBuilder();
+$builder->addCondition("sir.reports_status = ?", 'final', PDO::PARAM_STR);
 
-if (!empty($startDate)) {
-    $whereConditions[] = "DATE(sir.date_completed) >= ?";
-    $params[] = $startDate;
+if ($startDate) {
+    $builder->addCondition("DATE(sir.date_completed) >= ?", $startDate, PDO::PARAM_STR);
 }
 
-if (!empty($endDate)) {
-    $whereConditions[] = "DATE(sir.date_completed) <= ?";
-    $params[] = $endDate;
+if ($endDate) {
+    $builder->addCondition("DATE(sir.date_completed) <= ?", $endDate, PDO::PARAM_STR);
 }
 
-if (!empty($barangayId)) {
-    $whereConditions[] = "fd.barangay_id = ?";
-    $params[] = $barangayId;
+if ($barangayId) {
+    $builder->addCondition("fd.barangay_id = ?", $barangayId, PDO::PARAM_INT);
 }
 
-if (!empty($buildingType)) {
-    $whereConditions[] = "b.building_type = ?";
-    $params[] = $buildingType;
+if ($buildingType) {
+    $builder->addCondition("b.building_type = ?", $buildingType, PDO::PARAM_STR);
 }
 
-if (!empty($investigatorName)) {
-    $whereConditions[] = "sir.investigator_name LIKE ?";
-    $params[] = "%$investigatorName%";
+if ($investigatorName) {
+    // Escape LIKE wildcards for security
+    $escapedName = str_replace(['%', '_'], ['\%', '\_'], $investigatorName);
+    $builder->addCondition("sir.investigator_name LIKE ?", '%' . $escapedName . '%', PDO::PARAM_STR);
 }
 
-$whereClause = implode(' AND ', $whereConditions);
-
-// Get filtered FINAL spot investigation reports
-$stmt = $conn->prepare("
+// Build query
+$baseQuery = "
     SELECT sir.*, 
            sir.ir_number as report_ir_number,
            fd.timestamp as fire_timestamp,
@@ -84,16 +91,13 @@ $stmt = $conn->prepare("
     LEFT JOIN buildings b ON fd.building_id = b.id
     LEFT JOIN users u ON fd.user_id = u.user_id
     LEFT JOIN barangay br ON fd.barangay_id = br.id
-    WHERE $whereClause
-    ORDER BY sir.date_completed DESC, sir.created_at DESC
-");
+";
 
-// Bind parameters dynamically
-$paramIndex = 1;
-foreach ($params as $key => $param) {
-    $stmt->bindParam($paramIndex, $params[$key], PDO::PARAM_STR);
-    $paramIndex++;
-}
+$result = $builder->build($baseQuery);
+$query = $result['query'] . " ORDER BY sir.date_completed DESC, sir.created_at DESC";
+
+$stmt = $conn->prepare($query);
+$builder->bindToStatement($stmt);
 $stmt->execute();
 $finalReports = $stmt->fetchAll();
 

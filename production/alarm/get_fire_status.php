@@ -1,35 +1,29 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+/**
+ * Get Fire Status API - Secure Version
+ */
+
+// Use centralized error handling
+require_once __DIR__ . '/../../core/error_handler.php';
+initializeErrorHandling(__DIR__ . '/../../logs/production_errors.log');
 
 include('../../db/db.php');
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 try {
     // Connect with PDO
     $pdo = getDatabaseConnection();
 
-    // Get user ID from session or GET
-    $current_user_id = $_SESSION['user_id'] ?? 0;
-    $requested_user_id = $_GET['user_id'] ?? $current_user_id;
-    $building_id = $_GET['building_id'] ?? null;
-
-    // Build SQL
-    $sql = "SELECT status, building_type, smoke, temp, heat, flame_detected, user_id, building_id 
+    // Get latest fire_data regardless of user or building
+    $sql = "SELECT status, building_type, smoke, temp, heat, flame_detected, user_id 
             FROM fire_data 
-            WHERE user_id = ?";
-    $params = [$requested_user_id];
-
-    if ($building_id !== null) {
-        $sql .= " AND building_id = ?";
-        $params[] = $building_id;
-    }
-
-    $sql .= " ORDER BY timestamp DESC LIMIT 1";
+            ORDER BY timestamp DESC LIMIT 1";
 
     // Execute
     $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
+    $stmt->execute();
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
     // Prepare response
@@ -40,8 +34,7 @@ try {
         'temp' => $row['temp'] ?? 0,
         'heat' => $row['heat'] ?? 0,
         'flame_detected' => $row['flame_detected'] ?? 0,
-        'user_id' => $row['user_id'] ?? $requested_user_id,
-        'building_id' => $row['building_id'] ?? $building_id
+        'user_id' => $row['user_id'] ?? 0
     ];
 
     header('Content-Type: application/json');
@@ -57,8 +50,7 @@ try {
         'temp' => 0,
         'heat' => 0,
         'flame_detected' => 0,
-        'user_id' => $requested_user_id,
-        'building_id' => $building_id
+        'user_id' => 0
     ]);
 }
 ?>

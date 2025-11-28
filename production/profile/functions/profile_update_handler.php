@@ -3,22 +3,22 @@ function handleProfileUpdate($conn, $currentAdmin) {
     global $errors;
     
     $updates = [];
+    // Include security utilities
+    require_once __DIR__ . '/../../../components/security.php';
+    
     $validationRules = [
         'full_name' => [
-            'filter' => FILTER_SANITIZE_STRING,
             'required' => true,
             'min_length' => 3,
             'max_length' => 100
         ],
         'email' => [
-            'filter' => FILTER_SANITIZE_EMAIL,
             'required' => true,
             'validate_email' => true,
             'unique' => true,
             'current_value' => $currentAdmin['email']
         ],
         'contact_number' => [
-            'filter' => FILTER_SANITIZE_STRING,
             'required' => true,
             'pattern' => '/^[0-9]{10,15}$/',
             'error_msg' => 'Contact number must be 10-15 digits',
@@ -28,7 +28,8 @@ function handleProfileUpdate($conn, $currentAdmin) {
     ];
     
     foreach ($validationRules as $field => $rules) {
-        $value = filter_input(INPUT_POST, $field, $rules['filter']);
+        // Use sanitizeInput instead of deprecated FILTER_SANITIZE_STRING
+        $value = isset($_POST[$field]) ? sanitizeInput($_POST[$field]) : '';
         
         if ($rules['required'] && empty($value)) {
             $errors[$field] = ucfirst(str_replace('_', ' ', $field)) . " is required";
@@ -69,10 +70,13 @@ function handleProfileUpdate($conn, $currentAdmin) {
         }
         
         if ($field === 'email' && $rules['validate_email']) {
-            if (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
+            // Use sanitizeEmail function for better validation
+            $emailValue = sanitizeEmail($value);
+            if ($emailValue === false) {
                 $errors[$field] = "Invalid email address";
                 continue;
             }
+            $value = $emailValue; // Use sanitized email value
             
             // Check if email is unique (if changed)
             if ($rules['unique'] && $value !== $rules['current_value']) {

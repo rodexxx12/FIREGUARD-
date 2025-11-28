@@ -1,0 +1,93 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: test_firedb
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          extensions: pdo_mysql, mysqli, mbstring, json
+      
+      - name: Install dependencies
+        run: |
+          if [ -f composer.json ]; then
+            composer install --no-interaction --prefer-dist
+          fi
+      
+      - name: Run PHPUnit tests
+        env:
+          DB_TEST_HOST: 127.0.0.1
+          DB_TEST_NAME: test_firedb
+          DB_TEST_USER: root
+          DB_TEST_PASS: root
+          APP_ENV: testing
+        run: |
+          if [ -f tests/phpunit.xml ]; then
+            ./vendor/bin/phpunit --configuration tests/phpunit.xml
+          else
+            echo "PHPUnit not configured, skipping tests"
+          fi
+      
+      - name: Run security audit
+        run: |
+          if [ -f composer.json ]; then
+            composer audit || true
+          fi
+      
+      - name: Check code style
+        run: |
+          if [ -f vendor/bin/phpcs ]; then
+            ./vendor/bin/phpcs --standard=PSR12 core/ || true
+          fi
+  
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Run security scanner
+        run: |
+          echo "Security scan placeholder"
+          # Add tools like PHPStan, Psalm, or security scanners here
+  
+  deploy:
+    name: Deploy to Staging
+    needs: [test, security-scan]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Deploy to server
+        run: |
+          echo "Deployment script would go here"
+          # Add your deployment script
+

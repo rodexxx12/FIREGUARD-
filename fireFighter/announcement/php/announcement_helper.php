@@ -4,24 +4,40 @@
  * Provides functions to get user-specific announcements based on user type and ID
  */
 
-// Database configuration
-define('DB_HOST', 'auth-db1322.hstgr.io');
-define('DB_NAME', 'u520834156_DBBagofire');
-define('DB_USER', 'u520834156_userBagofire');
-define('DB_PASS', 'i[#[GQ!+=C9');
+require_once __DIR__ . '/../../../db/db.php';
+require_once __DIR__ . '/../../components/cache.php';
 
 /**
- * Get database connection
+ * Get database connection with optional dedicated announcement credentials.
  */
-function getAnnouncementDBConnection() {
-    try {
-        $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4", DB_USER, DB_PASS);
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+function getAnnouncementDBConnection(): ?PDO {
+    static $pdo = null;
+
+    if ($pdo instanceof PDO) {
         return $pdo;
+    }
+
+    $host = $_ENV['ANNOUNCEMENT_DB_HOST'] ?? getenv('ANNOUNCEMENT_DB_HOST') ?? null;
+    $name = $_ENV['ANNOUNCEMENT_DB_NAME'] ?? getenv('ANNOUNCEMENT_DB_NAME') ?? null;
+    $user = $_ENV['ANNOUNCEMENT_DB_USER'] ?? getenv('ANNOUNCEMENT_DB_USER') ?? null;
+    $pass = $_ENV['ANNOUNCEMENT_DB_PASS'] ?? getenv('ANNOUNCEMENT_DB_PASS') ?? null;
+
+    try {
+        if ($host && $name && $user !== null) {
+            $dsn = sprintf('mysql:host=%s;dbname=%s;charset=utf8mb4', $host, $name);
+            $pdo = new PDO($dsn, $user, (string) $pass, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+            ]);
+        } else {
+            $pdo = getDatabaseConnection();
+        }
     } catch (PDOException $e) {
         error_log("Database connection failed: " . $e->getMessage());
         return null;
     }
+
+    return $pdo;
 }
 
 /**
@@ -36,14 +52,22 @@ function getFirefighterAnnouncements($firefighterId, $includeAllTargets = true, 
     if ($currentDate === null) {
         $currentDate = date('Y-m-d H:i:s');
     }
-    
-    $pdo = getAnnouncementDBConnection();
-    if (!$pdo) {
-        return [];
-    }
-    
-    try {
-        $sql = "
+
+    $cacheKey = FirefighterCache::key('announcements_firefighter', [
+        'firefighterId' => $firefighterId,
+        'includeAll' => $includeAllTargets,
+        'published' => $onlyPublished,
+        'date' => $onlyPublished ? $currentDate : null
+    ]);
+
+    return FirefighterCache::remember($cacheKey, 30, function () use ($firefighterId, $includeAllTargets, $onlyPublished, $currentDate) {
+        $pdo = getAnnouncementDBConnection();
+        if (!$pdo) {
+            return [];
+        }
+        
+        try {
+            $sql = "
             SELECT DISTINCT a.*, 
                    COALESCE(ad.full_name, sad.full_name) as author_name,
                    at.target_type,
@@ -84,15 +108,16 @@ function getFirefighterAnnouncements($firefighterId, $includeAllTargets = true, 
                     END,
                     a.start_date DESC";
         
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
-        
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-    } catch (PDOException $e) {
-        error_log("Error getting firefighter announcements: " . $e->getMessage());
-        return [];
-    }
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+        } catch (PDOException $e) {
+            error_log("Error getting firefighter announcements: " . $e->getMessage());
+            return [];
+        }
+    });
 }
 
 /**
@@ -105,14 +130,20 @@ function getAllFirefightersAnnouncements($onlyPublished = true, $currentDate = n
     if ($currentDate === null) {
         $currentDate = date('Y-m-d H:i:s');
     }
-    
-    $pdo = getAnnouncementDBConnection();
-    if (!$pdo) {
-        return [];
-    }
-    
-    try {
-        $sql = "
+
+    $cacheKey = FirefighterCache::key('announcements_all_firefighters', [
+        'published' => $onlyPublished,
+        'date' => $onlyPublished ? $currentDate : null
+    ]);
+
+    return FirefighterCache::remember($cacheKey, 45, function () use ($onlyPublished, $currentDate) {
+        $pdo = getAnnouncementDBConnection();
+        if (!$pdo) {
+            return [];
+        }
+        
+        try {
+            $sql = "
             SELECT DISTINCT a.*, 
                    COALESCE(ad.full_name, sad.full_name) as author_name,
                    at.target_type
@@ -142,15 +173,16 @@ function getAllFirefightersAnnouncements($onlyPublished = true, $currentDate = n
                     END,
                     a.start_date DESC";
         
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
-        
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-    } catch (PDOException $e) {
-        error_log("Error getting all firefighters announcements: " . $e->getMessage());
-        return [];
-    }
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+        } catch (PDOException $e) {
+            error_log("Error getting all firefighters announcements: " . $e->getMessage());
+            return [];
+        }
+    });
 }
 
 /**
@@ -165,14 +197,22 @@ function getUserSpecificAnnouncements($userId, $userType, $onlyPublished = true,
     if ($currentDate === null) {
         $currentDate = date('Y-m-d H:i:s');
     }
-    
-    $pdo = getAnnouncementDBConnection();
-    if (!$pdo) {
-        return [];
-    }
-    
-    try {
-        $sql = "
+
+    $cacheKey = FirefighterCache::key('announcements_user', [
+        'userId' => $userId,
+        'userType' => $userType,
+        'published' => $onlyPublished,
+        'date' => $onlyPublished ? $currentDate : null
+    ]);
+
+    return FirefighterCache::remember($cacheKey, 30, function () use ($userId, $userType, $onlyPublished, $currentDate) {
+        $pdo = getAnnouncementDBConnection();
+        if (!$pdo) {
+            return [];
+        }
+        
+        try {
+            $sql = "
             SELECT DISTINCT a.*, 
                    COALESCE(ad.full_name, sad.full_name) as author_name,
                    at.target_type
@@ -245,15 +285,16 @@ function getUserSpecificAnnouncements($userId, $userType, $onlyPublished = true,
                     END,
                     a.start_date DESC";
         
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
-        
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-    } catch (PDOException $e) {
-        error_log("Error getting user announcements: " . $e->getMessage());
-        return [];
-    }
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+        } catch (PDOException $e) {
+            error_log("Error getting user announcements: " . $e->getMessage());
+            return [];
+        }
+    });
 }
 
 /**
@@ -261,6 +302,10 @@ function getUserSpecificAnnouncements($userId, $userType, $onlyPublished = true,
  * @return array|null Array with userId and userType, or null if not logged in
  */
 function getCurrentUserInfo() {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+
     if (isset($_SESSION['user_id'])) {
         return [
             'userId' => $_SESSION['user_id'],

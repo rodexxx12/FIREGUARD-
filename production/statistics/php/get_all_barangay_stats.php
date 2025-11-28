@@ -1,7 +1,19 @@
 <?php
+// Suppress error output for JSON responses
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
+ini_set('log_errors', 1);
+
+// Start output buffering to catch any accidental output
+if (!ob_get_level()) {
+    ob_start();
+}
+
 require_once '../../../db/db.php';
 
-header('Content-Type: application/json');
+if (!headers_sent()) {
+    header('Content-Type: application/json');
+}
 
 try {
     $conn = getDatabaseConnection();
@@ -146,20 +158,32 @@ try {
         ];
     }
     
+    // Clear any previous output
+    if (ob_get_level() > 0) {
+        ob_clean();
+    }
+    
     echo json_encode([
         'success' => true,
         'data' => $barangayStats,
         'message' => 'Comprehensive barangay statistics loaded successfully',
         'total_barangays' => count($barangayStats)
     ]);
+    exit;
     
 } catch (Exception $e) {
+    // Clear any previous output
+    if (ob_get_level() > 0) {
+        ob_clean();
+    }
+    
     error_log("Error in get_all_barangay_stats.php: " . $e->getMessage());
     echo json_encode([
         'success' => false,
         'message' => 'Failed to load comprehensive barangay statistics',
         'error' => $e->getMessage()
     ]);
+    exit;
 }
 
 function calculateRiskLevel($row) {

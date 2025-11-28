@@ -5,9 +5,67 @@ require_once '../../db/db.php';
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
+
+// Set security headers before any output
+if (!headers_sent()) {
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: DENY');
+    header('X-XSS-Protection: 1; mode=block');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+    
+    // Content Security Policy
+    $csp = "default-src 'self'; " .
+           "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; " .
+           "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com https://unpkg.com https://cdn.jsdelivr.net; " .
+           "img-src 'self' data: https: blob:; " .
+           "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com; " .
+           "connect-src 'self' https://cdnjs.cloudflare.com https://unpkg.com; " .
+           "frame-ancestors 'none';";
+    header("Content-Security-Policy: $csp");
+    
+    // HTTPS only in production
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    if ($protocol === 'https' || ($_SERVER['SERVER_PORT'] ?? 443) == 443) {
+        header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+    }
+}
+
 if (!isset($_SESSION['admin_id'])) {
     header("Location: ../../../index.php");
     exit();
+}
+
+// Helper functions for secure output
+function e($string, $flags = ENT_QUOTES, $encoding = 'UTF-8') {
+    return htmlspecialchars((string)$string, $flags, $encoding);
+}
+
+function je($data, $flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) {
+    return json_encode($data, $flags);
+}
+
+// Validate date input
+function validateDateInput($dateString) {
+    if (empty($dateString)) {
+        return null;
+    }
+    
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateString)) {
+        return null;
+    }
+    
+    $date = DateTime::createFromFormat('Y-m-d', $dateString);
+    if (!$date || $date->format('Y-m-d') !== $dateString) {
+        return null;
+    }
+    
+    $minDate = new DateTime('1900-01-01');
+    $maxDate = new DateTime('+10 years');
+    if ($date >= $minDate && $date <= $maxDate) {
+        return $dateString;
+    }
+    
+    return null;
 }
 
 // Fetch fire data with device location information
@@ -189,11 +247,11 @@ function getDevicesWithCoordinates() {
             }
         }
         
-        // Debug: Log the number of devices found
-        error_log("Devices with coordinates found: " . count($devices));
-        if (count($devices) > 0) {
-            error_log("First device: " . json_encode($devices[0]));
-        }
+        // Debug logging removed for production security
+        // Uncomment only for debugging:
+        // if (defined('DEBUG_MODE') && DEBUG_MODE) {
+        //     error_log("Devices with coordinates found: " . count($devices));
+        // }
         
         return $devices;
     } catch (PDOException $e) {
@@ -588,15 +646,34 @@ function getBarangaySafetyStats($barangayId = null) {
 
 // Get devices data
 $devices = getDevicesWithCoordinates();
-// Get incidents and barangays with optional date filtering
-$startDate = isset($_GET['start_date']) ? $_GET['start_date'] : null;
-$endDate = isset($_GET['end_date']) ? $_GET['end_date'] : null;
+
+// Get incidents and barangays with optional date filtering - VALIDATE INPUTS
+$startDate = validateDateInput($_GET['start_date'] ?? null);
+$endDate = validateDateInput($_GET['end_date'] ?? null);
 $incidents = getFireData($startDate, $endDate);
+
+// Validate and sanitize barangay_id/user_id from GET
 $preselectBarangayId = null;
 if (isset($_GET['barangay_id']) && ctype_digit((string)$_GET['barangay_id'])) {
-    $preselectBarangayId = (int)$_GET['barangay_id'];
+    $barangayId = (int)$_GET['barangay_id'];
+    if ($barangayId > 0) {
+        // Verify barangay exists
+        try {
+            $conn = getDatabaseConnection();
+            $stmt = $conn->prepare("SELECT id FROM barangay WHERE id = :id LIMIT 1");
+            $stmt->execute([':id' => $barangayId]);
+            if ($stmt->fetch()) {
+                $preselectBarangayId = $barangayId;
+            }
+        } catch (PDOException $e) {
+            error_log('Error validating barangay_id: ' . $e->getMessage());
+        }
+    }
 } elseif (isset($_GET['user_id']) && ctype_digit((string)$_GET['user_id'])) {
-    $preselectBarangayId = getUserBarangayId((int)$_GET['user_id']);
+    $userId = (int)$_GET['user_id'];
+    if ($userId > 0 && $userId <= PHP_INT_MAX) {
+        $preselectBarangayId = getUserBarangayId($userId);
+    }
 }
 $barangays = getBarangays($preselectBarangayId);
 // Get comprehensive data for all barangays
@@ -1493,7 +1570,7 @@ function getUserBarangayId($userId) {
                             <option value="LOW">Low Risk Barangays</option>
                             <option value="SAFE">Safe Barangays</option>
                             <?php foreach ($barangays as $br): ?>
-                                <option value="<?php echo (int)$br['id']; ?>"><?php echo htmlspecialchars($br['barangay_name']); ?> (<?php echo $br['fire_risk_level']; ?>)</option>
+                                <option value="<?php echo (int)$br['id']; ?>"><?php echo e($br['barangay_name']); ?> (<?php echo e($br['fire_risk_level']); ?>)</option>
                             <?php endforeach; ?>
                         </select>
                         <div style="display:none; align-items:center; gap:8px;" class="date-filter-group">
@@ -1811,9 +1888,12 @@ function getUserBarangayId($userId) {
             popupAnchor: [0, -44] 
         });
         
-        // Debug: Log devices data
-        console.log('Devices data from PHP:', <?php echo json_encode($devices); ?>);
-        console.log('Number of devices:', <?php echo count($devices); ?>);
+        // Debug logging removed for production security
+        // Uncomment only for debugging:
+        // if (typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE) {
+        //     console.log('Devices data from PHP:', <?php echo je($devices); ?>);
+        //     console.log('Number of devices:', <?php echo count($devices); ?>);
+        // }
         
         <?php if (empty($devices)): ?>
             console.warn('No devices with coordinates found!');
@@ -1826,8 +1906,8 @@ function getUserBarangayId($userId) {
         // Add markers for all devices with status-specific icon
         <?php foreach ($devices as $d): ?>
             <?php if (!empty($d['latitude']) && !empty($d['longitude'])): ?>
-                var deviceStatus = <?php echo json_encode($d['fire_data_status'] ?? ''); ?>;
-                var hasEmergency = <?php echo json_encode($d['has_emergency_status'] ?? 0); ?> == 1;
+                var deviceStatus = <?php echo je($d['fire_data_status'] ?? ''); ?>;
+                var hasEmergency = <?php echo je($d['has_emergency_status'] ?? 0); ?> == 1;
                 // Use Emergency icon if device has Emergency status, otherwise use normal icon
                 var dIcon = hasEmergency ? DeviceEmergencyIcon : DeviceNormalIcon;
                 var dMarker = L.marker([<?php echo $d['latitude']; ?>, <?php echo $d['longitude']; ?>], { 
@@ -1836,16 +1916,16 @@ function getUserBarangayId($userId) {
                 });
                 var dPopup = `
                     <div class="info-window">
-                        <h3 style="background-color: #dc2626; color: white; padding: 8px; margin: -8px -8px 12px -8px; border-radius: 4px 4px 0 0;"><?php echo addslashes($d['device_name']); ?></h3>
-                        <p style="margin: 6px 0;"><strong>Device Number:</strong> <span style="background-color: #dc2626; color: white; padding: 4px 8px; border-radius: 4px;"><?php echo addslashes($d['device_number'] ?? 'N/A'); ?></span></p>
-                        <p style="margin: 6px 0;"><strong>Serial Number:</strong> <span style="background-color: #dc2626; color: white; padding: 4px 8px; border-radius: 4px;"><?php echo addslashes($d['serial_number'] ?? 'N/A'); ?></span></p>
-                        <p style="margin: 6px 0;"><strong>Status:</strong> <span style="background-color: #dc2626; color: white; padding: 4px 8px; border-radius: 4px;"><?php echo addslashes($d['device_status'] ?? 'N/A'); ?></span></p>
-                        <p style="margin: 6px 0;"><strong>Fire Data Status:</strong> <span style="background-color: #dc2626; color: white; padding: 4px 8px; border-radius: 4px;"><?php echo addslashes($d['fire_data_status'] ?? 'N/A'); ?></span></p>
-                        <p style="margin: 6px 0;"><strong>Barangay:</strong> <span style="background-color: #dc2626; color: white; padding: 4px 8px; border-radius: 4px;"><?php echo addslashes($d['barangay_name'] ?? 'N/A'); ?></span></p>
+                        <h3 style="background-color: #dc2626; color: white; padding: 8px; margin: -8px -8px 12px -8px; border-radius: 4px 4px 0 0;"><?php echo e($d['device_name']); ?></h3>
+                        <p style="margin: 6px 0;"><strong>Device Number:</strong> <span style="background-color: #dc2626; color: white; padding: 4px 8px; border-radius: 4px;"><?php echo e($d['device_number'] ?? 'N/A'); ?></span></p>
+                        <p style="margin: 6px 0;"><strong>Serial Number:</strong> <span style="background-color: #dc2626; color: white; padding: 4px 8px; border-radius: 4px;"><?php echo e($d['serial_number'] ?? 'N/A'); ?></span></p>
+                        <p style="margin: 6px 0;"><strong>Status:</strong> <span style="background-color: #dc2626; color: white; padding: 4px 8px; border-radius: 4px;"><?php echo e($d['device_status'] ?? 'N/A'); ?></span></p>
+                        <p style="margin: 6px 0;"><strong>Fire Data Status:</strong> <span style="background-color: #dc2626; color: white; padding: 4px 8px; border-radius: 4px;"><?php echo e($d['fire_data_status'] ?? 'N/A'); ?></span></p>
+                        <p style="margin: 6px 0;"><strong>Barangay:</strong> <span style="background-color: #dc2626; color: white; padding: 4px 8px; border-radius: 4px;"><?php echo e($d['barangay_name'] ?? 'N/A'); ?></span></p>
                         <p style="margin: 6px 0;"><strong>Address:</strong> <span id="device-address-<?php echo (int)$d['device_id']; ?>" style="background-color: #dc2626; color: white; padding: 4px 8px; border-radius: 4px; display: inline-block; max-width: 250px; word-wrap: break-word;">Loading...</span></p>
-                        <p style="font-size: 11px; color: #666; margin-top: 8px;"><strong>Coordinates:</strong> <?php echo $d['latitude']; ?>, <?php echo $d['longitude']; ?></p>
+                        <p style="font-size: 11px; color: #666; margin-top: 8px;"><strong>Coordinates:</strong> <?php echo (float)$d['latitude']; ?>, <?php echo (float)$d['longitude']; ?></p>
                         <?php if (!empty($d['latest_timestamp'])): ?>
-                        <p style="margin: 6px 0;"><strong>Last Update:</strong> <span style="background-color: #dc2626; color: white; padding: 4px 8px; border-radius: 4px;"><?php echo addslashes($d['latest_timestamp']); ?></span></p>
+                        <p style="margin: 6px 0;"><strong>Last Update:</strong> <span style="background-color: #dc2626; color: white; padding: 4px 8px; border-radius: 4px;"><?php echo e($d['latest_timestamp']); ?></span></p>
                         <?php endif; ?>
                     </div>
                 `;
@@ -1879,10 +1959,10 @@ function getUserBarangayId($userId) {
                 // Add hover tooltip on device icon
                 var dTooltip = `
                     <div style="font-weight:600;margin-bottom:2px;">
-                        <?php echo addslashes($d['device_name']); ?>
+                        <?php echo e($d['device_name']); ?>
                     </div>
                     <div style="font-size:12px;opacity:0.9;">
-                        Status: <?php echo addslashes($d['fire_data_status'] ?? 'N/A'); ?>
+                        Status: <?php echo e($d['fire_data_status'] ?? 'N/A'); ?>
                     </div>
                 `;
                 dMarker.bindTooltip(dTooltip, {
@@ -1896,12 +1976,12 @@ function getUserBarangayId($userId) {
                 var deviceMarkerObj = {
                     marker: dMarker,
                     type: 'device',
-                    name: (<?php echo json_encode($d['device_name'] ?? ''); ?> || '').toString(),
+                    name: (<?php echo je($d['device_name'] ?? ''); ?> || '').toString(),
                     address: '',
-                    barangayId: <?php echo json_encode($d['barangay_id'] ?? null); ?>,
-                    barangayRiskLevel: (<?php echo json_encode($d['fire_risk_level'] ?? ''); ?> || '').toString(),
+                    barangayId: <?php echo je($d['barangay_id'] ?? null); ?>,
+                    barangayRiskLevel: (<?php echo je($d['fire_risk_level'] ?? ''); ?> || '').toString(),
                     originalIcon: dIcon,
-                    deviceData: <?php echo json_encode($d); ?>,
+                    deviceData: <?php echo je($d); ?>,
                     hasEmergency: hasEmergency
                 };
                 
@@ -1911,7 +1991,8 @@ function getUserBarangayId($userId) {
                 deviceMarkersMap[<?php echo (int)$d['device_id']; ?>] = deviceMarkerObj;
                 
                 // Create permanent label for device - positioned above the icon
-                var labelText = '<div style="font-weight: bold; margin-bottom: 2px;"><?php echo addslashes($d['device_name']); ?></div><div style="font-size: 10px;">Incidents: <?php echo $d['fire_incident_count']; ?></div>';
+                var deviceNameLabel = <?php echo je($d['device_name']); ?>;
+                var labelText = '<div style="font-weight: bold; margin-bottom: 2px;">' + deviceNameLabel + '</div><div style="font-size: 10px;">Incidents: <?php echo (int)$d['fire_incident_count']; ?></div>';
                 var labelClass = 'device-label <?php echo ($d['has_fire_incidents'] == 1) ? 'has-incidents' : 'no-incidents'; ?>';
                 
                 // Position label well above the device icon to prevent overlap
@@ -1935,10 +2016,10 @@ function getUserBarangayId($userId) {
                     type: 'device_label',
                     name: 'Device Label',
                     address: '',
-                    barangayId: <?php echo json_encode($d['barangay_id'] ?? null); ?>,
-                    barangayRiskLevel: (<?php echo json_encode($d['fire_risk_level'] ?? ''); ?> || '').toString(),
+                    barangayId: <?php echo je($d['barangay_id'] ?? null); ?>,
+                    barangayRiskLevel: (<?php echo je($d['fire_risk_level'] ?? ''); ?> || '').toString(),
                     originalIcon: null,
-                    deviceData: <?php echo json_encode($d); ?>
+                    deviceData: <?php echo je($d); ?>
                 });
                 
                 // Add device marker to map when zoom level is sufficient
@@ -1963,39 +2044,41 @@ function getUserBarangayId($userId) {
                 var iPopup = `
                     <div class="info-window">
                         <h3>Fire Incident #<?php echo (int)$in['id']; ?></h3>
-                        <p><strong>Status:</strong> <?php echo addslashes($in['status']); ?></p>
-                        <p><strong>Timestamp:</strong> <?php echo addslashes($in['timestamp']); ?></p>
+                        <p><strong>Status:</strong> <?php echo e($in['status']); ?></p>
+                        <p><strong>Timestamp:</strong> <?php echo e($in['timestamp']); ?></p>
                         <hr />
-                        <p><strong>Barangay:</strong> <?php echo addslashes($in['barangay_name'] ?? 'Unknown'); ?></p>
-                        <p><strong>Device:</strong> <?php echo addslashes($in['device_name'] ?? 'N/A'); ?></p>
-                        <p><strong>Device Number:</strong> <?php echo addslashes($in['device_number'] ?? 'N/A'); ?></p>
-                        <p><strong>ML:</strong> pred=<?php echo (int)$in['ml_prediction']; ?>, conf=<?php echo $in['ml_confidence']; ?>%</p>
+                        <p><strong>Barangay:</strong> <?php echo e($in['barangay_name'] ?? 'Unknown'); ?></p>
+                        <p><strong>Device:</strong> <?php echo e($in['device_name'] ?? 'N/A'); ?></p>
+                        <p><strong>Device Number:</strong> <?php echo e($in['device_number'] ?? 'N/A'); ?></p>
+                        <p><strong>ML:</strong> pred=<?php echo (int)$in['ml_prediction']; ?>, conf=<?php echo (float)$in['ml_confidence']; ?>%</p>
                     </div>
                 `;
                 iMarker.bindPopup(iPopup);
                 incidentMarkers.push({
                     marker: iMarker,
-                    deviceId: <?php echo json_encode($in['device_id']); ?>,
-                    barangayId: <?php echo json_encode($in['barangay_id']); ?>,
-                    barangayName: (<?php echo json_encode($in['barangay_name'] ?? ''); ?> || '').toString(),
-                    deviceName: (<?php echo json_encode($in['device_name'] ?? ''); ?> || '').toString(),
-                    deviceNumber: (<?php echo json_encode($in['device_number'] ?? ''); ?> || '').toString(),
-                    status: (<?php echo json_encode($in['status'] ?? ''); ?> || '').toString(),
-                    timestamp: (<?php echo json_encode($in['timestamp'] ?? ''); ?> || '').toString(),
-                    barangayRiskLevel: (<?php echo json_encode($in['fire_risk_level'] ?? ''); ?> || '').toString()
+                    deviceId: <?php echo je($in['device_id']); ?>,
+                    barangayId: <?php echo je($in['barangay_id']); ?>,
+                    barangayName: (<?php echo je($in['barangay_name'] ?? ''); ?> || '').toString(),
+                    deviceName: (<?php echo je($in['device_name'] ?? ''); ?> || '').toString(),
+                    deviceNumber: (<?php echo je($in['device_number'] ?? ''); ?> || '').toString(),
+                    status: (<?php echo je($in['status'] ?? ''); ?> || '').toString(),
+                    timestamp: (<?php echo je($in['timestamp'] ?? ''); ?> || '').toString(),
+                    barangayRiskLevel: (<?php echo je($in['fire_risk_level'] ?? ''); ?> || '').toString()
                 });
             <?php endif; ?>
         <?php endforeach; ?>
 
-        // Debug: Log device markers count
-        console.log('Total device markers created:', allMarkers.filter(function(m) { return m.type === 'device'; }).length);
-        console.log('Total incident markers created:', incidentMarkers.length);
+        // Debug logging removed for production security
+        // Uncomment only for debugging:
+        // if (typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE) {
+        //     console.log('Total device markers created:', allMarkers.filter(function(m) { return m.type === 'device'; }).length);
+        //     console.log('Total incident markers created:', incidentMarkers.length);
+        // }
         
         // Apply initial filters (devices will be hidden by default until barangay is selected)
         setTimeout(function() {
             applyFilters();
-            console.log('Device markers after filter:', allMarkers.filter(function(m) { return m.type === 'device' && map.hasLayer(m.marker); }).length);
-            console.log('Incident markers after filter:', incidentMarkers.filter(function(m) { return map.hasLayer(m.marker); }).length);
+            // Debug logging removed for production
         }, 100);
         
         // Center the map on the first device
@@ -2257,7 +2340,8 @@ function getUserBarangayId($userId) {
         document.getElementById('typeFilter').addEventListener('change', applyFilters);
         document.getElementById('barangayFilter').addEventListener('change', applyFilters);
         document.getElementById('startDate').addEventListener('change', function() {
-            console.log('Start date changed to:', this.value);
+            // Debug logging removed for production
+            // if (typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE) console.log('Start date changed to:', this.value);
             // Sync with map controls
             var mapStartDate = document.getElementById('mapStartDate');
             if (mapStartDate) {
@@ -2266,7 +2350,8 @@ function getUserBarangayId($userId) {
             applyFilters();
         });
         document.getElementById('endDate').addEventListener('change', function() {
-            console.log('End date changed to:', this.value);
+            // Debug logging removed for production
+            // if (typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE) console.log('End date changed to:', this.value);
             // Sync with map controls
             var mapEndDate = document.getElementById('mapEndDate');
             if (mapEndDate) {
@@ -2338,7 +2423,7 @@ function getUserBarangayId($userId) {
                 return;
             }
             // Fallback to barangay centroid
-            var brgyData = <?php echo json_encode($barangays); ?>;
+            var brgyData = <?php echo je($barangays); ?>;
             var found = brgyData.find(function(b) { return String(b.id) === String(brgyId); });
             if (found && found.latitude && found.longitude) {
                 map.setView([parseFloat(found.latitude), parseFloat(found.longitude)], 14);
@@ -2353,7 +2438,7 @@ function getUserBarangayId($userId) {
                 selectedBarangayCircle = null;
             }
             if (!brgyId) { return; }
-            var brgyData = <?php echo json_encode($barangays); ?>;
+            var brgyData = <?php echo je($barangays); ?>;
             var found = brgyData.find(function(b) { return String(b.id) === String(brgyId); });
             if (!found || !found.latitude || !found.longitude) { return; }
             var lat = parseFloat(found.latitude);
@@ -2395,10 +2480,10 @@ function getUserBarangayId($userId) {
                 hideBarangayHoverInfo();
                 return;
             }
-            var brgyData = <?php echo json_encode($barangays); ?>;
-            var brgyHeatData = <?php echo json_encode($barangayHeatData); ?>;
-            var brgyDeviceStats = <?php echo json_encode($barangayDeviceStats); ?>;
-            var brgySafetyStats = <?php echo json_encode($barangaySafetyStats); ?>;
+            var brgyData = <?php echo je($barangays); ?>;
+            var brgyHeatData = <?php echo je($barangayHeatData); ?>;
+            var brgyDeviceStats = <?php echo je($barangayDeviceStats); ?>;
+            var brgySafetyStats = <?php echo je($barangaySafetyStats); ?>;
             // Create lookup maps for all data by barangay ID
             var heatDataMap = {};
             brgyHeatData.forEach(function(heatData) {
@@ -3508,7 +3593,7 @@ function getUserBarangayId($userId) {
         (function initBarangayCircleOnLoad(){
             var initial = (document.getElementById('barangayFilter').value || '').toString();
             // If server suggests a preselected barangay, override initial
-            var preselect = <?php echo json_encode($preselectBarangayId); ?>;
+            var preselect = <?php echo je($preselectBarangayId); ?>;
             if (preselect) {
                 document.getElementById('barangayFilter').value = String(preselect);
                 initial = String(preselect);

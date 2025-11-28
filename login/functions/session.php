@@ -1,9 +1,10 @@
 <?php
+require_once __DIR__ . '/env.php';
 // Enhanced Session Security Configuration
 define('SESSION_TIMEOUT', 30 * 60); // 30 minutes
 define('SESSION_REGENERATE_INTERVAL', 5 * 60); // Regenerate session ID every 5 minutes
 define('SESSION_COOKIE_LIFETIME', 0); // Session cookie expires when browser closes
-define('SESSION_COOKIE_SECURE', true); // Only send over HTTPS
+define('SESSION_COOKIE_SECURE', loginEnvBool('SESSION_COOKIE_SECURE', true)); // Only send over HTTPS
 define('SESSION_COOKIE_HTTPONLY', true); // Prevent JavaScript access
 define('SESSION_COOKIE_SAMESITE', 'Strict'); // CSRF protection
 
@@ -58,7 +59,14 @@ function destroySecureSession() {
     
     // Clear remember me cookie if exists
     if (isset($_COOKIE['remember_token'])) {
-        setcookie('remember_token', '', time() - 3600, '/', '', true, true);
+        setcookie('remember_token', '', [
+            'expires' => time() - 3600,
+            'path' => '/',
+            'domain' => (string)loginEnv('COOKIE_DOMAIN', ''),
+            'secure' => loginEnvBool('COOKIE_SECURE', true),
+            'httponly' => true,
+            'samesite' => 'Strict'
+        ]);
     }
     
     // Destroy session

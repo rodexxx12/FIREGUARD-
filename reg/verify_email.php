@@ -142,11 +142,13 @@ if ($email && $token) {
     <script>
         // Show appropriate alert based on verification status
         document.addEventListener('DOMContentLoaded', function() {
-            <?php if ($verified): ?>
-                showSuccessAlert('Your account has been verified successfully! You can now log in with your credentials.', 'Account Verified');
-            <?php else: ?>
-                showErrorAlert('<?php echo addslashes($message); ?>', 'Verification Failed');
-            <?php endif; ?>
+            const verificationMessage = <?php echo json_encode($message, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+            const isVerified = <?php echo $verified ? 'true' : 'false'; ?>;
+            if (isVerified) {
+                showSuccessAlert(verificationMessage, 'Account Verified');
+            } else {
+                showErrorAlert(verificationMessage, 'Verification Failed');
+            }
         });
     </script>
 </body>

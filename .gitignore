@@ -5,3 +5,10 @@ vendor/
 *.log
 node_modules/
 .DS_Store
+
+# Security: Configuration files with secrets
+login/functions/config.env
+**/config.env
+.env
+.env.local
+.env.production

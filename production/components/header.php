@@ -1,15 +1,49 @@
+<?php
+if (!function_exists('generateCSRFToken')) {
+    require_once __DIR__ . '/security.php';
+}
+$globalCsrfToken = generateCSRFToken();
+
+if (!headers_sent()) {
+    $httpsActive = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['SERVER_PORT'] ?? null) == 443;
+    $csp = [
+        "default-src 'self' https:",
+        "script-src 'self' https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://cdnjs.cloudflare.com https://use.fontawesome.com https://maps.googleapis.com https://cdn.datatables.net 'unsafe-inline'",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://unpkg.com https://use.fontawesome.com https://cdnjs.cloudflare.com https://cdn.datatables.net",
+        "font-src 'self' https://fonts.gstatic.com https://use.fontawesome.com https://cdn.datatables.net data:",
+        "img-src 'self' data: https:",
+        "connect-src 'self' https://api.mapbox.com https://events.mapbox.com https://cdn.datatables.net",
+        "frame-ancestors 'none'"
+    ];
+    header('Content-Security-Policy: ' . implode('; ', $csp));
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: SAMEORIGIN');
+    header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+    header('Cross-Origin-Resource-Policy: same-origin');
+    if ($httpsActive) {
+        header('Strict-Transport-Security: max-age=31536000; includeSubDomains; preload');
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="<?= htmlspecialchars($globalCsrfToken ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8') ?>">
   <title>FIREGUARD</title>
     <link rel="icon" type="image/png" sizes="32x32" href="fireguardlogo.png?v=1">
     <link rel="icon" type="image/png" sizes="16x16" href="fireguardlogo.png?v=1">
     <link rel="shortcut icon" type="image/png" href="fireguardlogo.png?v=1">
     <link rel="apple-touch-icon" sizes="180x180" href="fireguardlogo.png?v=1">
     <link rel="apple-touch-icon" href="fireguardlogo.png?v=1">
+  <!-- Resource Hints -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="preconnect" href="https://unpkg.com" crossorigin>
+  <link rel="preconnect" href="https://code.jquery.com" crossorigin>
   <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="../../../vendors/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">

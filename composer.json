@@ -1,0 +1,43 @@
+{
+    "name": "firedetection/system",
+    "description": "Fire Detection System - Production Ready",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=7.4",
+        "ext-pdo": "*",
+        "ext-mysqli": "*",
+        "ext-mbstring": "*",
+        "ext-json": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "FireDetection\\": "core/"
+        },
+        "files": [
+            "core/config/config.php",
+            "core/database/database.php"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit --configuration tests/phpunit.xml",
+        "test-coverage": "phpunit --configuration tests/phpunit.xml --coverage-html coverage/",
+        "audit": "php scripts/audit-dependencies.php",
+        "optimize-db": "php scripts/optimize-database.php"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
+

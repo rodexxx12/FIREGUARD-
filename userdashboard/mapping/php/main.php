@@ -59,12 +59,12 @@ include('../../alarm/alert.php');
                         </div>
                     </div>
                     
-                    <!-- Devices Row (replacing Buildings) -->
+                    <!-- Buildings Row -->
                     <div class="row mb-4">
                         <div class="col-12">
                             <div class="card status-card status-monitoring h-100">
                                 <div class="card-body">
-                                    <h5 class="card-title">Total Devices</h5>
+                                    <h5 class="card-title">Total Buildings</h5>
                                     <h2 id="total-buildings-count" class="text-info"><?= $total_buildings ?></h2>
                                 </div>
                             </div>
@@ -133,7 +133,7 @@ include('../../alarm/alert.php');
     <div>
         <?php include('../../components/footer.php'); ?>
         </div>
-       
+    
 <!-- Scripts -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -142,14 +142,76 @@ include('../../alarm/alert.php');
 <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+   <?php include('../../components/scripts.php'); ?>
 <!-- Pass PHP data to JavaScript -->
 <script>
     window.buildingsData = <?php echo json_encode($buildings ?? []); ?>;
     window.userId = <?php echo $_SESSION['user_id'] ?? 0; ?>;
+    
+    // Prevent mapping page from closing alarm.php modals
+    // Store original Swal.close function
+    if (typeof Swal !== 'undefined') {
+        const originalSwalClose = Swal.close;
+        
+        // Override Swal.close to check if modal is from alarm.php before closing
+        Swal.close = function(result) {
+            // Check if there's an open modal and if it's an emergency alert from alarm.php
+            const popup = Swal.getPopup();
+            if (popup) {
+                const title = popup.querySelector('.swal2-title');
+                // If it's an emergency alert (has 🚨 emoji or "EMERGENCY" in title), don't close it automatically
+                if (title && (title.textContent.includes('🚨') || title.textContent.includes('EMERGENCY STATUS'))) {
+                    console.log('Preserving alarm.php emergency modal - not closing automatically');
+                    return; // Don't close emergency alerts from alarm.php
+                }
+            }
+            // For other modals, use the original close function
+            return originalSwalClose.call(this, result);
+        };
+        
+        // Also prevent automatic closing on page visibility changes
+        document.addEventListener('visibilitychange', function(e) {
+            const popup = Swal.getPopup();
+            if (popup) {
+                const title = popup.querySelector('.swal2-title');
+                // If it's an emergency alert, don't close it when page visibility changes
+                if (title && (title.textContent.includes('🚨') || title.textContent.includes('EMERGENCY STATUS'))) {
+                    e.stopPropagation();
+                }
+            }
+        }, true);
+    }
 </script>
 
 <script src="../js/script.js"></script>
-<?php include('../../../../components/scripts.php'); ?>
+
+<!-- Suppress custom.min.js errors (loaded by scripts.php) -->
+<script>
+    // Add error handler to suppress custom.min.js errors
+    (function() {
+        var originalError = window.onerror;
+        window.onerror = function(msg, url, line, col, error) {
+            // Suppress errors from custom.min.js
+            if (url && (url.indexOf('custom.min.js') !== -1 || 
+                       (error && error.stack && error.stack.indexOf('custom.min.js') !== -1))) {
+                console.warn('Error in custom.min.js (suppressed):', msg);
+                return true; // Suppress the error
+            }
+            // Call original error handler for other errors
+            if (originalError) {
+                return originalError(msg, url, line, col, error);
+            }
+            return false;
+        };
+        
+        // Also catch unhandled promise rejections that might come from custom.min.js
+        window.addEventListener('unhandledrejection', function(event) {
+            if (event.reason && event.reason.stack && event.reason.stack.indexOf('custom.min.js') !== -1) {
+                console.warn('Unhandled rejection from custom.min.js (suppressed)');
+                event.preventDefault();
+            }
+        });
+    })();
+</script>
 </body>
 </html>

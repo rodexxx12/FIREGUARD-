@@ -1,16 +1,44 @@
 <?php
-require_once '../../../db/db.php';
+// Suppress error output for JSON responses
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
+ini_set('log_errors', 1);
 
-header('Content-Type: application/json');
+require_once 'common/database_utils.php';
 
 try {
-    $conn = getDatabaseConnection();
+    $conn = DatabaseUtils::getConnection();
     
     // Get filter parameters
-    $barangay = isset($_GET['barangay']) ? $_GET['barangay'] : '';
-    $startDate = isset($_GET['start_date']) ? $_GET['start_date'] : '';
-    $endDate = isset($_GET['end_date']) ? $_GET['end_date'] : '';
-    $mlConfidence = isset($_GET['ml_confidence']) ? $_GET['ml_confidence'] : '';
+    $barangayRaw = $_GET['barangay'] ?? null;
+    $barangay = DatabaseUtils::sanitizeInt($barangayRaw, 1);
+    if ($barangayRaw !== null && $barangay === null) {
+        DatabaseUtils::sendError('Invalid barangay identifier.');
+    }
+
+    $startDateRaw = $_GET['start_date'] ?? null;
+    $startDate = DatabaseUtils::sanitizeDate($startDateRaw);
+    if ($startDateRaw && !$startDate) {
+        DatabaseUtils::sendError('Invalid start date. Use YYYY-MM-DD format.');
+    }
+    
+    $endDateRaw = $_GET['end_date'] ?? null;
+    $endDate = DatabaseUtils::sanitizeDate($endDateRaw);
+    if ($endDateRaw && !$endDate) {
+        DatabaseUtils::sendError('Invalid end date. Use YYYY-MM-DD format.');
+    }
+    
+    $mlConfidenceRaw = $_GET['ml_confidence'] ?? null;
+    $mlConfidence = DatabaseUtils::sanitizeInt($mlConfidenceRaw, 0, 100);
+    if ($mlConfidenceRaw !== null && $mlConfidence === null) {
+        DatabaseUtils::sendError('Invalid ML confidence. Provide 0-100.');
+    }
+
+    $limitRaw = $_GET['limit'] ?? null;
+    $limit = DatabaseUtils::sanitizeInt($limitRaw, 1, 1000) ?? 200;
+    
+    $offsetRaw = $_GET['offset'] ?? null;
+    $offset = DatabaseUtils::sanitizeInt($offsetRaw, 0, 1000000) ?? 0;
     
     // Build the base query for ML prediction analysis
     $sql = "SELECT 
@@ -70,10 +98,15 @@ try {
         $params[':ml_confidence'] = $mlConfidence;
     }
     
-    $sql .= " ORDER BY fd.ml_timestamp DESC";
+    $sql .= " ORDER BY fd.ml_timestamp DESC LIMIT :limit OFFSET :offset";
     
     $stmt = $conn->prepare($sql);
-    $stmt->execute($params);
+    foreach ($params as $key => $value) {
+        $stmt->bindValue($key, $value);
+    }
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
     $results = $stmt->fetchAll();
     
     // Calculate ML performance metrics
@@ -235,18 +268,15 @@ try {
         ]
     ];
     
-    echo json_encode([
-        'success' => true,
-        'data' => $responseData,
-        'message' => 'ML prediction statistics loaded successfully'
+    DatabaseUtils::sendResponse(true, $responseData, 'ML prediction statistics loaded successfully', [
+        'pagination' => [
+            'limit' => $limit,
+            'offset' => $offset,
+            'returned' => count($results)
+        ]
     ]);
     
 } catch (Exception $e) {
-    error_log("Error in get_ml_prediction_stats.php: " . $e->getMessage());
-    echo json_encode([
-        'success' => false,
-        'message' => 'Failed to load ML prediction statistics',
-        'error' => $e->getMessage()
-    ]);
+    DatabaseUtils::sendError('Failed to load ML prediction statistics', $e->getMessage());
 }
 ?>

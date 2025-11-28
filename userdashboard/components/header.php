@@ -1,3 +1,25 @@
+<?php
+require_once __DIR__ . '/asset-path.php';
+
+// Security headers - must be sent before any output
+if (!headers_sent()) {
+    // Content Security Policy (adjust as needed for your CDNs)
+    $csp = "default-src 'self'; " .
+           "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://cdn.datatables.net; " .
+           "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdn.datatables.net https://unpkg.com; " .
+           "img-src 'self' data: https: blob:; " .
+           "font-src 'self' https://fonts.gstatic.com; " .
+           "connect-src 'self' https://sms.pagenet.info; " .
+           "frame-ancestors 'none';";
+    
+    header("Content-Security-Policy: $csp");
+    header("X-Content-Type-Options: nosniff");
+    header("X-Frame-Options: DENY");
+    header("X-XSS-Protection: 1; mode=block");
+    header("Referrer-Policy: strict-origin-when-cross-origin");
+    header("Permissions-Policy: geolocation=(), microphone=(), camera=()");
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,11 +27,11 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FIREGUARD</title>
-    <link rel="icon" type="image/png" sizes="32x32" href="fireguardlogo.png?v=1">
-    <link rel="icon" type="image/png" sizes="16x16" href="fireguardlogo.png?v=1">
-    <link rel="shortcut icon" type="image/png" href="fireguardlogo.png?v=1">
-    <link rel="apple-touch-icon" sizes="180x180" href="fireguardlogo.png?v=1">
-    <link rel="apple-touch-icon" href="fireguardlogo.png?v=1">
+    <link rel="icon" type="image/png" sizes="32x32" href="<?= USER_DASHBOARD_ASSET_BASE ?>/components/fireguardlogo.png?v=1">
+    <link rel="icon" type="image/png" sizes="16x16" href="<?= USER_DASHBOARD_ASSET_BASE ?>/components/fireguardlogo.png?v=1">
+    <link rel="shortcut icon" type="image/png" href="<?= USER_DASHBOARD_ASSET_BASE ?>/components/fireguardlogo.png?v=1">
+    <link rel="apple-touch-icon" sizes="180x180" href="<?= USER_DASHBOARD_ASSET_BASE ?>/components/fireguardlogo.png?v=1">
+    <link rel="apple-touch-icon" href="<?= USER_DASHBOARD_ASSET_BASE ?>/components/fireguardlogo.png?v=1">
   <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="../../../vendors/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">

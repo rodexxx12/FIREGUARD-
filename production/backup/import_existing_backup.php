@@ -1,10 +1,14 @@
 <?php
+require_once __DIR__ . '/../db/db.php';
+
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 
-session_start();
-// Check if user is logged in
-if (!isset($_SESSION['admin_id']) && !isset($_SESSION['admin_id'])) {
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+if (!isset($_SESSION['admin_id']) && !isset($_SESSION['officer_id'])) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
 }
@@ -12,31 +16,39 @@ if (!isset($_SESSION['admin_id']) && !isset($_SESSION['admin_id'])) {
 header('Content-Type: application/json');
 
 try {
-    $filename = basename($_GET['file'] ?? '');
-    $type = basename($_GET['type'] ?? 'manual');
+    $filename = $_GET['file'] ?? '';
+    $type = $_GET['type'] ?? 'manual';
     
-    if (empty($filename)) {
-        throw new Exception('No filename provided');
-    }
-    
-    // Validate backup type
     $allowed_types = ['weekly', 'monthly', 'yearly', 'manual', 'all'];
-    if (!in_array($type, $allowed_types)) {
+    if (!in_array($type, $allowed_types, true)) {
         throw new Exception('Invalid backup type');
     }
     
-    // Get file path
-    $file_path = __DIR__ . '/backups/' . $type . '/' . $filename;
+    $filename = basename($filename);
+    if ($filename === '' || !preg_match('/^[A-Za-z0-9._-]+$/', $filename) || !str_ends_with(strtolower($filename), '.sql')) {
+        throw new Exception('Invalid filename provided');
+    }
     
-    if (!file_exists($file_path)) {
+    $project_root = dirname(__DIR__, 2);
+    $type_dir = realpath($project_root . '/secure_storage/backups/' . $type);
+    if ($type_dir === false) {
+        throw new Exception('Backup file not found');
+    }
+    
+    $file_path = realpath($type_dir . DIRECTORY_SEPARATOR . $filename);
+    if ($file_path === false || strpos($file_path, $type_dir) !== 0 || !is_file($file_path)) {
         throw new Exception('Backup file not found');
     }
     
     // Database credentials for import
-    $db_host = 'localhost';
-    $db_name = 'hello';
-    $db_user = 'root';
-    $db_pass = 'i[#[GQ!+=C9';
+    $db_host = getenv('DB_HOST') ?: 'localhost';
+    $db_name = getenv('DB_NAME') ?: '';
+    $db_user = getenv('DB_USER') ?: '';
+    $db_pass = getenv('DB_PASS') ?: '';
+    
+    if ($db_name === '' || $db_user === '') {
+        throw new Exception('Database configuration incomplete. Check .env file.');
+    }
     
     // Connect to database
     $conn = new mysqli($db_host, $db_user, $db_pass, $db_name);

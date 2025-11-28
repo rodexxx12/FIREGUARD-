@@ -1,4 +1,14 @@
 <?php
+// Suppress error output for JSON responses
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
+ini_set('log_errors', 1);
+
+// Start output buffering to catch any accidental output
+if (!ob_get_level()) {
+    ob_start();
+}
+
 require_once 'common/database_utils.php';
 
 try {

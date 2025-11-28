@@ -1,9 +1,19 @@
 <?php
-// Enable detailed error reporting
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+// Load environment variables from .env file if it exists
+if (file_exists(__DIR__ . '/env_setup.php')) {
+    require_once __DIR__ . '/env_setup.php';
+}
 
+$debugMode = filter_var(getenv('APP_DEBUG') ?? '0', FILTER_VALIDATE_BOOLEAN);
+ini_set('display_errors', $debugMode ? '1' : '0');
+ini_set('display_startup_errors', $debugMode ? '1' : '0');
+error_reporting($debugMode ? E_ALL : E_ERROR);
+
+// Security functions (must be loaded before session_start for secure session configuration)
+require_once 'security_functions.php';
+
+// Configure secure session before starting
+configure_secure_session();
 session_start();
 
 // Clear registration session data if not submitting a form (i.e., on page reload or direct visit)
@@ -14,16 +24,28 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' && !isset($_GET['step'])) {
 // Database connection
 require_once 'db_config.php';
 
-// Security functions
-require_once 'security_functions.php';
+if (!function_exists('env_or')) {
+    function env_or(string $key, $default = null) {
+        $value = getenv($key);
+        return ($value === false || $value === null || $value === '') ? $default : $value;
+    }
+}
 
 // Check if required tables exist
 try {
     $conn = getDatabaseConnection();
+    // Whitelist of allowed table names to prevent SQL injection
+    $allowed_tables = ['users', 'admin_devices', 'devices', 'buildings'];
     $tables = ['users', 'admin_devices', 'devices', 'buildings'];
+    
     foreach ($tables as $table) {
-        $stmt = $conn->prepare("SHOW TABLES LIKE '" . $table . "'");
-        $stmt->execute();
+        // Validate table name against whitelist
+        if (!in_array($table, $allowed_tables)) {
+            throw new InvalidArgumentException("Invalid table name: $table");
+        }
+        // Use prepared statement with proper escaping
+        $stmt = $conn->prepare("SHOW TABLES LIKE ?");
+        $stmt->execute([$table]);
         if ($stmt->rowCount() == 0) {
             throw new Exception("Required table '$table' does not exist in the database.");
         }
@@ -53,7 +75,9 @@ if (isset($_SESSION['form_errors'])) {
 // Load barangays for dropdown (optional; UI convenience only)
 try {
     $connTmp = getDatabaseConnection();
-    $stmtTmp = $connTmp->query("SELECT id, barangay_name FROM barangay ORDER BY barangay_name");
+    // Use prepared statement for consistency (even though no user input)
+    $stmtTmp = $connTmp->prepare("SELECT id, barangay_name FROM barangay ORDER BY barangay_name");
+    $stmtTmp->execute();
     $barangays_list = $stmtTmp->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
     error_log('Failed to load barangays: ' . $e->getMessage());
@@ -153,16 +177,36 @@ function send_verification_email($to, $token) {
     }
     $mail = new PHPMailer(true);
     try {
-        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
-        $verifyLink = $protocol . $_SERVER['HTTP_HOST'] . "/reg/verify_email.php?token=" . urlencode($token) . "&email=" . urlencode($to);
+        $defaultHost = preg_replace('/[^a-z0-9\.\-:]/i', '', $_SERVER['HTTP_HOST'] ?? 'localhost');
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
+        $baseUrl = rtrim(env_or('APP_URL', $scheme . $defaultHost), '/');
+        $verifyLink = $baseUrl . "/reg/verify_email.php?token=" . urlencode($token) . "&email=" . urlencode($to);
+
+        // Validate SMTP credentials before attempting to send
+        $smtp_username = env_or('SMTP_USERNAME', '');
+        $smtp_password = env_or('SMTP_PASSWORD', '');
+        $smtp_from_email = env_or('SMTP_FROM_EMAIL', '');
+        
+        if (empty($smtp_username) || empty($smtp_password) || empty($smtp_from_email)) {
+            error_log("SMTP configuration error: Missing required environment variables");
+            return false;
+        }
+        
         $mail->isSMTP();
-        $mail->Host       = 'smtp.hostinger.com';
+        $mail->Host       = env_or('SMTP_HOST', 'smtp.hostinger.com');
         $mail->SMTPAuth   = true;
-        $mail->Username   = 'fireguard@bccbsis.com';
-        $mail->Password   = '1j/EIh?7Q';
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = 587;
-        $mail->setFrom('noreply@firedetectionsystem.com', 'Fire Detection System');
+        $mail->Username   = $smtp_username;
+        $mail->Password   = $smtp_password;
+        $encryption = strtolower((string)env_or('SMTP_ENCRYPTION', 'tls')) === 'ssl'
+            ? PHPMailer::ENCRYPTION_SMTPS
+            : PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->SMTPSecure = $encryption;
+        $defaultPort = $encryption === PHPMailer::ENCRYPTION_SMTPS ? 465 : 587;
+        $mail->Port       = (int)env_or('SMTP_PORT', $defaultPort);
+        $mail->setFrom(
+            $smtp_from_email,
+            env_or('SMTP_FROM_NAME', 'Fire Detection System')
+        );
         $mail->addAddress($to);
         $mail->isHTML(true);
         $mail->Subject = 'Activate Your Account';
@@ -176,11 +220,12 @@ function send_verification_email($to, $token) {
         ";
         $mail->AltBody = "Welcome to Fire Detection System! To activate your account, please verify your email using this link: $verifyLink (valid for 24 hours)";
 
+        $allowSelfSigned = filter_var(env_or('SMTP_ALLOW_SELF_SIGNED', 'false'), FILTER_VALIDATE_BOOLEAN);
         $mail->SMTPOptions = [
             'ssl' => [
-                'verify_peer' => false,
-                'verify_peer_name' => false,
-                'allow_self_signed' => true,
+                'verify_peer' => !$allowSelfSigned,
+                'verify_peer_name' => !$allowSelfSigned,
+                'allow_self_signed' => $allowSelfSigned,
             ],
         ];
         return $mail->send();
@@ -569,12 +614,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     
                     $conn->commit();
                     // Registration successful - email verification required
+                    // Regenerate session ID for security (prevent session fixation)
+                    regenerate_session_id();
                     $success = "Welcome to FireGuard! Your account has been created. Please check your email to verify your account before logging in.";
                     unset($_SESSION['reg_data']);
                 } catch (PDOException $e) {
                     $conn->rollBack();
-                    $errors['database'] = "Registration failed. Please try again. Error: " . $e->getMessage();
+                    // Log detailed error for debugging
                     error_log("Registration error: " . $e->getMessage());
+                    // Show generic error to user
+                    $errors['database'] = "Registration failed. Please try again or contact support if the problem persists.";
                 }
             } else {
                 // Store errors in session for display
@@ -584,11 +633,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         }
     } catch (PDOException $e) {
-        $errors['system'] = "Database error: " . $e->getMessage();
         error_log("Database error: " . $e->getMessage());
+        $errors['system'] = "A system error occurred. Please try again or contact support.";
     } catch (Exception $e) {
-        $errors['system'] = "An error occurred: " . $e->getMessage();
         error_log("System error: " . $e->getMessage());
+        $errors['system'] = "A system error occurred. Please try again or contact support.";
     }
 }
 

@@ -34,7 +34,22 @@ try {
 	/* Lightweight styles to match the provided gauge cards */
 	.gauge-card-title { font-size: .85rem; letter-spacing: .03em; font-weight: 600; color: #6c757d; text-transform: uppercase; }
 	.gauge-value { font-size: 1.75rem; font-weight: 700; color: #343a40; }
-	.gauge-icon { width: 44px; height: 44px; border-radius: 12px; display: inline-block; }
+	.gauge-icon { 
+		width: 44px; 
+		height: 44px; 
+		border-radius: 12px; 
+		display: inline-block; 
+		box-shadow: 
+			0 4px 12px rgba(0, 0, 0, 0.15),
+			inset 0 1px 0 rgba(255, 255, 255, 0.4);
+		transition: all 0.3s ease;
+	}
+	.gauge-item:hover .gauge-icon {
+		transform: scale(1.05);
+		box-shadow: 
+			0 6px 16px rgba(0, 0, 0, 0.2),
+			inset 0 1px 0 rgba(255, 255, 255, 0.5);
+	}
 	.gauge-legend { font-weight: 600; color: #495057; }
 	.legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: .5rem; }
 	.legend-danger { background-color: #dc3545; }
@@ -42,16 +57,84 @@ try {
 	.legend-ok { background-color: #28a745; }
 	.legend-info { background-color: #3b82f6; }
 
-	/* SVG semicircle gauge */
-	.gauge-svg { width: 100%; height: auto; }
-	.gauge-arc-track { stroke: #f1f3f5; stroke-width: 14; fill: none; }
-	.gauge-arc-value { stroke-width: 14; fill: none; stroke-linecap: round; transition: stroke-dashoffset .4s ease; }
+	/* SVG semicircle gauge - 3D Modern Style */
+	.gauge-svg { 
+		width: 100%; 
+		height: auto; 
+		filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+	}
+	.gauge-arc-track { 
+		stroke: #e2e8f0; 
+		stroke-width: 16; 
+		fill: none; 
+		filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+	}
+	.gauge-arc-value { 
+		stroke-width: 16; 
+		fill: none; 
+		stroke-linecap: round; 
+		transition: stroke-dashoffset .4s ease;
+		filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.2));
+	}
+	/* 3D Background track */
+	.gauge-arc-background {
+		stroke: #f1f5f9;
+		stroke-width: 18;
+		fill: none;
+		opacity: 0.3;
+	}
 
-	/* Card spacing harmony - compact version */
+	/* Card spacing harmony - compact version with 3D effects */
 	.gauge-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: .25rem; }
 	.gauge-footer { margin-top: .25rem; display: flex; align-items: center; }
-	.gauge-item { padding: 0.75rem; border: 1px solid #f1f3f5; border-radius: 0; background: #fafbfc; }
-	.gauge-item:hover { background: #f8f9fa; }
+	.gauge-item { 
+		padding: 0.75rem; 
+		border: 1px solid rgba(226, 232, 240, 0.8); 
+		border-radius: 16px; 
+		background: linear-gradient(145deg, #ffffff 0%, #f8fafc 50%, #f1f5f9 100%);
+		box-shadow: 
+			0 10px 30px rgba(15, 23, 42, 0.12),
+			inset 0 1px 0 rgba(255, 255, 255, 0.8),
+			inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+		position: relative;
+		overflow: hidden;
+		transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+	}
+	.gauge-item::before {
+		content: "";
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 50%;
+		background: linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, transparent 100%);
+		pointer-events: none;
+		z-index: 1;
+	}
+	.gauge-item::after {
+		content: "";
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		height: 30%;
+		background: linear-gradient(0deg, rgba(0, 0, 0, 0.03) 0%, transparent 100%);
+		pointer-events: none;
+		z-index: 1;
+	}
+	.gauge-item:hover { 
+		background: linear-gradient(145deg, #ffffff 0%, #f5f7fb 50%, #eef2f7 100%);
+		transform: translateY(-3px);
+		box-shadow: 
+			0 20px 40px rgba(15, 23, 42, 0.18),
+			inset 0 1px 0 rgba(255, 255, 255, 0.9),
+			inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+		border-color: rgba(59, 130, 246, 0.3);
+	}
+	.gauge-item > * {
+		position: relative;
+		z-index: 2;
+	}
 
 	/* Modern white card & layout polish - compact version */
 	.card-modern { border: 1px solid #eef1f5; border-radius: 0; box-shadow: 0 1px 4px rgba(16,24,40,.04); }
@@ -301,28 +384,12 @@ try {
 <body class="nav-md">
     <div class="container body">
       <div class="main_container">
-        <div class="col-md-3 left_col">
-          <div class="left_col scroll-view">
-
-            <!-- /menu footer buttons -->
-            <?php include(__DIR__ . '/../../components/sidebar.php'); ?>
-            
+            <?php include('../../components/sidebar.php'); ?>
             </div>
-            <!-- /menu footer buttons -->
           </div>
         </div>
-
-        <!-- top navigation -->
-        <?php include(__DIR__ . '/../../components/navigation.php')?>
-        <!-- /top navigation -->
-
-        <div class="right_col" role="main">        
-    <main class="main-content">
-	
-
-		<!-- Combined Sensor Data Dashboard Card -->
-		<div class="card card-modern">
-			<div class="card-body">
+        <?php include('../../components/navigation.php')?>
+        <div class="right_col" role="main"> 
 				<!-- Sensor Data Gauges Section -->
 			
 				<div class="row g-2 mb-4" id="sensorGauges">
@@ -337,6 +404,7 @@ try {
 								</div>
 							</div>
 							<svg class="gauge-svg" viewBox="0 0 160 90" preserveAspectRatio="xMidYMid meet">
+								<path class="gauge-arc-background" d="M20,80 A60,60 0 0 1 140,80" />
 								<path class="gauge-arc-track" d="M20,80 A60,60 0 0 1 140,80" />
 								<path id="smokeArc" class="gauge-arc-value" stroke="#3b82f6" d="M20,80 A60,60 0 0 1 140,80" />
 							</svg>
@@ -360,6 +428,7 @@ try {
 								</div>
 							</div>
 							<svg class="gauge-svg" viewBox="0 0 160 90" preserveAspectRatio="xMidYMid meet">
+								<path class="gauge-arc-background" d="M20,80 A60,60 0 0 1 140,80" />
 								<path class="gauge-arc-track" d="M20,80 A60,60 0 0 1 140,80" />
 								<path id="tempArc" class="gauge-arc-value" stroke="#dc3545" d="M20,80 A60,60 0 0 1 140,80" />
 							</svg>
@@ -383,6 +452,7 @@ try {
 								</div>
 							</div>
 							<svg class="gauge-svg" viewBox="0 0 160 90" preserveAspectRatio="xMidYMid meet">
+								<path class="gauge-arc-background" d="M20,80 A60,60 0 0 1 140,80" />
 								<path class="gauge-arc-track" d="M20,80 A60,60 0 0 1 140,80" />
 								<path id="heatArc" class="gauge-arc-value" stroke="#f0ad4e" d="M20,80 A60,60 0 0 1 140,80" />
 							</svg>
@@ -406,6 +476,7 @@ try {
 								</div>
 							</div>
 							<svg class="gauge-svg" viewBox="0 0 160 90" preserveAspectRatio="xMidYMid meet">
+								<path class="gauge-arc-background" d="M20,80 A60,60 0 0 1 140,80" />
 								<path class="gauge-arc-track" d="M20,80 A60,60 0 0 1 140,80" />
 								<path id="flameArc" class="gauge-arc-value" stroke="#28a745" d="M20,80 A60,60 0 0 1 140,80" />
 							</svg>
@@ -830,7 +901,7 @@ $(function() {
 	});
 });
 </script>
- <?php include('../../../../components/scripts.php'); ?>
+ <?php include('../../components/scripts.php'); ?>
 </body>
 </html>
 

@@ -53,12 +53,12 @@ try {
         ]);
         
     } elseif ($emergencyOnly) {
-        // Get only devices with emergency status
+        // Get only devices with LATEST fire_data status being EMERGENCY or ACKNOWLEDGED
         $emergencyDevices = getEmergencyDevices($pdo);
         
         echo json_encode([
             'success' => true,
-            'message' => 'Emergency devices retrieved successfully',
+            'message' => 'Devices with latest EMERGENCY or ACKNOWLEDGED status retrieved successfully',
             'data' => $emergencyDevices,
             'count' => count($emergencyDevices)
         ]);

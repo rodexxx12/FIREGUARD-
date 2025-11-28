@@ -1,4 +1,14 @@
 <?php
+// Suppress error output for JSON responses
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
+ini_set('log_errors', 1);
+
+// Start output buffering to catch any accidental output
+if (!ob_get_level()) {
+    ob_start();
+}
+
 require_once 'common/database_utils.php';
 
 // Start session to get user_id
@@ -7,13 +17,42 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 try {
-    // Get filter parameters
-    $barangay = $_GET['barangay'] ?? '';
-    $month = $_GET['month'] ?? '';
-    $year = $_GET['year'] ?? '';
-    $startDate = $_GET['start_date'] ?? '';
-    $endDate = $_GET['end_date'] ?? '';
-    $deviceStatus = $_GET['device_status'] ?? ''; // Optional: filter by device status (online/offline/faulty)
+    // Get filter parameters with validation
+    $barangayRaw = $_GET['barangay'] ?? null;
+    $barangay = DatabaseUtils::sanitizeInt($barangayRaw, 1);
+    if ($barangayRaw !== null && $barangay === null) {
+        DatabaseUtils::sendError('Invalid barangay identifier.');
+    }
+
+    $monthRaw = $_GET['month'] ?? null;
+    $month = (isset($monthRaw) && preg_match('/^(0?[1-9]|1[0-2])$/', $monthRaw)) ? str_pad($monthRaw, 2, '0', STR_PAD_LEFT) : null;
+    if ($monthRaw && !$month) {
+        DatabaseUtils::sendError('Invalid month filter. Use 1-12.');
+    }
+
+    $yearRaw = $_GET['year'] ?? null;
+    $year = (isset($yearRaw) && preg_match('/^\d{4}$/', $yearRaw)) ? $yearRaw : null;
+    if ($yearRaw && !$year) {
+        DatabaseUtils::sendError('Invalid year filter. Use YYYY.');
+    }
+
+    $startDateRaw = $_GET['start_date'] ?? null;
+    $startDate = DatabaseUtils::sanitizeDate($startDateRaw);
+    if ($startDateRaw && !$startDate) {
+        DatabaseUtils::sendError('Invalid start date. Use YYYY-MM-DD format.');
+    }
+
+    $endDateRaw = $_GET['end_date'] ?? null;
+    $endDate = DatabaseUtils::sanitizeDate($endDateRaw);
+    if ($endDateRaw && !$endDate) {
+        DatabaseUtils::sendError('Invalid end date. Use YYYY-MM-DD format.');
+    }
+
+    $deviceStatusRaw = $_GET['device_status'] ?? null; // Optional: filter by device status
+    $deviceStatus = DatabaseUtils::sanitizeEnum($deviceStatusRaw, ['online', 'offline', 'faulty']);
+    if ($deviceStatusRaw && !$deviceStatus) {
+        DatabaseUtils::sendError('Invalid device status filter.');
+    }
     
     // Get user_id from session (optional - if not set, show all data)
     $userId = $_SESSION['user_id'] ?? null;
@@ -31,33 +70,29 @@ try {
         $params[':user_id'] = $userId;
     }
     
+    $timestampExpression = "COALESCE(STR_TO_DATE(fd.timestamp, '%Y-%m-%d %H:%i:%s'), STR_TO_DATE(fd.timestamp, '%Y-%m-%d'))";
+
     // Allow 0 values for heat/temp/smoke (they are valid readings)
-    // Only exclude NULL values - be more lenient
     $whereConditions[] = "fd.barangay_id IS NOT NULL"; // Ensure barangay_id exists
-    // Only require heat to be not null (most important for heat analysis)
     $whereConditions[] = "fd.heat IS NOT NULL";
+    $whereConditions[] = "{$timestampExpression} IS NOT NULL";
     
-    // Add date filters - handle VARCHAR timestamp
-    // timestamp is VARCHAR(50), so we need to handle it as string
+    // Add date filters against parsed timestamp
     if (!empty($month)) {
-        // Extract month from timestamp string (format: YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)
-        $whereConditions[] = "SUBSTRING(fd.timestamp, 6, 2) = :month";
-        $params[':month'] = str_pad($month, 2, '0', STR_PAD_LEFT);
+        $whereConditions[] = "MONTH({$timestampExpression}) = :month";
+        $params[':month'] = (int)$month;
     }
     if (!empty($year)) {
-        // Extract year from timestamp string (first 4 characters)
-        $whereConditions[] = "SUBSTRING(fd.timestamp, 1, 4) = :year";
-        $params[':year'] = $year;
+        $whereConditions[] = "YEAR({$timestampExpression}) = :year";
+        $params[':year'] = (int)$year;
     }
     if (!empty($startDate)) {
-        // Compare date part of timestamp string
-        $whereConditions[] = "SUBSTRING(fd.timestamp, 1, 10) >= :start_date";
-        $params[':start_date'] = $startDate;
+        $whereConditions[] = "{$timestampExpression} >= :start_date";
+        $params[':start_date'] = "{$startDate} 00:00:00";
     }
     if (!empty($endDate)) {
-        // Compare date part of timestamp string
-        $whereConditions[] = "SUBSTRING(fd.timestamp, 1, 10) <= :end_date";
-        $params[':end_date'] = $endDate;
+        $whereConditions[] = "{$timestampExpression} <= :end_date";
+        $params[':end_date'] = "{$endDate} 23:59:59";
     }
     
     // Query directly from fire_data table using barangay_id foreign key
@@ -79,9 +114,9 @@ try {
             LEFT JOIN devices d ON fd.device_id = d.device_id";
     
     // Add device status filter (optional)
-    if (!empty($deviceStatus) && in_array($deviceStatus, ['online', 'offline', 'faulty'])) {
+    if (!empty($deviceStatus)) {
         $whereConditions[] = "d.status = :device_status";
-        $params[':device_status'] = $deviceStatus;
+        $params[':device_status'] = strtolower($deviceStatus);
     }
     
     // Add barangay filter
@@ -99,9 +134,10 @@ try {
     $sql .= " GROUP BY b.id, b.barangay_name, b.latitude, b.longitude, b.ir_number 
               ORDER BY avg_heat DESC, b.barangay_name ASC";
     
-    // Log query for debugging (remove in production if needed)
-    error_log("Barangay Stats Query: " . $sql);
-    error_log("Barangay Stats Params: " . json_encode($params));
+    if (DatabaseUtils::isDebugEnabled()) {
+        error_log("Barangay Stats Query: " . $sql);
+        error_log("Barangay Stats Params: " . json_encode($params));
+    }
     
     try {
         $results = DatabaseUtils::executeQuery($sql, $params);

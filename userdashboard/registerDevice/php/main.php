@@ -1,12 +1,36 @@
 <?php
-session_start();
+// Error handling - environment-aware
+$isProduction = (getenv('APP_ENV') === 'production' || 
+                (isset($_SERVER['HTTP_HOST']) && 
+                 strpos($_SERVER['HTTP_HOST'], 'localhost') === false && 
+                 strpos($_SERVER['HTTP_HOST'], '127.0.0.1') === false));
+
+if ($isProduction) {
+    error_reporting(E_ALL);
+    ini_set('display_errors', '0');
+    ini_set('log_errors', '1');
+    $logDir = __DIR__ . '/../../logs';
+    if (!is_dir($logDir)) {
+        @mkdir($logDir, 0755, true);
+    }
+    ini_set('error_log', $logDir . '/php_errors.log');
+} else {
+    error_reporting(E_ALL);
+    ini_set('display_errors', '1');
+}
+
+// Start session first (before including session_config)
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Secure session configuration (now safe to include)
+require_once __DIR__ . '/../../includes/session_config.php';
+
 if (!isset($_SESSION['user_id'])) {
     header("Location: ../../../index.php");
     exit();
 }
-
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
 
 include('../../db/db.php');
 
@@ -15,9 +39,138 @@ function getDBConnection() {
     return getDatabaseConnection();
 }
 
+// ============================================================================
+// SECURITY FUNCTIONS: CSRF Protection, Input Validation, and Sanitization
+// ============================================================================
+
+/**
+ * Generate CSRF token and store in session
+ * @return string CSRF token
+ */
+function generateCsrfToken() {
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        $_SESSION['csrf_token_time'] = time();
+    }
+    // Regenerate token every 30 minutes for security
+    if (isset($_SESSION['csrf_token_time']) && (time() - $_SESSION['csrf_token_time']) > 1800) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        $_SESSION['csrf_token_time'] = time();
+    }
+    return $_SESSION['csrf_token'];
+}
+
+/**
+ * Validate CSRF token from request
+ * @param string $token Token to validate
+ * @return bool True if valid, false otherwise
+ */
+function validateCsrfToken($token) {
+    if (!isset($_SESSION['csrf_token']) || empty($token)) {
+        return false;
+    }
+    // Token expires after 2 hours
+    if (isset($_SESSION['csrf_token_time']) && (time() - $_SESSION['csrf_token_time']) > 7200) {
+        unset($_SESSION['csrf_token'], $_SESSION['csrf_token_time']);
+        return false;
+    }
+    return hash_equals($_SESSION['csrf_token'], $token);
+}
+
+/**
+ * Require valid CSRF token for POST requests
+ * Exits with error response if token is invalid
+ */
+function requireValidCsrfToken() {
+    $token = $_POST['csrf_token'] ?? '';
+    if (!validateCsrfToken($token)) {
+        http_response_code(419);
+        echo json_encode(['status' => 'error', 'message' => 'Invalid or expired CSRF token. Please refresh the page and try again.']);
+        exit;
+    }
+}
+
+/**
+ * Sanitize and validate string input
+ * @param string $value Input value
+ * @param int $maxLength Maximum allowed length
+ * @param string $pattern Regex pattern for validation
+ * @param string $fieldName Field name for error messages
+ * @return string Sanitized value
+ * @throws InvalidArgumentException
+ */
+function sanitizeString($value, $maxLength, $pattern, $fieldName = 'Field') {
+    $clean = trim($value);
+    
+    if ($clean === '') {
+        throw new InvalidArgumentException("{$fieldName} is required.");
+    }
+    
+    if (mb_strlen($clean) > $maxLength) {
+        throw new InvalidArgumentException("{$fieldName} must not exceed {$maxLength} characters.");
+    }
+    
+    if (!preg_match($pattern, $clean)) {
+        throw new InvalidArgumentException("{$fieldName} contains invalid characters.");
+    }
+    
+    return $clean;
+}
+
+/**
+ * Validate and normalize integer IDs
+ * @param mixed $value Input value
+ * @param string $fieldName Field name for error messages
+ * @param bool $allowNull Whether null is allowed
+ * @return int|null Validated integer or null
+ * @throws InvalidArgumentException
+ */
+function validateId($value, $fieldName = 'ID', $allowNull = true) {
+    if ($value === null || $value === '') {
+        if ($allowNull) {
+            return null;
+        }
+        throw new InvalidArgumentException("{$fieldName} is required.");
+    }
+    
+    $validated = filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+    if ($validated === false) {
+        throw new InvalidArgumentException("Invalid {$fieldName} provided.");
+    }
+    
+    return $validated;
+}
+
+/**
+ * Validate device status value
+ * @param string $status Status value
+ * @return string Validated status
+ */
+function validateDeviceStatus($status) {
+    $validStatuses = ['online', 'offline', 'faulty'];
+    $status = strtolower(trim($status));
+    return in_array($status, $validStatuses, true) ? $status : 'offline';
+}
+
+/**
+ * Escape output for HTML context (prevents XSS)
+ * @param string $value Value to escape
+ * @return string Escaped value
+ */
+function escapeHtml($value) {
+    return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+}
+
 // Handle AJAX POST request for registering device
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json');
+
+    // CSRF Protection: Validate token for all POST requests
+    // Exception: validate_field action doesn't require CSRF (it's a read-only validation)
+    $action = isset($_POST['action']) ? trim($_POST['action']) : null;
+    if ($action !== 'validate_field') {
+        requireValidCsrfToken();
+    }
 
     try {
         $conn = getDBConnection();
@@ -29,20 +182,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    $action = isset($_POST['action']) ? trim($_POST['action']) : null;
-
     if ($action === 'validate_field') {
         $field = isset($_POST['field']) ? trim($_POST['field']) : '';
         $value = isset($_POST['value']) ? trim($_POST['value']) : '';
-        $deviceId = isset($_POST['device_id']) ? (int)$_POST['device_id'] : null;
+        $deviceId = null;
+        if (isset($_POST['device_id']) && $_POST['device_id'] !== '') {
+            try {
+                $deviceId = validateId($_POST['device_id'], 'Device ID', false);
+            } catch (InvalidArgumentException $e) {
+                $deviceId = null;
+            }
+        }
         $response = ['valid' => false, 'message' => 'Unknown field validation request'];
 
         if ($field === 'device_number') {
             if ($value === '') {
                 $response = ['valid' => false, 'message' => 'Device number is required'];
             } else {
+                // Validate format: alphanumeric and hyphens, max 30 chars
+                try {
+                    $sanitizedValue = sanitizeString($value, 30, '/^[A-Z0-9\-]+$/i', 'Device number');
+                } catch (InvalidArgumentException $e) {
+                    $response = ['valid' => false, 'message' => $e->getMessage()];
+                    echo json_encode($response);
+                    exit;
+                }
+
                 $stmt = $conn->prepare("SELECT status FROM admin_devices WHERE device_number = ?");
-                $stmt->execute([$value]);
+                $stmt->execute([$sanitizedValue]);
                 $adminDevice = $stmt->fetch();
 
                 if (!$adminDevice) {
@@ -51,9 +218,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $response = ['valid' => false, 'message' => 'Device number is not approved for registration.'];
                 } else {
                     $query = "SELECT COUNT(*) FROM devices WHERE device_number = ? AND user_id = ?";
-                    $params = [$value, $user_id];
+                    $params = [$sanitizedValue, $user_id];
 
-                    if (!empty($deviceId)) {
+                    if ($deviceId !== null) {
                         $query .= " AND device_id != ?";
                         $params[] = $deviceId;
                     }
@@ -72,14 +239,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($value === '') {
                 $response = ['valid' => false, 'message' => 'Serial number is required'];
             } else {
+                // Validate format: alphanumeric and hyphens, max 40 chars
+                try {
+                    $sanitizedValue = sanitizeString($value, 40, '/^[A-Z0-9\-]+$/i', 'Serial number');
+                } catch (InvalidArgumentException $e) {
+                    $response = ['valid' => false, 'message' => $e->getMessage()];
+                    echo json_encode($response);
+                    exit;
+                }
+
                 $deviceNumber = isset($_POST['device_number']) ? trim($_POST['device_number']) : '';
 
                 if ($deviceNumber !== '') {
-                    $stmt = $conn->prepare("SELECT status FROM admin_devices WHERE serial_number = ? AND device_number = ?");
-                    $stmt->execute([$value, $deviceNumber]);
+                    try {
+                        $sanitizedDeviceNumber = sanitizeString($deviceNumber, 30, '/^[A-Z0-9\-]+$/i', 'Device number');
+                        $stmt = $conn->prepare("SELECT status FROM admin_devices WHERE serial_number = ? AND device_number = ?");
+                        $stmt->execute([$sanitizedValue, $sanitizedDeviceNumber]);
+                    } catch (InvalidArgumentException $e) {
+                        $stmt = $conn->prepare("SELECT status FROM admin_devices WHERE serial_number = ?");
+                        $stmt->execute([$sanitizedValue]);
+                    }
                 } else {
                     $stmt = $conn->prepare("SELECT status FROM admin_devices WHERE serial_number = ?");
-                    $stmt->execute([$value]);
+                    $stmt->execute([$sanitizedValue]);
                 }
                 $adminDevice = $stmt->fetch();
 
@@ -89,9 +271,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $response = ['valid' => false, 'message' => 'Serial number is not approved for registration.'];
                 } else {
                     $query = "SELECT COUNT(*) FROM devices WHERE serial_number = ?";
-                    $params = [$value];
+                    $params = [$sanitizedValue];
 
-                    if (!empty($deviceId)) {
+                    if ($deviceId !== null) {
                         $query .= " AND device_id != ?";
                         $params[] = $deviceId;
                     }
@@ -113,14 +295,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'update_device') {
-        $device_id = isset($_POST['device_id']) ? (int)$_POST['device_id'] : 0;
-
-        if ($device_id <= 0) {
+        try {
+            $device_id = validateId($_POST['device_id'] ?? null, 'Device ID', false);
+        } catch (InvalidArgumentException $e) {
             http_response_code(400);
             echo json_encode(['status' => 'error', 'message' => 'Invalid device selected.']);
             exit;
         }
 
+        // Verify device ownership
         $stmt = $conn->prepare("SELECT device_id FROM devices WHERE device_id = ? AND user_id = ?");
         $stmt->execute([$device_id, $user_id]);
 
@@ -130,36 +313,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        $device_name = isset($_POST['device_name']) ? htmlspecialchars(trim($_POST['device_name'])) : '';
-        $device_number = isset($_POST['device_number']) ? htmlspecialchars(trim($_POST['device_number'])) : '';
-        $serial_number = isset($_POST['serial_number']) ? htmlspecialchars(trim($_POST['serial_number'])) : '';
-        $device_type = isset($_POST['device_type']) ? htmlspecialchars(trim($_POST['device_type'])) : 'FIREGUARD DEVICE';
-        $status = isset($_POST['status']) ? htmlspecialchars(trim($_POST['status'])) : 'offline';
-        $barangay_id = isset($_POST['barangay_id']) && $_POST['barangay_id'] !== '' ? (int)$_POST['barangay_id'] : null;
-        $is_active = isset($_POST['is_active']) ? (int)$_POST['is_active'] : 0;
-
+        // Validate and sanitize input
         $errors = [];
-        if ($device_name === '') $errors[] = 'Device name is required';
-        if ($device_number === '') $errors[] = 'Device number is required';
-        if ($serial_number === '') $errors[] = 'Serial number is required';
-
-        if (!in_array($status, ['online', 'offline', 'faulty'])) {
-            $errors[] = 'Invalid device status';
+        try {
+            $device_name = sanitizeString($_POST['device_name'] ?? '', 100, '/^[\w\s\-\.,#]+$/u', 'Device name');
+        } catch (InvalidArgumentException $e) {
+            $errors[] = $e->getMessage();
         }
 
-        $stmt = $conn->prepare("SELECT COUNT(*) FROM devices WHERE device_number = ? AND user_id = ? AND device_id != ?");
-        $stmt->execute([$device_number, $user_id, $device_id]);
-        if ($stmt->fetchColumn() > 0) {
-            $errors[] = 'Device number already exists for your account';
+        try {
+            $device_number = sanitizeString($_POST['device_number'] ?? '', 30, '/^[A-Z0-9\-]+$/i', 'Device number');
+        } catch (InvalidArgumentException $e) {
+            $errors[] = $e->getMessage();
         }
 
-        $stmt = $conn->prepare("SELECT COUNT(*) FROM devices WHERE serial_number = ? AND device_id != ?");
-        $stmt->execute([$serial_number, $device_id]);
-        if ($stmt->fetchColumn() > 0) {
-            $errors[] = 'Serial number already exists';
+        try {
+            $serial_number = sanitizeString($_POST['serial_number'] ?? '', 40, '/^[A-Z0-9\-]+$/i', 'Serial number');
+        } catch (InvalidArgumentException $e) {
+            $errors[] = $e->getMessage();
         }
 
-        if ($device_number !== '' && $serial_number !== '') {
+        try {
+            $device_type = sanitizeString($_POST['device_type'] ?? 'FIREGUARD DEVICE', 50, '/^[\w\s\-]+$/u', 'Device type');
+        } catch (InvalidArgumentException $e) {
+            $device_type = 'FIREGUARD DEVICE';
+        }
+
+        $status = validateDeviceStatus($_POST['status'] ?? 'offline');
+        
+        $barangay_id = null;
+        if (isset($_POST['barangay_id']) && $_POST['barangay_id'] !== '') {
+            try {
+                $barangay_id = validateId($_POST['barangay_id'], 'Barangay ID', true);
+            } catch (InvalidArgumentException $e) {
+                $errors[] = $e->getMessage();
+            }
+        }
+
+        $is_active = (isset($_POST['is_active']) && (int)$_POST['is_active'] === 1) ? 1 : 0;
+
+        // Check for duplicate device numbers
+        if (!empty($device_number)) {
+            $stmt = $conn->prepare("SELECT COUNT(*) FROM devices WHERE device_number = ? AND user_id = ? AND device_id != ?");
+            $stmt->execute([$device_number, $user_id, $device_id]);
+            if ($stmt->fetchColumn() > 0) {
+                $errors[] = 'Device number already exists for your account';
+            }
+        }
+
+        // Check for duplicate serial numbers
+        if (!empty($serial_number)) {
+            $stmt = $conn->prepare("SELECT COUNT(*) FROM devices WHERE serial_number = ? AND device_id != ?");
+            $stmt->execute([$serial_number, $device_id]);
+            if ($stmt->fetchColumn() > 0) {
+                $errors[] = 'Serial number already exists';
+            }
+        }
+
+        // Validate device authorization
+        if (!empty($device_number) && !empty($serial_number)) {
             $stmt = $conn->prepare("SELECT status FROM admin_devices WHERE device_number = ? AND serial_number = ?");
             $stmt->execute([$device_number, $serial_number]);
             $adminDevice = $stmt->fetch();
@@ -171,7 +383,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        if (!empty($barangay_id)) {
+        // Validate barangay if provided
+        if ($barangay_id !== null) {
             $stmt = $conn->prepare("SELECT COUNT(*) FROM barangay WHERE id = ?");
             $stmt->execute([$barangay_id]);
             if ($stmt->fetchColumn() == 0) {
@@ -181,10 +394,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!empty($errors)) {
             http_response_code(400);
-            echo json_encode(['status' => 'error', 'message' => implode('<br>', $errors)]);
+            // Use text separator instead of HTML to prevent XSS
+            echo json_encode(['status' => 'error', 'message' => implode(' | ', $errors)]);
             exit;
         }
 
+        // Update device using prepared statement
         $stmt = $conn->prepare("
             UPDATE devices
             SET device_name = ?, device_number = ?, serial_number = ?, device_type = ?, status = ?, barangay_id = ?, is_active = ?
@@ -210,15 +425,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'toggle_device_status') {
-        $device_id = isset($_POST['device_id']) ? (int)$_POST['device_id'] : 0;
-        $is_active = isset($_POST['is_active']) ? (int)$_POST['is_active'] : 0;
-
-        if ($device_id <= 0) {
+        try {
+            $device_id = validateId($_POST['device_id'] ?? null, 'Device ID', false);
+        } catch (InvalidArgumentException $e) {
             http_response_code(400);
             echo json_encode(['status' => 'error', 'message' => 'Invalid device selected.']);
             exit;
         }
 
+        $is_active = (isset($_POST['is_active']) && (int)$_POST['is_active'] === 1) ? 1 : 0;
+
+        // Verify device ownership
         $stmt = $conn->prepare("SELECT device_id FROM devices WHERE device_id = ? AND user_id = ?");
         $stmt->execute([$device_id, $user_id]);
 
@@ -228,6 +445,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
+        // Update device status
         $stmt = $conn->prepare("UPDATE devices SET is_active = ? WHERE device_id = ? AND user_id = ?");
         if (!$stmt->execute([$is_active, $device_id, $user_id])) {
             throw new Exception("Failed to update device status");
@@ -244,34 +462,74 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     try {
-        $device_name = isset($_POST['device_name']) ? htmlspecialchars(trim($_POST['device_name'])) : '';
-        $device_number = isset($_POST['device_number']) ? htmlspecialchars(trim($_POST['device_number'])) : '';
-        $serial_number = isset($_POST['serial_number']) ? htmlspecialchars(trim($_POST['serial_number'])) : '';
-        $device_type = isset($_POST['device_type']) ? htmlspecialchars(trim($_POST['device_type'])) : 'FIREGUARD DEVICE';
-        $is_active = isset($_POST['is_active']) ? 1 : 1;
-        $status = isset($_POST['status']) ? htmlspecialchars(trim($_POST['status'])) : 'offline';
-        $building_id = !empty($_POST['building_id']) ? (int)$_POST['building_id'] : null;
-        $barangay_id = !empty($_POST['barangay_id']) ? (int)$_POST['barangay_id'] : null;
-        $wifi_ssid = isset($_POST['wifi_ssid']) ? htmlspecialchars(trim($_POST['wifi_ssid'])) : null;
-        $wifi_password = isset($_POST['wifi_password']) ? htmlspecialchars(trim($_POST['wifi_password'])) : null;
-
+        // Validate and sanitize input
         $errors = [];
-        if (empty($device_name)) $errors[] = 'Device name is required';
-        if (empty($device_number)) $errors[] = 'Device number is required';
-        if (empty($serial_number)) $errors[] = 'Serial number is required';
-
-        $stmt = $conn->prepare("SELECT COUNT(*) FROM devices WHERE device_number = ? AND user_id = ?");
-        $stmt->execute([$device_number, $user_id]);
-        if ($stmt->fetchColumn() > 0) {
-            $errors[] = 'Device number already exists for your account';
+        
+        try {
+            $device_name = sanitizeString($_POST['device_name'] ?? '', 100, '/^[\w\s\-\.,#]+$/u', 'Device name');
+        } catch (InvalidArgumentException $e) {
+            $errors[] = $e->getMessage();
         }
 
-        $stmt = $conn->prepare("SELECT COUNT(*) FROM devices WHERE serial_number = ?");
-        $stmt->execute([$serial_number]);
-        if ($stmt->fetchColumn() > 0) {
-            $errors[] = 'Serial number already exists';
+        try {
+            $device_number = sanitizeString($_POST['device_number'] ?? '', 30, '/^[A-Z0-9\-]+$/i', 'Device number');
+        } catch (InvalidArgumentException $e) {
+            $errors[] = $e->getMessage();
         }
 
+        try {
+            $serial_number = sanitizeString($_POST['serial_number'] ?? '', 40, '/^[A-Z0-9\-]+$/i', 'Serial number');
+        } catch (InvalidArgumentException $e) {
+            $errors[] = $e->getMessage();
+        }
+
+        try {
+            $device_type = sanitizeString($_POST['device_type'] ?? 'FIREGUARD DEVICE', 50, '/^[\w\s\-]+$/u', 'Device type');
+        } catch (InvalidArgumentException $e) {
+            $device_type = 'FIREGUARD DEVICE';
+        }
+
+        $status = validateDeviceStatus($_POST['status'] ?? 'offline');
+        $is_active = (isset($_POST['is_active']) && (int)$_POST['is_active'] === 1) ? 1 : 1;
+
+        // Validate IDs
+        $building_id = null;
+        if (isset($_POST['building_id']) && $_POST['building_id'] !== '') {
+            try {
+                $building_id = validateId($_POST['building_id'], 'Building ID', true);
+            } catch (InvalidArgumentException $e) {
+                $errors[] = $e->getMessage();
+            }
+        }
+
+        $barangay_id = null;
+        if (isset($_POST['barangay_id']) && $_POST['barangay_id'] !== '') {
+            try {
+                $barangay_id = validateId($_POST['barangay_id'], 'Barangay ID', true);
+            } catch (InvalidArgumentException $e) {
+                $errors[] = $e->getMessage();
+            }
+        }
+
+        // Check for duplicate device numbers
+        if (!empty($device_number)) {
+            $stmt = $conn->prepare("SELECT COUNT(*) FROM devices WHERE device_number = ? AND user_id = ?");
+            $stmt->execute([$device_number, $user_id]);
+            if ($stmt->fetchColumn() > 0) {
+                $errors[] = 'Device number already exists for your account';
+            }
+        }
+
+        // Check for duplicate serial numbers
+        if (!empty($serial_number)) {
+            $stmt = $conn->prepare("SELECT COUNT(*) FROM devices WHERE serial_number = ?");
+            $stmt->execute([$serial_number]);
+            if ($stmt->fetchColumn() > 0) {
+                $errors[] = 'Serial number already exists';
+            }
+        }
+
+        // Validate device authorization
         if (!empty($device_number) && !empty($serial_number)) {
             $stmt = $conn->prepare("SELECT status FROM admin_devices WHERE device_number = ? AND serial_number = ?");
             $stmt->execute([$device_number, $serial_number]);
@@ -284,11 +542,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        if (!in_array($status, ['online', 'offline', 'faulty'])) {
-            $errors[] = 'Invalid device status';
-        }
-
-        if (!empty($building_id)) {
+        // Validate building if provided
+        if ($building_id !== null) {
             $stmt = $conn->prepare("SELECT COUNT(*) FROM buildings WHERE id = ? AND user_id = ?");
             $stmt->execute([$building_id, $user_id]);
             if ($stmt->fetchColumn() == 0) {
@@ -296,7 +551,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        if (!empty($barangay_id)) {
+        // Validate barangay if provided
+        if ($barangay_id !== null) {
             $stmt = $conn->prepare("SELECT COUNT(*) FROM barangay WHERE id = ?");
             $stmt->execute([$barangay_id]);
             if ($stmt->fetchColumn() == 0) {
@@ -306,10 +562,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!empty($errors)) {
             http_response_code(400);
-            echo json_encode(['status' => 'error', 'message' => implode('<br>', $errors)]);
+            // Use text separator instead of HTML to prevent XSS
+            echo json_encode(['status' => 'error', 'message' => implode(' | ', $errors)]);
             exit;
         }
 
+        // Insert device using prepared statement
         $stmt = $conn->prepare("INSERT INTO devices 
             (user_id, device_name, device_number, serial_number, device_type, is_active, status, building_id, barangay_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
@@ -328,10 +586,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'message' => 'Device registered successfully!',
             'device_id' => $device_id
         ]);
+    } catch (InvalidArgumentException $e) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
     } catch (Exception $e) {
         error_log("Device registration error: " . $e->getMessage());
         http_response_code(500);
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()]);
+        echo json_encode(['status' => 'error', 'message' => 'Database error occurred. Please try again.']);
     }
     exit;
 }
@@ -393,6 +654,9 @@ try {
 } catch (Exception $e) {
     $devices = [];
 }
+
+// Generate CSRF token for forms
+$csrf_token = generateCsrfToken();
 ?>
 <?php include('../../components/header.php'); ?>
 <style>
@@ -402,41 +666,129 @@ try {
         box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         margin-bottom: 20px;
     }
+    .main-content {
+        padding: 20px 15px 40px;
+    }
     .x_title {
         border-bottom: 1px solid #e5e5e5;
         padding: 15px 20px;
         margin-bottom: 0;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
     }
     .x_title h2 {
         margin: 0;
         font-size: 18px;
         font-weight: 600;
         color: #333;
+        flex: 1 1 auto;
     }
     .x_content {
         padding: 20px;
     }
     .item.form-group {
-        margin-bottom: 20px;
+        margin-bottom: 10px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
     }
     .item.form-group label {
         font-weight: 600;
         color: #555;
+        display: block;
+        margin-bottom: 3px;
+        min-height: 18px;
+        line-height: 1.3;
+        text-align: left;
+        font-size: 13px;
+    }
+    .item.form-group > div {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    #registerDeviceModal .modal-body,
+    #updateDeviceModal .modal-body {
+        padding: 15px 20px;
+    }
+    #registerDeviceModal .modal-body .mb-3,
+    #updateDeviceModal .modal-body .mb-3 {
+        margin-bottom: 10px !important;
+    }
+    .item.form-group:last-of-type {
+        margin-bottom: 8px;
+    }
+    .modal-body .item.form-group:last-child {
+        margin-bottom: 0;
+    }
+    .modal-body .item.form-group .col-md-12.text-right {
+        margin-top: 5px;
+        padding-top: 5px;
+    }
+    .modal-body .row {
+        margin-bottom: 0;
+        margin-left: -8px;
+        margin-right: -8px;
+        display: flex;
+        align-items: stretch;
+    }
+    .modal-body .row .col-md-6 {
+        padding-left: 8px;
+        padding-right: 8px;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    }
+    .modal-body .row .col-md-6:first-child::after {
+        content: '';
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        background-color: #e5e5e5;
+        border-right: 1px solid #e5e5e5;
+    }
+    .modal-body .row .col-md-6:last-child {
+        padding-left: 12px;
+    }
+    .modal-body .row .col-md-6 .item.form-group {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
     }
     .item.form-group label.required:after,
     .item.form-group label .required {
         color: #e74c3c;
     }
+    .item.form-group label:empty {
+        min-height: 20px;
+        display: block;
+    }
     .ln_solid {
         border-top: 1px solid #e5e5e5;
-        margin: 20px 0;
+        margin: 10px 0;
     }
     .form-control {
         border-radius: 4px;
         border: 1px solid #ddd;
-        padding: 8px 12px;
-        font-size: 14px;
+        padding: 6px 10px;
+        font-size: 13px;
         transition: border-color 0.3s;
+        height: 34px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    select.form-control {
+        height: 34px;
+        line-height: 20px;
+    }
+    .modal-body .item.form-group input[type="text"],
+    .modal-body .item.form-group input[type="text"].form-control,
+    .modal-body .item.form-group select.form-control {
+        height: 34px;
     }
     .form-control:focus {
         border-color: #26B99A;
@@ -447,8 +799,8 @@ try {
         background-color: #26B99A;
         border-color: #26B99A;
         color: white;
-        padding: 10px 20px;
-        font-size: 14px;
+        padding: 8px 16px;
+        font-size: 13px;
         border-radius: 4px;
         transition: all 0.3s;
     }
@@ -460,8 +812,8 @@ try {
         background-color: #f4f4f4;
         border-color: #ddd;
         color: #333;
-        padding: 10px 20px;
-        font-size: 14px;
+        padding: 8px 16px;
+        font-size: 13px;
         border-radius: 4px;
         transition: all 0.3s;
     }
@@ -471,14 +823,46 @@ try {
     }
     .help-block {
         color: #737373;
-        font-size: 12px;
-        margin-top: 5px;
+        font-size: 11px;
+        margin-top: 2px;
+        min-height: 14px;
+        line-height: 1.3;
+        display: block;
+        margin-bottom: 0;
     }
     .invalid-feedback {
         display: none;
         color: #e74c3c;
-        font-size: 12px;
-        margin-top: 5px;
+        font-size: 11px;
+        margin-top: 2px;
+        min-height: 14px;
+        line-height: 1.3;
+    }
+    .modal-body .item.form-group .checkbox {
+        margin-top: 4px;
+        margin-bottom: 2px;
+    }
+    .modal-body .item.form-group .checkbox label {
+        font-weight: normal;
+        margin-bottom: 0;
+        min-height: auto;
+    }
+    .modal-body .item.form-group > div {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+    }
+    .modal-body .item.form-group label {
+        text-align: left;
+        margin-bottom: 5px;
+    }
+    @media (max-width: 768px) {
+        .modal-body .row {
+            flex-direction: column;
+        }
+        .modal-body .row .col-md-6 {
+            width: 100%;
+        }
     }
     .form-control.is-invalid {
         border-color: #e74c3c;
@@ -506,6 +890,8 @@ try {
         display: flex;
         align-items: center;
         gap: 10px;
+        flex-wrap: wrap;
+        margin-left: auto;
     }
     .add-device-btn {
         background: #1abb9c;
@@ -599,6 +985,12 @@ try {
     .device-actions .btn {
         margin-right: 5px;
         margin-bottom: 5px;
+        min-width: 28px;
+        padding: 5px 8px;
+        text-align: center;
+    }
+    .device-actions .btn i {
+        margin: 0;
     }
     .device-empty-state {
         text-align: center;
@@ -610,19 +1002,111 @@ try {
         margin-bottom: 12px;
         color: #bdc3c7;
     }
+    @media (max-width: 992px) {
+        .x_content {
+            padding: 16px;
+        }
+        .panel_toolbox {
+            justify-content: flex-start;
+        }
+        .device-status-nav {
+            justify-content: flex-start;
+        }
+    }
+    @media (max-width: 768px) {
+        .x_title {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+        }
+        .panel_toolbox {
+            width: 100%;
+            padding-top: 6px;
+        }
+        .add-device-btn {
+            width: 100%;
+            justify-content: center;
+        }
+        .device-status-nav {
+            flex-direction: column;
+        }
+        .device-status-filter {
+            width: 100%;
+            text-align: center;
+        }
+        .modal-dialog {
+            margin: 15px;
+        }
+        .modal-dialog.modal-lg {
+            max-width: 100%;
+        }
+    }
+    @media (max-width: 576px) {
+        .item.form-group {
+            display: block;
+        }
+        .item.form-group .col-md-3,
+        .item.form-group .col-sm-3,
+        .item.form-group .col-md-6,
+        .item.form-group .col-sm-6 {
+            width: 100%;
+            float: none;
+        }
+        .item.form-group .col-md-3,
+        .item.form-group .col-sm-3 {
+            margin-bottom: 6px;
+            text-align: left;
+        }
+        .item.form-group .col-md-6,
+        .item.form-group .col-sm-6 {
+            padding-left: 0;
+            padding-right: 0;
+        }
+        #devicesTable thead {
+            display: none;
+        }
+        #devicesTable tbody tr {
+            display: block;
+            margin-bottom: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 12px 14px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+        #devicesTable tbody td {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: none !important;
+            padding: 6px 0;
+            font-size: 13px;
+        }
+        #devicesTable tbody td:before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: #4a5568;
+            margin-right: 10px;
+            text-align: left;
+        }
+        .device-actions .btn {
+            width: auto;
+            min-width: 28px;
+            margin-right: 5px;
+        }
+        .device-actions .btn + .btn {
+            margin-top: 0;
+        }
+    }
 </style>
 <body class="nav-md">
     <div class="container body">
       <div class="main_container">
-        <div class="col-md-3 left_col">
-          <div class="left_col scroll-view">
             <?php include('../../components/sidebar.php'); ?>
             </div>
           </div>
         </div>
         <?php include('../../components/navigation.php')?>
-        <div class="right_col" role="main">        
-            <main class="main-content">
+        <div class="right_col" role="main"> 
                 <div class="">
                     <div class="clearfix"></div>
                     <div class="row">
@@ -664,27 +1148,27 @@ try {
                                                 <?php if (!empty($devices)): ?>
                                                     <?php foreach ($devices as $device): ?>
                                                         <tr>
-                                                            <td><?php echo htmlspecialchars($device['device_name']); ?></td>
-                                                            <td><?php echo htmlspecialchars($device['device_number']); ?></td>
-                                                            <td><?php echo htmlspecialchars($device['serial_number']); ?></td>
-                                                            <td><?php echo htmlspecialchars($device['device_type']); ?></td>
-                                                            <td>
+                                                            <td data-label="Device Name"><?php echo htmlspecialchars($device['device_name']); ?></td>
+                                                            <td data-label="Device Number"><?php echo htmlspecialchars($device['device_number']); ?></td>
+                                                            <td data-label="Serial Number"><?php echo htmlspecialchars($device['serial_number']); ?></td>
+                                                            <td data-label="Device Type"><?php echo htmlspecialchars($device['device_type']); ?></td>
+                                                            <td data-label="Status">
                                                                 <?php
                                                                     $statusClass = strtolower($device['status']);
                                                                     $statusLabel = ucfirst($device['status']);
                                                                 ?>
                                                                 <span class="label-status <?php echo $statusClass; ?>"><?php echo htmlspecialchars($statusLabel); ?></span>
                                                             </td>
-                                                            <td>
+                                                            <td data-label="Active">
                                                                 <?php if ((int)$device['is_active'] === 1): ?>
                                                                     <span class="label-active active">Active</span>
                                                                 <?php else: ?>
                                                                     <span class="label-active inactive">Inactive</span>
                                                                 <?php endif; ?>
                                                             </td>
-                                                            <td><?php echo !empty($device['barangay_name']) ? htmlspecialchars($device['barangay_name']) : '<em>-</em>'; ?></td>
-                                                            <td><?php echo htmlspecialchars(date('M d, Y g:i A', strtotime($device['created_at']))); ?></td>
-                                                            <td class="device-actions">
+                                                            <td data-label="Barangay"><?php echo !empty($device['barangay_name']) ? htmlspecialchars($device['barangay_name']) : '<em>-</em>'; ?></td>
+                                                            <td data-label="Created"><?php echo htmlspecialchars(date('M d, Y g:i A', strtotime($device['created_at']))); ?></td>
+                                                            <td class="device-actions" data-label="Actions">
                                                                 <?php $isActive = (int)$device['is_active']; ?>
                                                                 <button 
                                                                     type="button" 
@@ -697,23 +1181,25 @@ try {
                                                                     data-status="<?php echo htmlspecialchars($device['status'], ENT_QUOTES, 'UTF-8'); ?>"
                                                                     data-is-active="<?php echo $isActive; ?>"
                                                                     data-barangay-id="<?php echo $device['barangay_id'] !== null ? (int)$device['barangay_id'] : ''; ?>"
+                                                                    title="Update Device"
                                                                 >
-                                                                    <i class="fa fa-pencil"></i> Update
+                                                                    <i class="fa fa-pencil"></i>
                                                                 </button>
                                                                 <button 
                                                                     type="button" 
                                                                     class="btn btn-xs toggle-device-btn <?php echo $isActive ? 'btn-warning' : 'btn-success'; ?>"
                                                                     data-device-id="<?php echo (int)$device['device_id']; ?>"
                                                                     data-is-active="<?php echo $isActive; ?>"
+                                                                    title="<?php echo $isActive ? 'Disable Device' : 'Enable Device'; ?>"
                                                                 >
-                                                                    <i class="fa fa-power-off"></i> <?php echo $isActive ? 'Disable' : 'Enable'; ?>
+                                                                    <i class="fa fa-power-off"></i>
                                                                 </button>
                                                             </td>
                                                         </tr>
                                                     <?php endforeach; ?>
                                                 <?php else: ?>
                                                     <tr>
-                                                        <td colspan="9">
+                                                        <td colspan="9" data-label="Devices">
                                                             <div class="device-empty-state">
                                                                 <i class="fa fa-tablet"></i>
                                                                 <p>You haven&apos;t registered any devices yet. Click the <strong>Add Device</strong> button to get started.</p>
@@ -743,90 +1229,120 @@ try {
                             <div class="modal-body">
                                 <div id="alert-container" class="mb-3"></div>
                                 <form id="deviceForm" class="form-horizontal form-label-left" novalidate>
-                                    <div class="item form-group">
-                                        <label class="col-form-label col-md-3 col-sm-3 label-align required" for="device_name">
-                                            Device Name <span class="required">*</span>
-                                        </label>
-                                        <div class="col-md-6 col-sm-6">
-                                            <input type="text" class="form-control" id="device_name" name="device_name" required="required">
-                                            <span class="help-block">Enter a descriptive name for your device (e.g., "Kitchen Sensor", "Main Hall Device")</span>
-                                            <div class="invalid-feedback">Please provide a device name</div>
-                                        </div>
-                                    </div>
-
-                                    <div class="item form-group">
-                                        <label class="col-form-label col-md-3 col-sm-3 label-align required" for="device_number">
-                                            Device Number <span class="required">*</span>
-                                        </label>
-                                        <div class="col-md-6 col-sm-6">
-                                            <input type="text" class="form-control" id="device_number" name="device_number" required="required">
-                                            <span class="help-block">Unique identifier for this device</span>
-                                            <div class="invalid-feedback">Please provide a device number</div>
-                                        </div>
-                                    </div>
-
-                                    <div class="item form-group">
-                                        <label class="col-form-label col-md-3 col-sm-3 label-align required" for="serial_number">
-                                            Serial Number <span class="required">*</span>
-                                        </label>
-                                        <div class="col-md-6 col-sm-6">
-                                            <input type="text" class="form-control" id="serial_number" name="serial_number" required="required">
-                                            <span class="help-block">Device serial number (must be unique)</span>
-                                            <div class="invalid-feedback">Please provide a serial number</div>
-                                        </div>
-                                    </div>
-
-                                    <div class="item form-group">
-                                        <label class="col-form-label col-md-3 col-sm-3 label-align" for="device_type">Device Type</label>
-                                        <div class="col-md-6 col-sm-6">
-                                            <input type="text" class="form-control" id="device_type" name="device_type" value="FIREGUARD DEVICE">
-                                            <span class="help-block">Type of device (default: FIREGUARD DEVICE)</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="item form-group">
-                                        <label class="col-form-label col-md-3 col-sm-3 label-align" for="status">Status</label>
-                                        <div class="col-md-6 col-sm-6">
-                                            <select class="form-control" id="status" name="status">
-                                                <option value="offline" selected>Offline</option>
-                                                <option value="online">Online</option>
-                                                <option value="faulty">Faulty</option>
-                                            </select>
-                                            <span class="help-block">Current device status</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="item form-group">
-                                        <label class="col-form-label col-md-3 col-sm-3 label-align" for="barangay_id">Assign to Barangay</label>
-                                        <div class="col-md-6 col-sm-6">
-                                            <select class="form-control" id="barangay_id" name="barangay_id">
-                                                <option value="">-- Select Barangay (Optional) --</option>
-                                                <?php foreach ($barangays as $barangay): ?>
-                                                    <option value="<?php echo $barangay['id']; ?>">
-                                                        <?php echo htmlspecialchars($barangay['barangay_name']); ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                            <span class="help-block">Link this device to a barangay jurisdiction (optional)</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="item form-group">
-                                        <label class="col-form-label col-md-3 col-sm-3 label-align"></label>
-                                        <div class="col-md-6 col-sm-6">
-                                            <div class="checkbox">
-                                                <label>
-                                                    <input type="checkbox" id="is_active" name="is_active" value="1" checked>
-                                                    Device is Active
+                                    <input type="hidden" name="csrf_token" value="<?php echo escapeHtml($csrf_token); ?>">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="item form-group">
+                                                <label class="col-form-label label-align required" for="device_name">
+                                                    Device Name <span class="required">*</span>
                                                 </label>
+                                                <div>
+                                                    <input type="text" class="form-control" id="device_name" name="device_name" required="required">
+                                                    <span class="help-block">Enter a descriptive name for your device</span>
+                                                    <div class="invalid-feedback">Please provide a device name</div>
+                                                </div>
                                             </div>
-                                            <span class="help-block">Uncheck to deactivate this device</span>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="item form-group">
+                                                <label class="col-form-label label-align required" for="device_number">
+                                                    Device Number <span class="required">*</span>
+                                                </label>
+                                                <div>
+                                                    <input type="text" class="form-control" id="device_number" name="device_number" required="required">
+                                                    <span class="help-block">Unique identifier for this device</span>
+                                                    <div class="invalid-feedback">Please provide a device number</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="item form-group">
+                                                <label class="col-form-label label-align required" for="serial_number">
+                                                    Serial Number <span class="required">*</span>
+                                                </label>
+                                                <div>
+                                                    <input type="text" class="form-control" id="serial_number" name="serial_number" required="required">
+                                                    <span class="help-block">Device serial number (must be unique)</span>
+                                                    <div class="invalid-feedback">Please provide a serial number</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="item form-group">
+                                                <label class="col-form-label label-align" for="device_type">Device Type</label>
+                                                <div>
+                                                    <input type="text" class="form-control" id="device_type" name="device_type" value="FIREGUARD DEVICE">
+                                                    <span class="help-block">Type of device (default: FIREGUARD DEVICE)</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="item form-group">
+                                                <label class="col-form-label label-align" for="status">Status</label>
+                                                <div>
+                                                    <select class="form-control" id="status" name="status">
+                                                        <option value="offline" selected>Offline</option>
+                                                        <option value="online">Online</option>
+                                                        <option value="faulty">Faulty</option>
+                                                    </select>
+                                                    <span class="help-block">Current device status</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="item form-group">
+                                                <label class="col-form-label label-align" for="barangay_id">Assign to Barangay</label>
+                                                <div>
+                                                    <select class="form-control" id="barangay_id" name="barangay_id">
+                                                        <option value="">-- Select Barangay (Optional) --</option>
+                                                        <?php foreach ($barangays as $barangay): ?>
+                                                            <option value="<?php echo $barangay['id']; ?>">
+                                                                <?php echo htmlspecialchars($barangay['barangay_name']); ?>
+                                                            </option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                    <span class="help-block">Link this device to a barangay (optional)</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="item form-group">
+                                                <label class="col-form-label label-align" for="is_active">Device Status</label>
+                                                <div>
+                                                    <div class="checkbox">
+                                                        <label>
+                                                            <input type="checkbox" id="is_active" name="is_active" value="1" checked>
+                                                            Device is Active
+                                                        </label>
+                                                    </div>
+                                                    <span class="help-block">Uncheck to deactivate this device</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <!-- Empty column for alignment -->
+                                            <div class="item form-group" style="visibility: hidden;">
+                                                <label class="col-form-label label-align"></label>
+                                                <div>
+                                                    <div style="height: 34px;"></div>
+                                                    <span class="help-block"></span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 
                                     <div class="ln_solid"></div>
                                     <div class="item form-group">
-                                        <div class="col-md-6 col-sm-6 col-md-offset-3 col-sm-offset-3">
+                                        <div class="col-md-12 text-right">
                                             <button type="button" class="btn btn-default" onclick="resetForm()">Reset</button>
                                             <button type="submit" class="btn btn-success">Register Device</button>
                                         </div>
@@ -850,92 +1366,122 @@ try {
                             <div class="modal-body">
                                 <div id="update-alert-container" class="mb-3"></div>
                                 <form id="updateDeviceForm" class="form-horizontal form-label-left" novalidate>
+                                    <input type="hidden" name="csrf_token" value="<?php echo escapeHtml($csrf_token); ?>">
                                     <input type="hidden" id="update_device_id" name="device_id">
 
-                                    <div class="item form-group">
-                                        <label class="col-form-label col-md-3 col-sm-3 label-align required" for="update_device_name">
-                                            Device Name <span class="required">*</span>
-                                        </label>
-                                        <div class="col-md-6 col-sm-6">
-                                            <input type="text" class="form-control" id="update_device_name" name="device_name" required="required">
-                                            <span class="help-block">Enter a descriptive name for your device.</span>
-                                            <div class="invalid-feedback">Please provide a device name</div>
-                                        </div>
-                                    </div>
-
-                                    <div class="item form-group">
-                                        <label class="col-form-label col-md-3 col-sm-3 label-align required" for="update_device_number">
-                                            Device Number <span class="required">*</span>
-                                        </label>
-                                        <div class="col-md-6 col-sm-6">
-                                            <input type="text" class="form-control" id="update_device_number" name="device_number" required="required">
-                                            <span class="help-block">Unique identifier for this device</span>
-                                            <div class="invalid-feedback">Please provide a device number</div>
-                                        </div>
-                                    </div>
-
-                                    <div class="item form-group">
-                                        <label class="col-form-label col-md-3 col-sm-3 label-align required" for="update_serial_number">
-                                            Serial Number <span class="required">*</span>
-                                        </label>
-                                        <div class="col-md-6 col-sm-6">
-                                            <input type="text" class="form-control" id="update_serial_number" name="serial_number" required="required">
-                                            <span class="help-block">Device serial number (must be unique)</span>
-                                            <div class="invalid-feedback">Please provide a serial number</div>
-                                        </div>
-                                    </div>
-
-                                    <div class="item form-group">
-                                        <label class="col-form-label col-md-3 col-sm-3 label-align" for="update_device_type">Device Type</label>
-                                        <div class="col-md-6 col-sm-6">
-                                            <input type="text" class="form-control" id="update_device_type" name="device_type" value="FIREGUARD DEVICE">
-                                            <span class="help-block">Type of device (default: FIREGUARD DEVICE)</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="item form-group">
-                                        <label class="col-form-label col-md-3 col-sm-3 label-align" for="update_status">Status</label>
-                                        <div class="col-md-6 col-sm-6">
-                                            <select class="form-control" id="update_status" name="status">
-                                                <option value="offline">Offline</option>
-                                                <option value="online">Online</option>
-                                                <option value="faulty">Faulty</option>
-                                            </select>
-                                            <span class="help-block">Current device status</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="item form-group">
-                                        <label class="col-form-label col-md-3 col-sm-3 label-align" for="update_barangay_id">Assign to Barangay</label>
-                                        <div class="col-md-6 col-sm-6">
-                                            <select class="form-control" id="update_barangay_id" name="barangay_id">
-                                                <option value="">-- Select Barangay (Optional) --</option>
-                                                <?php foreach ($barangays as $barangay): ?>
-                                                    <option value="<?php echo $barangay['id']; ?>">
-                                                        <?php echo htmlspecialchars($barangay['barangay_name']); ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                            <span class="help-block">Link this device to a barangay jurisdiction (optional)</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="item form-group">
-                                        <label class="col-form-label col-md-3 col-sm-3 label-align"></label>
-                                        <div class="col-md-6 col-sm-6">
-                                            <div class="checkbox">
-                                                <label>
-                                                    <input type="checkbox" id="update_is_active" name="is_active" value="1">
-                                                    Device is Active
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="item form-group">
+                                                <label class="col-form-label label-align required" for="update_device_name">
+                                                    Device Name <span class="required">*</span>
                                                 </label>
+                                                <div>
+                                                    <input type="text" class="form-control" id="update_device_name" name="device_name" required="required">
+                                                    <span class="help-block">Enter a descriptive name for your device.</span>
+                                                    <div class="invalid-feedback">Please provide a device name</div>
+                                                </div>
                                             </div>
-                                            <span class="help-block">Uncheck to deactivate this device</span>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="item form-group">
+                                                <label class="col-form-label label-align required" for="update_device_number">
+                                                    Device Number <span class="required">*</span>
+                                                </label>
+                                                <div>
+                                                    <input type="text" class="form-control" id="update_device_number" name="device_number" required="required">
+                                                    <span class="help-block">Unique identifier for this device</span>
+                                                    <div class="invalid-feedback">Please provide a device number</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="item form-group">
+                                                <label class="col-form-label label-align required" for="update_serial_number">
+                                                    Serial Number <span class="required">*</span>
+                                                </label>
+                                                <div>
+                                                    <input type="text" class="form-control" id="update_serial_number" name="serial_number" required="required">
+                                                    <span class="help-block">Device serial number (must be unique)</span>
+                                                    <div class="invalid-feedback">Please provide a serial number</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="item form-group">
+                                                <label class="col-form-label label-align" for="update_device_type">Device Type</label>
+                                                <div>
+                                                    <input type="text" class="form-control" id="update_device_type" name="device_type" value="FIREGUARD DEVICE">
+                                                    <span class="help-block">Type of device (default: FIREGUARD DEVICE)</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="item form-group">
+                                                <label class="col-form-label label-align" for="update_status">Status</label>
+                                                <div>
+                                                    <select class="form-control" id="update_status" name="status">
+                                                        <option value="offline">Offline</option>
+                                                        <option value="online">Online</option>
+                                                        <option value="faulty">Faulty</option>
+                                                    </select>
+                                                    <span class="help-block">Current device status</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="item form-group">
+                                                <label class="col-form-label label-align" for="update_barangay_id">Assign to Barangay</label>
+                                                <div>
+                                                    <select class="form-control" id="update_barangay_id" name="barangay_id">
+                                                        <option value="">-- Select Barangay (Optional) --</option>
+                                                        <?php foreach ($barangays as $barangay): ?>
+                                                            <option value="<?php echo $barangay['id']; ?>">
+                                                                <?php echo htmlspecialchars($barangay['barangay_name']); ?>
+                                                            </option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                    <span class="help-block">Link this device to a barangay (optional)</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="item form-group">
+                                                <label class="col-form-label label-align" for="update_is_active">Device Status</label>
+                                                <div>
+                                                    <div class="checkbox">
+                                                        <label>
+                                                            <input type="checkbox" id="update_is_active" name="is_active" value="1">
+                                                            Device is Active
+                                                        </label>
+                                                    </div>
+                                                    <span class="help-block">Uncheck to deactivate this device</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <!-- Empty column for alignment -->
+                                            <div class="item form-group" style="visibility: hidden;">
+                                                <label class="col-form-label label-align"></label>
+                                                <div>
+                                                    <div style="height: 34px;"></div>
+                                                    <span class="help-block"></span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 
                                     <div class="ln_solid"></div>
                                     <div class="item form-group">
-                                        <div class="col-md-6 col-sm-6 col-md-offset-3 col-sm-offset-3">
+                                        <div class="col-md-12 text-right">
                                             <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
                                             <button type="submit" class="btn btn-success">Update Device</button>
                                         </div>
@@ -1072,7 +1618,16 @@ try {
                 const originalText = submitBtn.html();
                 submitBtn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Registering...');
 
+                // Get CSRF token from form
+                const csrfToken = $('#deviceForm input[name="csrf_token"]').val();
+                if (!csrfToken) {
+                    showFeedback('error', 'Security Error', 'CSRF token is missing. Please refresh the page and try again.');
+                    submitBtn.prop('disabled', false).html(originalText);
+                    return false;
+                }
+
                 const formData = {
+                    csrf_token: csrfToken,
                     device_name: $('#device_name').val(),
                     device_number: $('#device_number').val(),
                     serial_number: $('#serial_number').val(),
@@ -1137,8 +1692,17 @@ try {
                 const originalText = submitBtn.html();
                 submitBtn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Updating...');
 
+                // Get CSRF token from form
+                const csrfToken = $('#updateDeviceForm input[name="csrf_token"]').val();
+                if (!csrfToken) {
+                    showFeedback('error', 'Security Error', 'CSRF token is missing. Please refresh the page and try again.');
+                    submitBtn.prop('disabled', false).html(originalText);
+                    return false;
+                }
+
                 const formData = {
                     action: 'update_device',
+                    csrf_token: csrfToken,
                     device_id: $('#update_device_id').val(),
                     device_name: $('#update_device_name').val(),
                     device_number: $('#update_device_number').val(),
@@ -1219,12 +1783,21 @@ try {
 
                     button.prop('disabled', true);
 
+                    // Get CSRF token from any form on the page
+                    const csrfToken = $('input[name="csrf_token"]').first().val();
+                    if (!csrfToken) {
+                        showFeedback('error', 'Security Error', 'CSRF token is missing. Please refresh the page and try again.');
+                        button.prop('disabled', false);
+                        return;
+                    }
+
                     $.ajax({
                         url: 'main.php',
                         method: 'POST',
                         dataType: 'json',
                         data: {
                             action: 'toggle_device_status',
+                            csrf_token: csrfToken,
                             device_id: deviceId,
                             is_active: nextActive
                         },
@@ -1355,17 +1928,32 @@ try {
         }
         
         function showFeedback(type, title, message) {
+            // Escape HTML to prevent XSS
+            const escapeHtml = function(text) {
+                const map = {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                };
+                return (text || '').replace(/[&<>"']/g, m => map[m]);
+            };
+            
+            const safeTitle = escapeHtml(title || '');
+            const safeMessage = escapeHtml(message || '').replace(/\|/g, '<br>'); // Convert | separator to <br>
+            
             if (typeof Swal !== 'undefined' && Swal.fire) {
                 const icon = type === 'success' ? 'success' : 'error';
                 Swal.fire({
                     icon: icon,
-                    title: title,
-                    html: message || '',
+                    title: safeTitle,
+                    html: safeMessage,
                     confirmButtonText: 'OK'
                 });
                 return;
             }
-            showLegacyAlert(type, title, message);
+            showLegacyAlert(type, safeTitle, safeMessage);
         }
 
         function showLegacyAlert(type, title, message) {

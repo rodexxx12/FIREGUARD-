@@ -5,6 +5,9 @@ require '../../../vendor/autoload.php';
 // Set timezone to ensure consistent time handling
 date_default_timezone_set('Asia/Manila');
 
+// Load security functions
+require_once __DIR__ . '/security_functions.php';
+
 // Load SMS configuration
 $config = require '../config/config.php';
 use WebSocket\Client;
@@ -317,6 +320,25 @@ class UserPhoneModel {
     }
 
     private function sendVerificationSMS($phoneNumber, $code) {
+        // Validate SMS API credentials before attempting to send
+        if (empty($this->apiKey)) {
+            $errorMsg = 'SMS API key not configured. Please contact administrator.';
+            error_log("SMS Error: $errorMsg");
+            return [false, $errorMsg];
+        }
+        
+        if (empty($this->device)) {
+            $errorMsg = 'SMS device ID not configured. Please contact administrator.';
+            error_log("SMS Error: $errorMsg");
+            return [false, $errorMsg];
+        }
+        
+        if (empty($this->smsUrl)) {
+            $errorMsg = 'SMS API URL not configured. Please contact administrator.';
+            error_log("SMS Error: $errorMsg");
+            return [false, $errorMsg];
+        }
+        
         $params = [
             'message' => "Your verification code is: $code. Valid for 15 minutes.",
             'mobile_number' => $phoneNumber,
@@ -325,7 +347,9 @@ class UserPhoneModel {
 
         $headers = [
             "Content-Type: application/x-www-form-urlencoded",
-            "apikey: {$this->apiKey}"
+            "apikey: {$this->apiKey}",
+            "API-Key: {$this->apiKey}",
+            "Authorization: Bearer {$this->apiKey}"
         ];
 
         $ch = curl_init();
@@ -337,30 +361,115 @@ class UserPhoneModel {
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
+        $curlErrno = curl_errno($ch);
         curl_close($ch);
 
-        // Log the SMS attempt
-        $logEntry = date('Y-m-d H:i:s') . " | Phone: $phoneNumber | Code: $code | HTTP: $httpCode | Response: $response | Error: $error\n";
-        file_put_contents(__DIR__ . '/../sms_log.txt', $logEntry, FILE_APPEND);
+        // Ensure log directory exists
+        $logDir = __DIR__ . '/../';
+        if (!is_dir($logDir)) {
+            @mkdir($logDir, 0755, true);
+        }
 
+        // Log the SMS attempt with more details
+        $logEntry = date('Y-m-d H:i:s') . " | Phone: $phoneNumber | Code: $code | HTTP: $httpCode | Response: " . substr($response, 0, 500) . " | Error: $error | Curl Errno: $curlErrno\n";
+        @file_put_contents($logDir . 'sms_log.txt', $logEntry, FILE_APPEND);
+
+        // Check for cURL errors first
+        if ($curlErrno !== 0) {
+            $errorMsg = 'Network connection error';
+            if ($curlErrno === CURLE_COULDNT_CONNECT) {
+                $errorMsg = 'Could not connect to SMS service. Please check your internet connection.';
+            } elseif ($curlErrno === CURLE_OPERATION_TIMEOUTED) {
+                $errorMsg = 'SMS service timeout. Please try again later.';
+            } elseif ($error) {
+                $errorMsg = 'Network error: ' . $error;
+            }
+            error_log("SMS cURL Error ($curlErrno): $errorMsg for $phoneNumber");
+            return [false, $errorMsg];
+        }
+        
         if ($error) {
-            error_log('SMS Error: ' . $error);
+            error_log("SMS cURL Error: $error for $phoneNumber");
             return [false, 'Network error: ' . $error];
+        }
+
+        // Check if we got a response
+        if ($response === false || empty($response)) {
+            $errorMsg = 'No response from SMS service. Please try again later.';
+            error_log("SMS Error: $errorMsg for $phoneNumber (HTTP: $httpCode)");
+            return [false, $errorMsg];
         }
 
         // Try to parse response for more details
         $json = json_decode($response, true);
         
-        if ($httpCode == 200 && isset($json['success']) && $json['success']) {
-            error_log("SMS sent successfully to $phoneNumber. Response: $response");
-            return [true, null];
+        // Handle different HTTP status codes
+        if ($httpCode == 200) {
+            if (isset($json['success']) && $json['success']) {
+                error_log("SMS sent successfully to $phoneNumber. Response: " . substr($response, 0, 200));
+                return [true, null];
+            } else {
+                // API returned 200 but success is false - parse the error message
+                $errorMsg = 'SMS API error';
+                
+                // Check for errors array (common format: {"success":false,"code":422,"errors":["message"]})
+                if (isset($json['errors']) && is_array($json['errors']) && !empty($json['errors'])) {
+                    $errorMsg = implode(', ', $json['errors']);
+                } elseif (isset($json['error'])) {
+                    $errorMsg = is_array($json['error']) ? implode(', ', $json['error']) : $json['error'];
+                } elseif (isset($json['message'])) {
+                    $errorMsg = $json['message'];
+                }
+                
+                // Map error codes to user-friendly messages
+                if (isset($json['code'])) {
+                    $errorCodes = [
+                        406 => 'API key mismatch or not acceptable',
+                        422 => 'API key must be provided in request header',
+                        401 => 'Invalid API key',
+                        403 => 'API access forbidden'
+                    ];
+                    if (isset($errorCodes[$json['code']])) {
+                        $errorMsg = $errorCodes[$json['code']];
+                    }
+                }
+                
+                error_log("SMS API error for $phoneNumber: $errorMsg (HTTP: $httpCode, Code: " . (isset($json['code']) ? $json['code'] : 'N/A') . ", Response: " . substr($response, 0, 500) . ")");
+                
+                // Return user-friendly error message
+                if (stripos($errorMsg, 'API key') !== false || stripos($errorMsg, 'authentication') !== false) {
+                    return [false, 'SMS API authentication failed. Please contact administrator to configure SMS API key correctly.'];
+                }
+                
+                return [false, $errorMsg ?: 'SMS API returned error'];
+            }
+        } elseif ($httpCode == 401) {
+            $errorMsg = 'SMS API authentication failed. Invalid API key.';
+            error_log("SMS API authentication error for $phoneNumber (HTTP: $httpCode, Response: " . substr($response, 0, 200) . ")");
+            return [false, $errorMsg];
+        } elseif ($httpCode == 403) {
+            $errorMsg = 'SMS API access forbidden. Please check API credentials.';
+            error_log("SMS API forbidden for $phoneNumber (HTTP: $httpCode, Response: " . substr($response, 0, 200) . ")");
+            return [false, $errorMsg];
+        } elseif ($httpCode == 404) {
+            $errorMsg = 'SMS API endpoint not found. Please check API URL configuration.';
+            error_log("SMS API endpoint not found (HTTP: $httpCode, URL: $this->smsUrl)");
+            return [false, $errorMsg];
+        } elseif ($httpCode >= 500) {
+            $errorMsg = 'SMS service is temporarily unavailable. Please try again later.';
+            error_log("SMS API server error for $phoneNumber (HTTP: $httpCode, Response: " . substr($response, 0, 200) . ")");
+            return [false, $errorMsg];
         } else {
-            $msg = isset($json['message']) ? $json['message'] : 'Unknown SMS API error';
-            error_log("SMS API error for $phoneNumber: $msg (HTTP: $httpCode, Response: $response)");
+            // Other HTTP error codes
+            $msg = isset($json['message']) ? $json['message'] : 
+                   (isset($json['error']) ? $json['error'] : 
+                   "SMS API error (HTTP $httpCode)");
+            error_log("SMS API error for $phoneNumber: $msg (HTTP: $httpCode, Response: " . substr($response, 0, 200) . ")");
             return [false, $msg];
         }
     }
@@ -411,10 +520,54 @@ class UserPhoneModel {
 require_once '../db_connection.php';
 
 try {
-    $db = getDatabaseConnection();
+    // Initialize error handling for better debugging
+    error_reporting(E_ALL);
+    ini_set('display_errors', '0'); // Don't display errors in production
+    ini_set('log_errors', '1');
+    
+    // Try to get database connection with better error handling
+    try {
+        $db = getDatabaseConnection();
+        if (!$db) {
+            throw new Exception('Database connection returned null');
+        }
+    } catch (Exception $e) {
+        error_log("CRITICAL: Database connection failed in UserPhone.php: " . $e->getMessage());
+        error_log("Stack trace: " . $e->getTraceAsString());
+        
+        // Show user-friendly error message
+        http_response_code(500);
+        if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+            // AJAX request - return JSON
+            header('Content-Type: application/json');
+            die(json_encode([
+                'success' => false,
+                'error' => 'Database connection failed. Please contact support.',
+                'message' => 'System error. Please try again later.'
+            ]));
+        } else {
+            // Regular request - show error page
+            die('<!DOCTYPE html><html><head><title>System Error</title></head><body><h1>System Temporarily Unavailable</h1><p>We are experiencing technical difficulties. Please try again later or contact support.</p></body></html>');
+        }
+    }
     
     // Check if user_phone_numbers table exists, create if not
-    $tableCheck = $db->query("SHOW TABLES LIKE 'user_phone_numbers'");
+    try {
+        $tableCheck = $db->query("SHOW TABLES LIKE 'user_phone_numbers'");
+        if (!$tableCheck) {
+            throw new Exception('Failed to check if user_phone_numbers table exists');
+        }
+    } catch (PDOException $e) {
+        error_log("Error checking user_phone_numbers table: " . $e->getMessage());
+        http_response_code(500);
+        if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+            header('Content-Type: application/json');
+            die(json_encode(['success' => false, 'error' => 'Database error. Please contact support.']));
+        } else {
+            die('<!DOCTYPE html><html><head><title>System Error</title></head><body><h1>System Temporarily Unavailable</h1><p>Database error. Please try again later.</p></body></html>');
+        }
+    }
+    
     if ($tableCheck->rowCount() == 0) {
         // Create the table
         $createTable = "CREATE TABLE IF NOT EXISTS `user_phone_numbers` (
@@ -478,14 +631,27 @@ try {
     if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
         $response = [];
         
+        // Validate CSRF token for all POST actions (except check_phone which is GET-like)
+        $action = $_POST['action'] ?? null;
+        if ($action && $action !== 'check_phone') {
+            if (!validateCSRFToken()) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Invalid security token. Please refresh the page and try again.']);
+                exit();
+            }
+        }
+        
         if (isset($_POST['action'])) {
             switch ($_POST['action']) {
                 case 'check_phone':
-                    $phoneNumber = $_POST['phone_number'];
-                    // Remove all non-digit characters
-                    $phoneNumber = preg_replace('/\D/', '', $phoneNumber);
-                    // Ensure it's exactly 11 digits starting with 09
-                    if (!preg_match('/^09\d{9}$/', $phoneNumber)) {
+                    // Rate limiting for phone checks
+                    if (!checkRateLimit('phone_check', 10, 60)) {
+                        $response = ['valid' => false, 'message' => 'Too many requests. Please wait a moment and try again.'];
+                        break;
+                    }
+                    
+                    $phoneNumber = sanitizeInput($_POST['phone_number'] ?? '', 'phone');
+                    if (!$phoneNumber || !validatePhoneNumber($phoneNumber)) {
                         $response = ['valid' => false, 'message' => 'Invalid Philippine phone number. Must be exactly 11 digits starting with 09.'];
                     } elseif ($phoneModel->phoneNumberExists($phoneNumber)) {
                         $response = ['valid' => false, 'message' => 'This phone number is already registered.'];
@@ -495,61 +661,111 @@ try {
                     break;
                     
                 case 'verify_code':
-                    $phoneId = $_POST['phone_id'];
-                    $code = $_POST['code'];
+                    // Rate limiting for verification attempts
+                    if (!checkRateLimit('verify_code', 5, 300)) {
+                        $response = ['success' => false, 'message' => 'Too many verification attempts. Please wait 5 minutes and try again.'];
+                        break;
+                    }
                     
-                    $result = $phoneModel->verifyPhoneNumber($userId, $phoneId, $code);
-                    $response = $result;
+                    $phoneId = validateInteger($_POST['phone_id'] ?? null, 1);
+                    $code = sanitizeInput($_POST['code'] ?? '', 'verification_code');
+                    
+                    if (!$phoneId || !$code) {
+                        $response = ['success' => false, 'message' => 'Invalid input. Please check your verification code.'];
+                    } else {
+                        $result = $phoneModel->verifyPhoneNumber($userId, $phoneId, $code);
+                        $response = $result;
+                    }
                     break;
                     
                 case 'resend_code':
-                    $phoneId = $_POST['phone_id'];
-                    $result = $phoneModel->resendVerificationCode($userId, $phoneId);
-                    if ($result['success']) {
-                        if ($result['sms_sent']) {
-                            $response = ['success' => true, 'message' => 'New verification code sent via SMS!'];
-                        } else {
-                            $response = ['success' => false, 'message' => 'Verification code updated, but SMS delivery failed: ' . ($result['sms_error'] ?? 'Unknown error') . '. Please try again or contact support.'];
-                        }
+                    // Rate limiting for resend attempts
+                    if (!checkRateLimit('resend_code', 3, 300)) {
+                        $response = ['success' => false, 'message' => 'Too many resend requests. Please wait 5 minutes and try again.'];
+                        break;
+                    }
+                    
+                    $phoneId = validateInteger($_POST['phone_id'] ?? null, 1);
+                    if (!$phoneId) {
+                        $response = ['success' => false, 'message' => 'Invalid phone number ID.'];
                     } else {
-                        $response = ['success' => false, 'message' => 'Failed to resend verification code. ' . ($result['error'] ?? '')];
+                        $result = $phoneModel->resendVerificationCode($userId, $phoneId);
+                        if ($result['success']) {
+                            if ($result['sms_sent']) {
+                                $response = ['success' => true, 'message' => 'New verification code sent via SMS!'];
+                            } else {
+                                $response = ['success' => false, 'message' => 'Verification code updated, but SMS delivery failed: ' . ($result['sms_error'] ?? 'Unknown error') . '. Please try again or contact support.'];
+                            }
+                        } else {
+                            $response = ['success' => false, 'message' => 'Failed to resend verification code. ' . ($result['error'] ?? '')];
+                        }
                     }
                     break;
                     
                 case 'update_label':
-                    $phoneId = $_POST['phone_id'];
-                    $label = $_POST['label'];
-                    if ($phoneModel->updatePhoneLabel($userId, $phoneId, $label)) {
-                        $response = ['success' => true, 'message' => 'Label updated successfully!'];
+                    $phoneId = validateInteger($_POST['phone_id'] ?? null, 1);
+                    $label = validateLabel($_POST['label'] ?? '');
+                    
+                    if (!$phoneId) {
+                        $response = ['success' => false, 'message' => 'Invalid phone number ID.'];
+                    } elseif ($label === false) {
+                        $response = ['success' => false, 'message' => 'Invalid label format. Label must be 100 characters or less and contain only letters, numbers, spaces, and common punctuation.'];
                     } else {
-                        $response = ['success' => false, 'message' => 'Failed to update label.'];
+                        if ($phoneModel->updatePhoneLabel($userId, $phoneId, $label)) {
+                            $response = ['success' => true, 'message' => 'Label updated successfully!'];
+                        } else {
+                            $response = ['success' => false, 'message' => 'Failed to update label.'];
+                        }
                     }
                     break;
                     
                 case 'delete_phone':
-                    $phoneId = $_POST['phone_id'];
-                    $result = $phoneModel->deletePhoneNumber($userId, $phoneId);
-                    $response = $result;
+                    $phoneId = validateInteger($_POST['phone_id'] ?? null, 1);
+                    if (!$phoneId) {
+                        $response = ['success' => false, 'error' => 'Invalid phone number ID.'];
+                    } else {
+                        $result = $phoneModel->deletePhoneNumber($userId, $phoneId);
+                        $response = $result;
+                    }
                     break;
                     
                 case 'debug_status':
-                    $phoneId = $_POST['phone_id'];
-                    $status = $phoneModel->getPhoneVerificationStatus($userId, $phoneId);
-                    $response = ['success' => true, 'status' => $status];
+                    $phoneId = validateInteger($_POST['phone_id'] ?? null, 1);
+                    if (!$phoneId) {
+                        $response = ['success' => false, 'error' => 'Invalid phone number ID.'];
+                    } else {
+                        $status = $phoneModel->getPhoneVerificationStatus($userId, $phoneId);
+                        $response = ['success' => true, 'status' => $status];
+                    }
                     break;
                     
                 case 'fix_status':
-                    $phoneId = $_POST['phone_id'];
-                    $result = $phoneModel->fixVerificationStatus($userId, $phoneId);
-                    $response = $result;
+                    $phoneId = validateInteger($_POST['phone_id'] ?? null, 1);
+                    if (!$phoneId) {
+                        $response = ['success' => false, 'message' => 'Invalid phone number ID.'];
+                    } else {
+                        $result = $phoneModel->fixVerificationStatus($userId, $phoneId);
+                        $response = $result;
+                    }
                     break;
                     
                 case 'reset_all_verification':
-                    $result = $phoneModel->resetAllVerificationStatus($userId);
-                    $response = $result;
+                    // Additional security check for this sensitive action
+                    if (!checkRateLimit('reset_verification', 1, 3600)) {
+                        $response = ['success' => false, 'message' => 'This action can only be performed once per hour.'];
+                    } else {
+                        $result = $phoneModel->resetAllVerificationStatus($userId);
+                        $response = $result;
+                    }
                     break;
+                    
+                default:
+                    $response = ['error' => 'Invalid action.'];
             }
         }
+        
+        // Add CSRF token to response for next request
+        $response['csrf_token'] = generateCSRFToken();
         
         header('Content-Type: application/json');
         echo json_encode($response);
@@ -558,16 +774,31 @@ try {
     
     // Handle form submissions
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        // Validate CSRF token for all form submissions
+        if (!validateCSRFToken()) {
+            logSecurityEvent('CSRF_TOKEN_INVALID', 'Form submission without valid CSRF token', 'high');
+            $_SESSION['error'] = "Security validation failed. Please refresh the page and try again.";
+            header("Location: " . $_SERVER['PHP_SELF']);
+            exit();
+        }
+        
         if (isset($_POST['add_phone'])) {
-            $phoneNumber = $_POST['phone_number'];
-            // Remove all non-digit characters
-            $phoneNumber = preg_replace('/\D/', '', $phoneNumber);
-            $isPrimary = isset($_POST['is_primary']);
-            $label = $_POST['label'] ?? null;
+            // Rate limiting
+            if (!checkRateLimit('add_phone', 5, 300)) {
+                $_SESSION['error'] = "Too many requests. Please wait a moment and try again.";
+                header("Location: " . $_SERVER['PHP_SELF']);
+                exit();
+            }
             
-            // Validate Philippine phone number (11 digits starting with 09)
-            if (!preg_match('/^09\d{9}$/', $phoneNumber)) {
+            $phoneNumber = sanitizeInput($_POST['phone_number'] ?? '', 'phone');
+            $isPrimary = isset($_POST['is_primary']) && $_POST['is_primary'] === 'on';
+            $label = validateLabel($_POST['label'] ?? '');
+            
+            // Validate phone number
+            if (!$phoneNumber || !validatePhoneNumber($phoneNumber)) {
                 $_SESSION['error'] = "Invalid Philippine phone number format. Must be exactly 11 digits starting with 09.";
+            } elseif ($label === false) {
+                $_SESSION['error'] = "Invalid label format. Label must be 100 characters or less.";
             } elseif ($phoneModel->phoneNumberExists($phoneNumber)) {
                 $_SESSION['error'] = "This phone number is already registered.";
             } else {
@@ -585,9 +816,11 @@ try {
                 }
             }
         } elseif (isset($_POST['set_primary'])) {
-            $phoneId = $_POST['phone_id'];
+            $phoneId = validateInteger($_POST['phone_id'] ?? null, 1);
             
-            if ($phoneModel->verifyPhoneOwnership($userId, $phoneId)) {
+            if (!$phoneId) {
+                $_SESSION['error'] = "Invalid phone number selected.";
+            } elseif ($phoneModel->verifyPhoneOwnership($userId, $phoneId)) {
                 if ($phoneModel->setPrimaryPhone($userId, $phoneId)) {
                     $_SESSION['success'] = "Primary phone number updated!";
                 } else {
@@ -597,39 +830,65 @@ try {
                 $_SESSION['error'] = "Invalid phone number selected.";
             }
         } elseif (isset($_POST['verify_phone'])) {
-            $phoneId = $_POST['phone_id'];
-            $code = $_POST['verification_code'];
+            // Rate limiting for verification attempts
+            if (!checkRateLimit('verify_phone', 5, 300)) {
+                $_SESSION['error'] = "Too many verification attempts. Please wait 5 minutes and try again.";
+                header("Location: " . $_SERVER['PHP_SELF']);
+                exit();
+            }
             
-            error_log("Form verification attempt - User: $userId, Phone: $phoneId, Code: '$code'");
+            $phoneId = validateInteger($_POST['phone_id'] ?? null, 1);
+            $code = sanitizeInput($_POST['verification_code'] ?? '', 'verification_code');
             
-            $result = $phoneModel->verifyPhoneNumber($userId, $phoneId, $code);
-            if ($result['success']) {
-                error_log("Form verification successful - User: $userId, Phone: $phoneId");
-                $_SESSION['success'] = $result['message'];
-                unset($_SESSION['verifying_phone']);
-                unset($_SESSION['new_phone_id']);
+            if (!$phoneId || !$code) {
+                $_SESSION['error'] = "Invalid verification code. Please enter a 6-digit code.";
             } else {
-                error_log("Form verification failed - User: $userId, Phone: $phoneId, Error: {$result['message']}");
-                $_SESSION['error'] = $result['message'];
+                error_log("Form verification attempt - User: $userId, Phone: $phoneId, Code: '$code'");
+                
+                $result = $phoneModel->verifyPhoneNumber($userId, $phoneId, $code);
+                if ($result['success']) {
+                    error_log("Form verification successful - User: $userId, Phone: $phoneId");
+                    $_SESSION['success'] = $result['message'];
+                    unset($_SESSION['verifying_phone']);
+                    unset($_SESSION['new_phone_id']);
+                } else {
+                    error_log("Form verification failed - User: $userId, Phone: $phoneId, Error: {$result['message']}");
+                    $_SESSION['error'] = $result['message'];
+                }
             }
         } elseif (isset($_POST['resend_code'])) {
-            $phoneId = $_POST['phone_id'];
+            // Rate limiting for resend attempts
+            if (!checkRateLimit('resend_code', 3, 300)) {
+                $_SESSION['error'] = "Too many resend requests. Please wait 5 minutes and try again.";
+                header("Location: " . $_SERVER['PHP_SELF']);
+                exit();
+            }
             
-            $result = $phoneModel->resendVerificationCode($userId, $phoneId);
-            if ($result['success']) {
-                if ($result['sms_sent']) {
-                    $_SESSION['success'] = "New verification code sent via SMS!";
-                } else {
-                    $_SESSION['error'] = "Verification code updated, but SMS delivery failed: " . ($result['sms_error'] ?? 'Unknown error') . '. Please try again or contact support.';
-                }
+            $phoneId = validateInteger($_POST['phone_id'] ?? null, 1);
+            
+            if (!$phoneId) {
+                $_SESSION['error'] = "Invalid phone number ID.";
             } else {
-                $_SESSION['error'] = "Failed to resend verification code. " . ($result['error'] ?? '');
+                $result = $phoneModel->resendVerificationCode($userId, $phoneId);
+                if ($result['success']) {
+                    if ($result['sms_sent']) {
+                        $_SESSION['success'] = "New verification code sent via SMS!";
+                    } else {
+                        $_SESSION['error'] = "Verification code updated, but SMS delivery failed: " . ($result['sms_error'] ?? 'Unknown error') . '. Please try again or contact support.';
+                    }
+                } else {
+                    $_SESSION['error'] = "Failed to resend verification code. " . ($result['error'] ?? '');
+                }
             }
         } elseif (isset($_POST['update_label'])) {
-            $phoneId = $_POST['phone_id'];
-            $label = $_POST['label'];
+            $phoneId = validateInteger($_POST['phone_id'] ?? null, 1);
+            $label = validateLabel($_POST['label'] ?? '');
             
-            if ($phoneModel->verifyPhoneOwnership($userId, $phoneId)) {
+            if (!$phoneId) {
+                $_SESSION['error'] = "Invalid phone number selected.";
+            } elseif ($label === false) {
+                $_SESSION['error'] = "Invalid label format. Label must be 100 characters or less.";
+            } elseif ($phoneModel->verifyPhoneOwnership($userId, $phoneId)) {
                 if ($phoneModel->updatePhoneLabel($userId, $phoneId, $label)) {
                     $_SESSION['success'] = "Phone label updated successfully!";
                 } else {
@@ -640,9 +899,12 @@ try {
             }
         }
         
-        header("Location: ".$_SERVER['PHP_SELF']);
+        header("Location: " . $_SERVER['PHP_SELF']);
         exit();
     }
+    
+    // Generate CSRF token for forms
+    $csrfToken = generateCSRFToken();
     
     // Get user's phone numbers
     $phoneNumbers = $phoneModel->getPhoneNumbers($userId);
@@ -683,7 +945,7 @@ try {
         <div class="right_col" role="main"> 
     <!-- Floating Action Button -->
     <a href="#" class="floating-btn pulse" data-bs-toggle="modal" data-bs-target="#addPhoneModal">
-        <i class="bi bi-plus-lg"></i>
+        <i class="fa fa-plus"></i>
     </a>
 
     <!-- Toast Notifications -->
@@ -692,7 +954,7 @@ try {
             <div class="toast show align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
                 <div class="d-flex">
                     <div class="toast-body">
-                        <i class="bi bi-exclamation-triangle-fill me-2"></i><?php echo htmlspecialchars($error); ?>
+                        <i class="fa fa-exclamation-triangle me-2"></i><?php echo htmlspecialchars($error); ?>
                     </div>
                     <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
                 </div>
@@ -703,7 +965,7 @@ try {
             <div class="toast show align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
                 <div class="d-flex">
                     <div class="toast-body">
-                        <i class="bi bi-check-circle-fill me-2"></i><?php echo htmlspecialchars($success); ?>
+                        <i class="fa fa-check-circle me-2"></i><?php echo htmlspecialchars($success); ?>
                     </div>
                     <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
                 </div>
@@ -711,275 +973,225 @@ try {
         <?php endif; ?>
     </div>
 
-    <div class="container">
-       
-        <div class="row">
-            <div class="col-12">
-                <div class="card border-0 shadow-sm" style="background: white; border-radius: 16px;">
-                    <div class="card-header bg-transparent border-0 py-4" style="border-radius: 16px 16px 0 0;">
-                        <div class="d-flex align-items-center">
-                            <i class="bi bi-telephone text-primary fs-4 me-3"></i>
-                            <div>
-                                <h5 class="mb-1 text-dark fw-semibold">My Phone Numbers</h5>
-                                <p class="text-muted mb-0 small">Manage your registered phone numbers</p>
-                            </div>
-                            <div class="ms-auto d-flex align-items-center">
-                                <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#helpModal">
-                                    <i class="bi bi-question-circle me-1"></i>Help
-                                </button>
-                                <button class="btn btn-warning me-2" id="resetAllVerificationBtn">
-                                    <i class="bi bi-arrow-clockwise me-1"></i>Reset All Verification
-                                </button>
-                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPhoneModal">
-                                    <i class="bi bi-plus-lg me-1"></i>Add Number
-                                </button>
-                            </div>
-                        </div>
+    <!-- Gentelella Style Panel -->
+    <div class="x_panel">
+        <div class="x_title">
+            <h2><i class="fa fa-phone"></i> My Phone Numbers <small>Manage your registered phone numbers</small></h2>
+            <ul class="nav navbar-right panel_toolbox">
+                <li>
+                    <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#helpModal">
+                        <i class="fa fa-question-circle"></i> Help
+                    </button>
+                </li>
+                <li>
+                    <button class="btn btn-warning btn-sm" id="resetAllVerificationBtn">
+                        <i class="fa fa-refresh"></i> Reset All Verification
+                    </button>
+                </li>
+                <li>
+                    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addPhoneModal">
+                        <i class="fa fa-plus"></i> Add Number
+                    </button>
+                </li>
+                <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a></li>
+            </ul>
+            <div class="clearfix"></div>
+        </div>
+        <div class="x_content">
+            <?php if (empty($phoneNumbers)): ?>
+                <div class="text-center py-5">
+                    <div class="bg-light bg-opacity-50 p-4 rounded-circle d-inline-block mb-3">
+                        <i class="fa fa-phone text-muted" style="font-size: 3rem;"></i>
                     </div>
-                    
-                    <div class="card-body px-4 py-0">
-                        <div class="tab-content">
-                            <!-- Numbers Tab -->
-                            <div class="tab-pane fade show active" id="numbers-tab">
-                                <?php if (empty($phoneNumbers)): ?>
-                                    <div class="text-center py-5">
-                                        <div class="bg-light bg-opacity-50 p-4 rounded-circle d-inline-block mb-3">
-                                            <i class="bi bi-phone text-muted" style="font-size: 3rem;"></i>
+                    <h4 class="text-dark fw-semibold mb-2">No Phone Numbers Found</h4>
+                    <p class="text-muted mb-4">Add your first phone number to get started with phone management</p>
+                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addPhoneModal">
+                        <i class="fa fa-plus"></i> Add Phone Number
+                    </button>
+                </div>
+            <?php else: ?>
+                <div class="table-responsive">
+                    <table id="datatable" class="table table-striped table-bordered jambo_table bulk_action" style="width:100%">
+                        <thead>
+                            <tr class="headings">
+                                <th class="column-title">Phone Number</th>
+                                <th class="column-title">Label</th>
+                                <th class="column-title">Status</th>
+                                <th class="column-title no-link last"><span class="nobr">Actions</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($phoneNumbers as $phone): ?>
+                                <tr class="even pointer phone-item <?php echo $phone['is_primary'] ? 'primary' : ''; ?>"
+                                    data-phone-id="<?php echo $phone['phone_id']; ?>"
+                                    data-phone-number="<?php echo htmlspecialchars($phone['phone_number'] ?? ''); ?>"
+                                    data-label="<?php echo htmlspecialchars($phone['label'] ?? ''); ?>"
+                                    data-status="<?php echo $phone['verified'] ? 'verified' : 'unverified'; ?>"
+                                    data-is-primary="<?php echo $phone['is_primary'] ? 'true' : 'false'; ?>"
+                                    data-verified="<?php echo $phone['verified'] ? '1' : '0'; ?>">
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="fa fa-phone text-primary me-2"></i>
+                                            <div>
+                                                <span class="phone-number-display fw-semibold"><?php echo htmlspecialchars($phone['phone_number']); ?></span>
+                                                <?php if ($phone['is_primary']): ?>
+                                                    <div class="mt-1">
+                                                        <span class="badge bg-success" style="font-size: 0.7rem;">
+                                                            <i class="fa fa-star"></i> Primary
+                                                        </span>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </div>
                                         </div>
-                                        <h4 class="text-dark fw-semibold mb-2">No Phone Numbers Found</h4>
-                                        <p class="text-muted mb-4">Add your first phone number to get started with phone management</p>
-                                        <button class="btn btn-primary px-4 py-2 rounded-pill" data-bs-toggle="modal" data-bs-target="#addPhoneModal">
-                                            <i class="bi bi-plus-lg me-2"></i>Add Phone Number
-                                        </button>
-                                    </div>
-                                <?php else: ?>
-                                    <!-- Search Filter -->
-                                    <div class="row mb-3">
-                                        <div class="col-md-6">
-                                            <div class="search-container">
-                                                <div class="input-group">
-                                                    <span class="input-group-text bg-light border-end-0">
-                                                        <i class="bi bi-search text-muted"></i>
-                                                    </span>
-                                                    <input type="text" id="phoneSearchInput" class="form-control border-start-0" 
-                                                           placeholder="Search phone numbers, labels, or status..." 
-                                                           style="border-radius: 0.375rem 0 0 0.375rem;">
-                                                    <button class="btn btn-outline-secondary border-start-0" type="button" id="clearSearchBtn" 
-                                                            style="border-radius: 0 0.375rem 0.375rem 0; display: none;">
-                                                        <i class="bi bi-x-lg"></i>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <span class="phone-label-text"><?php echo htmlspecialchars($phone['label'] ?? 'No label'); ?></span>
+                                            <button class="btn btn-link btn-sm p-0 ms-2 edit-label-btn" 
+                                                   data-phone-id="<?php echo $phone['phone_id']; ?>"
+                                                   data-current-label="<?php echo htmlspecialchars($phone['label'] ?? ''); ?>"
+                                                   style="color: #6c757d; text-decoration: none;">
+                                                <i class="fa fa-pencil"></i>
+                                            </button>
+                                            <input type="text" class="form-control form-control-sm label-input border-0 bg-light" 
+                                                   data-phone-id="<?php echo $phone['phone_id']; ?>"
+                                                   value="<?php echo htmlspecialchars($phone['label'] ?? ''); ?>"
+                                                   style="display: none; max-width: 150px;">
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <?php if ($phone['verified']): ?>
+                                            <span class="badge bg-success">
+                                                <i class="fa fa-check-circle"></i> Verified
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="badge bg-warning">
+                                                <i class="fa fa-exclamation-triangle"></i> Unverified
+                                            </span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="last">
+                                        <div class="d-flex gap-1 flex-wrap">
+                                            <?php if (!$phone['is_primary'] && $phone['verified']): ?>
+                                                <form method="POST" class="d-inline">
+                                                    <input type="hidden" name="csrf_token" value="<?php echo escapeOutput($csrfToken); ?>">
+                                                    <input type="hidden" name="phone_id" value="<?php echo escapeOutput($phone['phone_id']); ?>">
+                                                    <button type="submit" name="set_primary" class="btn btn-sm btn-success">
+                                                        <i class="fa fa-star"></i> Primary
                                                     </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="d-flex justify-content-end align-items-center">
-                                                <small class="text-muted me-3">
-                                                    <span id="searchResultsCount">Showing <?php echo count($phoneNumbers); ?> numbers</span>
-                                                </small>
-                                                <div class="btn-group" role="group">
-                                                    <input type="radio" class="btn-check" name="statusFilter" id="filterAll" value="all" checked>
-                                                    <label class="btn btn-outline-secondary btn-sm" for="filterAll">All</label>
-                                                    
-                                                    <input type="radio" class="btn-check" name="statusFilter" id="filterVerified" value="verified">
-                                                    <label class="btn btn-outline-success btn-sm" for="filterVerified">Verified</label>
-                                                    
-                                                    <input type="radio" class="btn-check" name="statusFilter" id="filterUnverified" value="unverified">
-                                                    <label class="btn btn-outline-warning btn-sm" for="filterUnverified">Unverified</label>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="phone-list">
-                                        <div class="table-responsive">
-                                            <table class="table table-hover align-middle mb-0">
-                                                <thead>
-                                                    <tr class="border-0">
-                                                        <th class="border-0 text-muted fw-semibold text-uppercase small" style="font-size: 0.75rem; letter-spacing: 0.5px;">Phone Number</th>
-                                                        <th class="border-0 text-muted fw-semibold text-uppercase small" style="font-size: 0.75rem; letter-spacing: 0.5px;">Label</th>
-                                                        <th class="border-0 text-muted fw-semibold text-uppercase small" style="font-size: 0.75rem; letter-spacing: 0.5px;">Status</th>
-                                                        <th class="border-0 text-muted fw-semibold text-uppercase small" style="font-size: 0.75rem; letter-spacing: 0.5px;">Actions</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <?php foreach ($phoneNumbers as $phone): ?>
-                                                        <tr class="phone-item <?php echo $phone['is_primary'] ? 'primary' : ''; ?> border-0" 
-                                                            style="border-bottom: 1px solid #f8f9fa;"
-                                                            data-phone-number="<?php echo htmlspecialchars($phone['phone_number'] ?? ''); ?>"
-                                                            data-label="<?php echo htmlspecialchars($phone['label'] ?? ''); ?>"
-                                                            data-status="<?php echo $phone['verified'] ? 'verified' : 'unverified'; ?>"
-                                                            data-is-primary="<?php echo $phone['is_primary'] ? 'true' : 'false'; ?>">
-                                                            <td class="py-3">
-                                                                <div class="d-flex align-items-center">
-                                                                    <i class="bi bi-phone text-primary me-3"></i>
-                                                                    <div>
-                                                                        <span class="phone-number-display fw-semibold text-dark"><?php echo htmlspecialchars($phone['phone_number']); ?></span>
-                                                                        <?php if ($phone['is_primary']): ?>
-                                                                            <div class="mt-1">
-                                                                                <span class="badge bg-success bg-opacity-10 text-white border border-success border-opacity-25 px-2 py-1" style="font-size: 0.7rem;">
-                                                                                    <i class="bi bi-star-fill me-1"></i>Primary
-                                                                                </span>
-                                                                            </div>
-                                                                        <?php endif; ?>
-                                                                    </div>
-                                                                </div>
-                                                            </td>
-                                                            <td class="py-3">
-                                                                <div class="d-flex align-items-center">
-                                                                    <span class="phone-label-text text-dark"><?php echo htmlspecialchars($phone['label'] ?? 'No label'); ?></span>
-                                                                    <button class="btn btn-link btn-sm p-0 ms-2 edit-label-btn" 
-                                                                           data-phone-id="<?php echo $phone['phone_id']; ?>"
-                                                                           data-current-label="<?php echo htmlspecialchars($phone['label'] ?? ''); ?>"
-                                                                           style="color: #6c757d; text-decoration: none;">
-                                                                        <i class="bi bi-pencil-square"></i>
-                                                                    </button>
-                                                                    <input type="text" class="form-control form-control-sm label-input border-0 bg-light" 
-                                                                           data-phone-id="<?php echo $phone['phone_id']; ?>"
-                                                                           value="<?php echo htmlspecialchars($phone['label'] ?? ''); ?>"
-                                                                           style="display: none; max-width: 150px;">
-                                                                </div>
-                                                            </td>
-                                                            <td class="py-3">
-                                                                <?php if ($phone['verified']): ?>
-                                                                    <span class="badge bg-success bg-opacity-10 text-white border border-success border-opacity-25 px-3 py-2">
-                                                                        <i class="bi bi-check-circle-fill me-1"></i>Verified
-                                                                    </span>
-                                                                <?php else: ?>
-                                                                    <span class="badge bg-warning bg-opacity-10 text-white border border-warning border-opacity-25 px-3 py-2">
-                                                                        <i class="bi bi-exclamation-triangle-fill me-1"></i>Unverified
-                                                                    </span>
-                                                                <?php endif; ?>
-                                                            </td>
-                                                            <td class="py-3">
-                                                                <div class="d-flex gap-2 flex-wrap">
-                                                                    <?php if (!$phone['is_primary'] && $phone['verified']): ?>
-                                                                        <form method="POST" class="d-inline">
-                                                                            <input type="hidden" name="phone_id" value="<?php echo $phone['phone_id']; ?>">
-                                                                            <button type="submit" name="set_primary" class="btn btn-sm btn-success rounded-pill px-3 py-1">
-                                                                                <i class="bi bi-star-fill me-1"></i>Make Primary
-                                                                            </button>
-                                                                        </form>
-                                                                    <?php endif; ?>
-                                                                    
-                                                                    <?php if (!$phone['verified']): ?>
-                                                                        <button type="button" class="btn btn-sm btn-warning rounded-pill px-3 py-1 verify-btn" 
-                                                                                data-phone-id="<?php echo $phone['phone_id']; ?>">
-                                                                            <i class="bi bi-shield-check me-1"></i>Verify
-                                                                        </button>
-                                                                        <button type="button" class="btn btn-sm btn-info rounded-pill px-3 py-1 resend-btn" 
-                                                                                data-phone-id="<?php echo $phone['phone_id']; ?>">
-                                                                            <i class="bi bi-arrow-repeat me-1"></i>Resend
-                                                                        </button>
-                                                                    <?php endif; ?>
-                                                                    
-                                                                    <button type="button" class="btn btn-sm btn-danger rounded-pill px-3 py-1 delete-btn" 
-                                                                            data-phone-id="<?php echo $phone['phone_id']; ?>"
-                                                                            data-phone-number="<?php echo htmlspecialchars($phone['phone_number']); ?>">
-                                                                        <i class="bi bi-trash-fill me-1"></i>Delete
-                                                                    </button>
-                                                                    
-                                                                    <!-- Debug button (remove in production)
-                                                                    <button type="button" class="btn btn-sm btn-secondary rounded-pill px-3 py-1 debug-btn" 
-                                                                            data-phone-id="<?php echo $phone['phone_id']; ?>">
-                                                                        <i class="bi bi-bug me-1"></i>Debug
-                                                                    </button> -->
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    <?php endforeach; ?>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                        
-                                        <!-- No Results Message -->
-                                        <div id="noResultsMessage" class="text-center py-5" style="display: none;">
-                                            <div class="bg-light bg-opacity-50 p-4 rounded-circle d-inline-block mb-3">
-                                                <i class="bi bi-search text-muted" style="font-size: 3rem;"></i>
-                                            </div>
-                                            <h4 class="text-dark fw-semibold mb-2">No Results Found</h4>
-                                            <p class="text-muted mb-4">Try adjusting your search terms or filters</p>
-                                            <button class="btn btn-outline-primary px-4 py-2 rounded-pill" id="clearAllFiltersBtn">
-                                                <i class="bi bi-arrow-clockwise me-2"></i>Clear All Filters
+                                                </form>
+                                            <?php endif; ?>
+                                            
+                                            <?php if (!$phone['verified']): ?>
+                                                <button type="button" class="btn btn-sm btn-warning verify-btn" 
+                                                        data-phone-id="<?php echo $phone['phone_id']; ?>">
+                                                    <i class="fa fa-shield"></i> Verify
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-info resend-btn" 
+                                                        data-phone-id="<?php echo $phone['phone_id']; ?>">
+                                                    <i class="fa fa-refresh"></i> Resend
+                                                </button>
+                                            <?php endif; ?>
+                                            
+                                            <button type="button" class="btn btn-sm btn-danger delete-btn" 
+                                                    data-phone-id="<?php echo $phone['phone_id']; ?>"
+                                                    data-phone-number="<?php echo htmlspecialchars($phone['phone_number']); ?>">
+                                                <i class="fa fa-trash"></i> Delete
                                             </button>
                                         </div>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="card-footer bg-transparent border-0 py-3" style="border-radius: 0 0 16px 16px;">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-muted">
-                                <i class="bi bi-clock me-1"></i>Last updated: <?php echo date('F j, Y, g:i a'); ?>
-                            </small>
-                            <small class="text-muted">
-                                <i class="bi bi-hash me-1"></i>Total numbers: <?php echo count($phoneNumbers); ?>
-                            </small>
-                        </div>
-                    </div>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
                 </div>
-            </div>
+            <?php endif; ?>
         </div>
     </div>
 
-    <!-- Add Phone Modal -->
+    <!-- Add Phone Modal - Gentelella Form Validation Style -->
     <div class="modal fade" id="addPhoneModal" tabindex="-1" aria-labelledby="addPhoneModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow-lg">
-                <div class="modal-header bg-warning text-dark border-0 py-3">
-                    <h6 class="modal-title fw-bold mb-0" id="addPhoneModalLabel">
-                        <i class="bi bi-plus-circle me-2"></i>Add New Phone Number
-                    </h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title" id="addPhoneModalLabel">
+                        <i class="fa fa-phone"></i> Add New Phone Number
+                    </h4>
+                    <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
                 </div>
-                <form id="addPhoneForm" method="POST">
-                    <div class="modal-body p-4">
-                        <div class="mb-4">
-                            <label for="phone_number" class="form-label fw-semibold text-warning mb-2">Philippine Mobile Number</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-warning text-dark border-end-0 fw-semibold">+63</span>
-                                <input type="text" name="phone_number" id="phone_number" class="form-control border-start-0" 
-                                       placeholder="09171234567" required
-                                       pattern="09[0-9]{9}" title="Philippine number starting with 09 (11 digits)"
-                                       maxlength="11">
-                            </div>
-                            <div class="valid-feedback validation-feedback mt-1">
-                                <i class="bi bi-check-circle-fill me-1"></i>Phone number is valid and available!
-                            </div>
-                            <div class="invalid-feedback validation-feedback mt-1">
-                                <i class="bi bi-exclamation-triangle-fill me-1"></i>Please enter a valid Philippine number (09XXXXXXXXX).
-                            </div>
-                            <small class="text-muted mt-1 d-block">Must be exactly 11 digits starting with 09</small>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <label for="label" class="form-label fw-semibold text-warning mb-2">Name<span class="text-muted">(Optional)</span></label>
-                            <input type="text" name="label" id="label" class="form-control" 
-                                   placeholder="Work, Personal, Home...">
-                            <small class="text-muted mt-1 d-block">Helps you identify this number's purpose</small>
-                        </div>
-                        
-                        <div class="form-check form-switch mb-4">
-                            <input class="form-check-input" type="checkbox" name="is_primary" id="is_primary">
-                            <label class="form-check-label fw-semibold text-warning" for="is_primary">
-                                <i class="bi bi-star-fill me-1"></i>Set as Primary Number
+                <form id="addPhoneForm" method="POST" class="form-horizontal form-label-left" data-parsley-validate>
+                    <input type="hidden" name="csrf_token" value="<?php echo escapeOutput($csrfToken); ?>">
+                    <div class="modal-body">
+                        <div class="item form-group">
+                            <label class="col-form-label col-md-3 col-sm-3 label-align" for="phone_number">
+                                Philippine Mobile Number <span class="required">*</span>
                             </label>
+                            <div class="col-md-9 col-sm-9">
+                                <div class="input-group">
+                                    <span class="input-group-addon"></span>
+                                    <input type="text" 
+                                           id="phone_number" 
+                                           name="phone_number" 
+                                           required="required" 
+                                           class="form-control has-feedback-left text-start"
+                                           placeholder="Enter Phone Number"
+                                           data-parsley-pattern="^09[0-9]{9}$"
+                                           data-parsley-pattern-message="Must be exactly 11 digits starting with 09"
+                                           data-parsley-trigger="change"
+                                           data-parsley-errors-container="#phoneValidationMessage"
+                                           maxlength="11">
+                                    <span class="fa fa-phone form-control-feedback left" aria-hidden="true"></span>
+                                </div>
+                                <div id="phoneValidationMessage" class="mt-1">
+                                    <!-- <small class="form-text small text-muted validation-text">
+                                        Must be exactly 11 digits starting with 09
+                                    </small> -->
+                                </div>
+                            </div>
                         </div>
                         
-                        <div class="alert alert-warning border border-warning border-opacity-25 mb-0" style="background-color: #fff3cd;">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-info-circle text-warning me-2"></i>
-                                <small class="text-warning mb-0">A verification code will be sent via SMS to confirm ownership of this number.</small>
+                        <div class="item form-group">
+                            <label class="col-form-label col-md-3 col-sm-3 label-align" for="label">
+                                Label <span class="optional">(Optional)</span>
+                            </label>
+                            <div class="col-md-9 col-sm-9">
+                                <input type="text" 
+                                       id="label" 
+                                       name="label" 
+                                       class="form-control has-feedback-left"
+                                       placeholder="Work, Personal, Home...">
+                                <span class="fa fa-tag form-control-feedback left" aria-hidden="true"></span>
+                                <!-- <small class="form-text text-muted">Helps you identify this number's purpose</small> -->
                             </div>
+                        </div>
+                        
+                        <div class="item form-group">
+                            <label class="col-form-label col-md-3 col-sm-3 label-align"></label>
+                            <div class="col-md-9 col-sm-9">
+                                <div class="checkbox">
+                                    <label>
+                                        <input type="checkbox" name="is_primary" id="is_primary" class="flat"> 
+                                        <i class="fa fa-star"></i> Set as Primary Number
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info alert-dismissible fade in" role="alert">
+                            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                <span aria-hidden="true">×</span>
+                            </button>
+                            <strong><i class="fa fa-info-circle"></i> Note:</strong> A verification code will be sent via SMS to confirm ownership of this number.
                         </div>
                     </div>
-                    <div class="modal-footer bg-light border-0 py-3">
-                        <button type="button" class="btn btn-outline-warning px-4" data-bs-dismiss="modal">
-                            <i class="bi bi-x-lg me-1"></i>Cancel
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fa fa-times"></i> Cancel
                         </button>
-                        <button type="submit" name="add_phone" id="addPhoneBtn" class="btn btn-warning px-4" disabled>
-                            <i class="bi bi-plus-lg me-1"></i>Add Number
+                        <button type="submit" name="add_phone" id="addPhoneBtn" class="btn btn-success">
+                            <i class="fa fa-plus"></i> Add Number
                         </button>
                     </div>
                 </form>
@@ -987,188 +1199,216 @@ try {
         </div>
     </div>
 
-    <!-- Verification Modal -->
-    <div id="verificationModal" class="verification-modal">
-        <div class="verification-content">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="m-0"><i class="bi bi-shield-check text-primary me-2"></i>Verify Phone Number</h4>
-                <button type="button" class="btn-close" onclick="closeModal()" aria-label="Close"></button>
-            </div>
-            <div class="alert alert-info">
-                <i class="bi bi-info-circle-fill me-2"></i>
-                <strong>Enter the 6-digit verification code</strong> sent to your phone number.
-            </div>
-            <form id="verifyForm" method="POST">
-                <input type="hidden" name="phone_id" id="modalPhoneId" value="">
-                <div class="mb-3">
-                    <label for="verification_code" class="form-label">Verification Code</label>
-                    <input type="text" name="verification_code" id="verification_code" 
-                           class="form-control verification-code-input text-center" 
-                           pattern="[0-9]{6}" title="6-digit code" required maxlength="6" 
-                           autocomplete="off" placeholder="000000"
-                           style="font-size: 1.5rem; letter-spacing: 0.5rem;">
-                    <div class="text-end mt-2">
-                        <small class="text-muted" id="countdown">Code expires in 15:00</small>
-                    </div>
+    <!-- Verification Modal - Gentelella Form Validation Style -->
+    <div class="modal fade" id="verificationModal" tabindex="-1" aria-labelledby="verificationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title" id="verificationModalLabel">
+                        <i class="fa fa-shield"></i> Verify Phone Number
+                    </h4>
+                    <button type="button" class="btn-close" id="closeVerificationModal" aria-label="Close"></button>
                 </div>
-                <div class="d-flex justify-content-between align-items-center">
-                    <button type="button" class="btn btn-outline-secondary" onclick="closeModal()">
-                        <i class="bi bi-x-lg me-1"></i>Cancel
-                    </button>
-                    <div>
-                        <button type="button" class="btn btn-outline-info me-2" id="resendFromModal">
-                            <i class="bi bi-arrow-repeat me-1"></i>Resend Code
+                <form id="verifyForm" method="POST" class="form-horizontal form-label-left" data-parsley-validate>
+                    <input type="hidden" name="csrf_token" value="<?php echo escapeOutput($csrfToken); ?>">
+                    <div class="modal-body" style="padding: 1rem;">
+                        <div class="alert alert-info alert-dismissible fade in mb-2 py-2" role="alert" style="margin-bottom: 0.75rem !important; padding: 0.5rem 1rem !important;">
+                            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                <span aria-hidden="true">×</span>
+                            </button>
+                            <strong><i class="fa fa-info-circle"></i> Enter the 6-digit verification code</strong> sent to your phone number.
+                        </div>
+                        
+                        <input type="hidden" name="phone_id" id="modalPhoneId" value="">
+                        
+                        <div class="item form-group mb-2" style="margin-bottom: 0.5rem !important;">
+                            <label class="form-label fw-bold mb-1" for="verification_code" style="margin-bottom: 0.25rem !important; font-size: 1.25rem !important; font-weight: 700 !important;">
+                                Verification Code <span class="required">*</span>
+                            </label>
+                            <div class="position-relative">
+                                <input type="text" 
+                                       id="verification_code" 
+                                       name="verification_code" 
+                                       required="required" 
+                                       class="form-control has-feedback-left verification-code-input text-center"
+                                       data-parsley-pattern="^[0-9]{6}$"
+                                       data-parsley-pattern-message="Please enter a valid 6-digit code"
+                                       data-parsley-trigger="change"
+                                       maxlength="6" 
+                                       autocomplete="off" 
+                                       placeholder="000000"
+                                       style="font-size: 1.5rem; letter-spacing: 0.5rem;">
+                                <span class="fa fa-key form-control-feedback left" aria-hidden="true"></span>
+                                <div class="text-end mt-1" style="margin-top: 0.25rem !important;">
+                                    <small class="text-muted" id="countdown" style="font-size: 0.8rem;">Code expires in 15:00</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" id="cancelVerificationBtn">
+                            <i class="fa fa-times"></i> Cancel
                         </button>
-                        <button type="submit" name="verify_phone" class="btn btn-primary">
-                            <i class="bi bi-check-lg me-1"></i>Verify
+                        <button type="button" class="btn btn-info" id="resendFromModal">
+                            <i class="fa fa-refresh"></i> Resend Code
+                        </button>
+                        <button type="submit" name="verify_phone" class="btn btn-success">
+                            <i class="fa fa-check"></i> Verify
                         </button>
                     </div>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
 
-    <!-- Help Modal -->
+    <!-- Help Modal - Gentelella Style -->
     <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-md">
-            <div class="modal-content border-0 shadow-lg" style="border-radius: 12px;">
-                <div class="modal-header bg-white border-0 py-3" style="border-radius: 12px 12px 0 0;">
-                    <h6 class="modal-title text-dark fw-semibold mb-0" id="helpModalLabel">
-                        <i class="bi bi-question-circle text-primary me-2"></i>Phone Number Help
-                    </h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title" id="helpModalLabel">
+                        <i class="fa fa-question-circle"></i> Phone Number Help
+                    </h4>
+                    <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
                 </div>
-                <div class="modal-body p-0" style="max-height: 400px; overflow-y: auto;">
-                    <div class="p-3">
-                        <!-- Adding Phone Number -->
-                        <div class="mb-3">
-                            <div class="d-flex align-items-center mb-2">
-                                <i class="bi bi-plus-circle text-primary me-2"></i>
-                                <h6 class="mb-0 text-dark fw-semibold">Adding Phone Numbers</h6>
-                            </div>
-                            <ul class="list-unstyled mb-0 small">
-                                <li class="mb-1">
-                                    <i class="bi bi-check-circle-fill text-success me-2" style="font-size: 0.8rem;"></i>
-                                    Enter 11-digit number starting with 09
-                                </li>
-                                <li class="mb-1">
-                                    <i class="bi bi-check-circle-fill text-success me-2" style="font-size: 0.8rem;"></i>
-                                    Add optional label and set as primary
-                                </li>
-                                <li class="mb-1">
-                                    <i class="bi bi-check-circle-fill text-success me-2" style="font-size: 0.8rem;"></i>
-                                    Verification code sent via SMS
-                                </li>
-                            </ul>
+                <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+                    <!-- Adding Phone Number -->
+                    <div class="mb-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="fa fa-plus-circle text-primary me-2"></i>
+                            <h6 class="mb-0 text-dark fw-semibold">Adding Phone Numbers</h6>
                         </div>
+                        <ul class="list-unstyled mb-0 small">
+                            <li class="mb-1">
+                                <i class="fa fa-check-circle text-success me-2" style="font-size: 0.8rem;"></i>
+                                Enter 11-digit number starting with 09
+                            </li>
+                            <li class="mb-1">
+                                <i class="fa fa-check-circle text-success me-2" style="font-size: 0.8rem;"></i>
+                                Add optional label and set as primary
+                            </li>
+                            <li class="mb-1">
+                                <i class="fa fa-check-circle text-success me-2" style="font-size: 0.8rem;"></i>
+                                Verification code sent via SMS
+                            </li>
+                        </ul>
+                    </div>
 
-                        <!-- Verification Process -->
-                        <div class="mb-3">
-                            <div class="d-flex align-items-center mb-2">
-                                <i class="bi bi-shield-check text-primary me-2"></i>
-                                <h6 class="mb-0 text-dark fw-semibold">Verification Process</h6>
-                            </div>
-                            <ul class="list-unstyled mb-0 small">
-                                <li class="mb-1">
-                                    <i class="bi bi-123 text-info me-2" style="font-size: 0.8rem;"></i>
-                                    Enter 6-digit code from SMS
-                                </li>
-                                <li class="mb-1">
-                                    <i class="bi bi-clock-history text-warning me-2" style="font-size: 0.8rem;"></i>
-                                    Codes expire after 15 minutes
-                                </li>
-                                <li class="mb-1">
-                                    <i class="bi bi-arrow-repeat text-primary me-2" style="font-size: 0.8rem;"></i>
-                                    Request new code if needed
-                                </li>
-                            </ul>
+                    <!-- Verification Process -->
+                    <div class="mb-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="fa fa-shield text-primary me-2"></i>
+                            <h6 class="mb-0 text-dark fw-semibold">Verification Process</h6>
                         </div>
+                        <ul class="list-unstyled mb-0 small">
+                            <li class="mb-1">
+                                <i class="fa fa-key text-info me-2" style="font-size: 0.8rem;"></i>
+                                Enter 6-digit code from SMS
+                            </li>
+                            <li class="mb-1">
+                                <i class="fa fa-clock-o text-warning me-2" style="font-size: 0.8rem;"></i>
+                                Codes expire after 15 minutes
+                            </li>
+                            <li class="mb-1">
+                                <i class="fa fa-refresh text-primary me-2" style="font-size: 0.8rem;"></i>
+                                Request new code if needed
+                            </li>
+                        </ul>
+                    </div>
 
-                        <!-- Primary Number -->
-                        <div class="mb-3">
-                            <div class="d-flex align-items-center mb-2">
-                                <i class="bi bi-star-fill text-primary me-2"></i>
-                                <h6 class="mb-0 text-dark fw-semibold">Primary Number</h6>
-                            </div>
-                            <ul class="list-unstyled mb-0 small">
-                                <li class="mb-1">
-                                    <i class="bi bi-envelope-fill text-info me-2" style="font-size: 0.8rem;"></i>
-                                    Used for important communications
-                                </li>
-                                <li class="mb-1">
-                                    <i class="bi bi-arrow-left-right text-primary me-2" style="font-size: 0.8rem;"></i>
-                                    Can be changed anytime
-                                </li>
-                                <li class="mb-1">
-                                    <i class="bi bi-shield-lock text-success me-2" style="font-size: 0.8rem;"></i>
-                                    Must be verified
-                                </li>
-                            </ul>
+                    <!-- Primary Number -->
+                    <div class="mb-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="fa fa-star text-primary me-2"></i>
+                            <h6 class="mb-0 text-dark fw-semibold">Primary Number</h6>
                         </div>
+                        <ul class="list-unstyled mb-0 small">
+                            <li class="mb-1">
+                                <i class="fa fa-envelope text-info me-2" style="font-size: 0.8rem;"></i>
+                                Used for important communications
+                            </li>
+                            <li class="mb-1">
+                                <i class="fa fa-exchange text-primary me-2" style="font-size: 0.8rem;"></i>
+                                Can be changed anytime
+                            </li>
+                            <li class="mb-1">
+                                <i class="fa fa-lock text-success me-2" style="font-size: 0.8rem;"></i>
+                                Must be verified
+                            </li>
+                        </ul>
+                    </div>
 
-                        <!-- Labels -->
-                        <div class="mb-3">
-                            <div class="d-flex align-items-center mb-2">
-                                <i class="bi bi-tags-fill text-primary me-2"></i>
-                                <h6 class="mb-0 text-dark fw-semibold">Labels</h6>
-                            </div>
-                            <ul class="list-unstyled mb-0 small">
-                                <li class="mb-1">
-                                    <i class="bi bi-pencil-square text-primary me-2" style="font-size: 0.8rem;"></i>
-                                    Click edit icon to add/change labels
-                                </li>
-                                <li class="mb-1">
-                                    <i class="bi bi-funnel-fill text-info me-2" style="font-size: 0.8rem;"></i>
-                                    Helps identify number purposes
-                                </li>
-                                <li class="mb-1">
-                                    <i class="bi bi-card-heading text-secondary me-2" style="font-size: 0.8rem;"></i>
-                                    Examples: "Work", "Personal", "Backup"
-                                </li>
-                            </ul>
+                    <!-- Labels -->
+                    <div class="mb-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="fa fa-tags text-primary me-2"></i>
+                            <h6 class="mb-0 text-dark fw-semibold">Labels</h6>
                         </div>
+                        <ul class="list-unstyled mb-0 small">
+                            <li class="mb-1">
+                                <i class="fa fa-pencil text-primary me-2" style="font-size: 0.8rem;"></i>
+                                Click edit icon to add/change labels
+                            </li>
+                            <li class="mb-1">
+                                <i class="fa fa-filter text-info me-2" style="font-size: 0.8rem;"></i>
+                                Helps identify number purposes
+                            </li>
+                            <li class="mb-1">
+                                <i class="fa fa-tag text-secondary me-2" style="font-size: 0.8rem;"></i>
+                                Examples: "Work", "Personal", "Backup"
+                            </li>
+                        </ul>
+                    </div>
 
-                        <!-- Quick Tips -->
-                        <div class="bg-light rounded p-2 mt-3">
-                            <div class="d-flex align-items-center mb-1">
-                                <i class="bi bi-lightbulb text-warning me-2"></i>
-                                <small class="fw-semibold text-dark">Quick Tips</small>
-                            </div>
-                            <ul class="list-unstyled mb-0 small text-muted">
-                                <li class="mb-1">• You can have multiple phone numbers</li>
-                                <li class="mb-1">• Only one can be primary at a time</li>
-                                <li class="mb-1">• All numbers must be verified</li>
-                                <li class="mb-1">• Use labels to organize your numbers</li>
-                            </ul>
+                    <!-- Quick Tips -->
+                    <div class="bg-light rounded p-2 mt-3">
+                        <div class="d-flex align-items-center mb-1">
+                            <i class="fa fa-lightbulb-o text-warning me-2"></i>
+                            <small class="fw-semibold text-dark">Quick Tips</small>
                         </div>
+                        <ul class="list-unstyled mb-0 small text-muted">
+                            <li class="mb-1">• You can have multiple phone numbers</li>
+                            <li class="mb-1">• Only one can be primary at a time</li>
+                            <li class="mb-1">• All numbers must be verified</li>
+                            <li class="mb-1">• Use labels to organize your numbers</li>
+                        </ul>
                     </div>
                 </div>
-                <div class="modal-footer bg-white border-0 py-2" style="border-radius: 0 0 12px 12px;">
-                    <button type="button" class="btn btn-primary btn-sm px-3" data-bs-dismiss="modal">
-                        <i class="bi bi-check-lg me-1"></i>Got it!
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success" data-bs-dismiss="modal">
+                        <i class="fa fa-check"></i> Got it!
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- New Phone Added Modal -->
+    <!-- New Phone Added Modal - Gentelella Style -->
     <div class="modal fade" id="newPhoneModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title"><i class="bi bi-phone me-2"></i>Verification Required</h5>
+                <div class="modal-header">
+                    <h4 class="modal-title"><i class="fa fa-phone"></i> Verification Required</h4>
+                    <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
                 </div>
                 <div class="modal-body">
                     <div class="text-center mb-4">
-                        <i class="bi bi-chat-square-text text-primary" style="font-size: 3rem;"></i>
+                        <i class="fa fa-comment text-primary" style="font-size: 3rem;"></i>
                     </div>
                     <p>A verification code has been sent to your phone number. Please verify it to complete the registration.</p>
                     <p>You can verify now or later from your phone numbers list.</p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Verify Later</button>
-                    <button type="button" class="btn btn-primary" id="verifyNowBtn">Verify Now</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fa fa-clock-o"></i> Verify Later
+                    </button>
+                    <button type="button" class="btn btn-success" id="verifyNowBtn">
+                        <i class="fa fa-check"></i> Verify Now
+                    </button>
                 </div>
             </div>
         </div>
@@ -1178,9 +1418,32 @@ try {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- DataTables -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <!-- Parsley.js for form validation (Gentelella style) -->
+    <script src="https://cdn.jsdelivr.net/npm/parsleyjs@2.9.2/dist/parsley.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/parsleyjs@2.9.2/dist/i18n/en.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/parsleyjs@2.9.2/src/parsley.css">
     <script>
         // Force cache refresh
         console.log('UserPhone.js loaded at:', new Date().toISOString());
+        
+        // CSRF Token for AJAX requests
+        var csrfToken = '<?php echo escapeOutput($csrfToken); ?>';
+        
+        // Helper function to safely get Parsley instance
+        function getParsleyInstance($element) {
+            if (!$element || !$element.length) return null;
+            try {
+                const parsley = $element.parsley();
+                return parsley && typeof parsley === 'object' ? parsley : null;
+            } catch (e) {
+                console.warn('Parsley not available for element:', e);
+                return null;
+            }
+        }
     </script>
     <script>
         $(document).ready(function() {
@@ -1191,6 +1454,50 @@ try {
                 }, 5000);
             });
             
+            // Initialize DataTables - Gentelella Style (matching tables_dynamic.html)
+            if ($('#datatable').length && typeof $.fn.DataTable !== 'undefined') {
+                var phoneTable = $('#datatable').DataTable({
+                    "processing": true,
+                    "serverSide": false,
+                    "responsive": true,
+                    "autoWidth": false,
+                    "pageLength": 10,
+                    "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+                    "order": [[0, "asc"]],
+                    "columnDefs": [
+                        { "orderable": false, "targets": [3] }, // Actions column
+                        { "className": "text-center", "targets": [2] } // Status column
+                    ],
+                    "language": {
+                        "lengthMenu": "Show _MENU_ entries",
+                        "search": "Search:",
+                        "info": "Showing _START_ to _END_ of _TOTAL_ phone numbers",
+                        "infoEmpty": "No phone numbers to display",
+                        "infoFiltered": "(filtered from _MAX_ total phone numbers)",
+                        "zeroRecords": "No matching phone numbers found",
+                        "emptyTable": "No phone numbers available",
+                        "processing": "Processing...",
+                        "paginate": {
+                            "first": "First",
+                            "last": "Last",
+                            "next": "Next",
+                            "previous": "Previous"
+                        }
+                    },
+                    "dom": '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+                           '<"row"<"col-sm-12"tr>>' +
+                           '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+                    "initComplete": function() {
+                        // Re-bind event handlers after table initialization
+                        bindPhoneActions();
+                    },
+                    "drawCallback": function() {
+                        // Re-bind event handlers after each table redraw
+                        bindPhoneActions();
+                    }
+                });
+            }
+            
             // Show new phone modal if we just added a phone
             <?php if ($verifyingPhone && $newPhoneId): ?>
                 const newPhoneModal = new bootstrap.Modal(document.getElementById('newPhoneModal'));
@@ -1200,12 +1507,45 @@ try {
                 $('#verifyNowBtn').click(function() {
                     newPhoneModal.hide();
                     $('#modalPhoneId').val(<?php echo $newPhoneId; ?>);
-                    $('#verificationModal').show();
+                    const verificationModal = new bootstrap.Modal(document.getElementById('verificationModal'));
+                    verificationModal.show();
                     startCountdown();
                 });
             <?php endif; ?>
             
+            // Initialize Parsley.js for form validation (Gentelella style)
+            if ($('#addPhoneForm').length && typeof window.Parsley !== 'undefined') {
+                $('#addPhoneForm').parsley();
+            }
+            if ($('#verifyForm').length && typeof window.Parsley !== 'undefined') {
+                $('#verifyForm').parsley();
+            }
+            
+            const phoneValidationMessageContainer = $('#phoneValidationMessage');
+            const phoneValidationMessageText = $('#phoneValidationMessage .validation-text');
+            const validationStates = ['text-muted', 'text-success', 'text-danger', 'text-info'];
+            
+            function setPhoneValidationMessage(text, state = 'text-muted') {
+                if (!phoneValidationMessageText.length) return;
+                phoneValidationMessageText
+                    .removeClass(validationStates.join(' '))
+                    .addClass(state)
+                    .text(text);
+            }
+            
+            // Add custom Parsley validator for phone number existence check
+            if (typeof window.Parsley !== 'undefined' && window.Parsley.addValidator) {
+                window.Parsley.addValidator('phoneAvailable', {
+                    validateString: function(value) {
+                        // This will be handled via AJAX in the input event
+                        return true; // Let AJAX handle the actual validation
+                    },
+                    priority: 32
+                });
+            }
+            
             // Phone number input formatting and validation
+            let phoneCheckTimeout;
             $('#phone_number').on('input', function() {
                 let phoneInput = $(this);
                 let value = phoneInput.val().trim();
@@ -1229,75 +1569,171 @@ try {
                     }
                 }
                 
-                validatePhoneNumber();
-            });
-            
-            function validatePhoneNumber() {
-                const phoneInput = $('#phone_number');
-                const feedback = $('.validation-feedback');
-                const addButton = $('#addPhoneBtn');
                 const phoneNumber = phoneInput.val().trim();
                 
-                // Reset state
-                phoneInput.removeClass('is-valid is-invalid');
-                feedback.hide();
-                addButton.prop('disabled', true);
+                const parsleyInstance = getParsleyInstance(phoneInput);
                 
-                // Check if empty
                 if (!phoneNumber) {
+                    setPhoneValidationMessage('Must be exactly 11 digits starting with 09');
+                    if (parsleyInstance) {
+                        parsleyInstance.removeError('phoneFormat');
+                        parsleyInstance.removeError('phoneExists');
+                        parsleyInstance.removeError('phoneCheck');
+                    }
                     return;
                 }
                 
-                // Validate format - must be exactly 11 digits starting with 09
                 if (!/^09\d{9}$/.test(phoneNumber)) {
-                    phoneInput.addClass('is-invalid');
-                    $('.invalid-feedback').text('Invalid Philippine phone number. Must be exactly 11 digits starting with 09.').show();
+                    setPhoneValidationMessage('Must be exactly 11 digits starting with 09', 'text-danger');
+                    if (parsleyInstance) {
+                        parsleyInstance.addError('phoneFormat', {message: 'Must be exactly 11 digits starting with 09'});
+                        parsleyInstance.removeError('phoneExists');
+                        parsleyInstance.removeError('phoneCheck');
+                    }
                     return;
                 }
                 
-                // Check if number exists via AJAX
-                $.ajax({
-                    url: window.location.href,
-                    method: 'POST',
-                    data: {
-                        action: 'check_phone',
-                        phone_number: phoneNumber
-                    },
-                    dataType: 'json',
-                    success: function(response) {
-                        if (response.valid) {
-                            phoneInput.addClass('is-valid');
-                            $('.valid-feedback').show();
-                            addButton.prop('disabled', false);
-                        } else {
-                            phoneInput.addClass('is-invalid');
-                            $('.invalid-feedback').text(response.message).show();
+                if (parsleyInstance) {
+                    parsleyInstance.removeError('phoneFormat');
+                    parsleyInstance.removeError('phoneCheck');
+                }
+                setPhoneValidationMessage('Checking availability...', 'text-info');
+                
+                // Clear previous timeout
+                clearTimeout(phoneCheckTimeout);
+                
+                // Debounce AJAX check
+                phoneCheckTimeout = setTimeout(function() {
+                    $.ajax({
+                        url: window.location.href,
+                        method: 'POST',
+                        data: {
+                            action: 'check_phone',
+                            phone_number: phoneNumber,
+                            csrf_token: csrfToken
+                        },
+                        dataType: 'json',
+                        success: function(response) {
+                            const parsleyInst = getParsleyInstance(phoneInput);
+                            if (!response.valid) {
+                                // Add custom Parsley error
+                                if (parsleyInst) {
+                                    parsleyInst.addError('phoneExists', {message: response.message});
+                                }
+                                setPhoneValidationMessage(response.message, 'text-danger');
+                            } else {
+                                if (parsleyInst) {
+                                    parsleyInst.removeError('phoneExists');
+                                }
+                                setPhoneValidationMessage('Phone number looks good!', 'text-success');
+                            }
+                        },
+                        error: function() {
+                            const parsleyInst = getParsleyInstance(phoneInput);
+                            if (parsleyInst) {
+                                parsleyInst.addError('phoneCheck', {message: 'Error validating phone number. Please try again.'});
+                            }
+                            setPhoneValidationMessage('Error validating phone number. Please try again.', 'text-danger');
                         }
-                    },
-                    error: function() {
-                        phoneInput.addClass('is-invalid');
-                        $('.invalid-feedback').text('Error validating phone number. Please try again.').show();
+                    });
+                }, 500);
+            });
+            
+            // Function to bind phone action handlers
+            function bindPhoneActions() {
+                // Verify button click handler
+                $('.verify-btn').off('click').on('click', function() {
+                    const phoneId = $(this).data('phone-id');
+                    $('#modalPhoneId').val(phoneId);
+                    const verificationModal = new bootstrap.Modal(document.getElementById('verificationModal'));
+                    verificationModal.show();
+                    $('#verification_code').focus();
+                    startCountdown();
+                });
+                
+                // Resend button click handler
+                $('.resend-btn').off('click').on('click', function() {
+                    const phoneId = $(this).data('phone-id');
+                    resendVerificationCode(phoneId);
+                });
+                
+                // Delete button click handler
+                $('.delete-btn').off('click').on('click', function() {
+                    const phoneId = $(this).data('phone-id');
+                    const phoneNumber = $(this).data('phone-number');
+                    
+                    Swal.fire({
+                        title: 'Delete Phone Number?',
+                        text: `Are you sure you want to delete ${phoneNumber}?`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#3085d6',
+                        confirmButtonText: 'Yes, delete it!',
+                        cancelButtonText: 'Cancel'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            deletePhoneNumber(phoneId);
+                        }
+                    });
+                });
+                
+                // Label editing functionality
+                $('.edit-label-btn').off('click').on('click', function() {
+                    const phoneId = $(this).data('phone-id');
+                    const currentLabel = $(this).data('current-label') || '';
+                    
+                    $(this).siblings('.phone-label-text').hide();
+                    $(this).hide();
+                    
+                    const input = $(`.label-input[data-phone-id="${phoneId}"]`);
+                    input.show().focus().val(currentLabel);
+                });
+                
+                // Handle label input blur
+                $('.label-input').off('blur').on('blur', function() {
+                    const phoneId = $(this).data('phone-id');
+                    const newLabel = $(this).val().trim();
+                    
+                    $(this).hide();
+                    $(this).siblings('.phone-label-text').show();
+                    $(this).siblings('.edit-label-btn').show();
+                    
+                    if (newLabel !== $(this).siblings('.phone-label-text').text().replace('No label', '').trim()) {
+                        updatePhoneLabel(phoneId, newLabel);
+                    }
+                });
+                
+                // Handle label input enter key
+                $('.label-input').off('keypress').on('keypress', function(e) {
+                    if (e.which === 13) {
+                        $(this).blur();
                     }
                 });
             }
             
-            // Verify button click handler
-            $('.verify-btn').click(function() {
-                const phoneId = $(this).data('phone-id');
-                $('#modalPhoneId').val(phoneId);
-                $('#verificationModal').show();
-                $('#verification_code').focus();
-                startCountdown();
+            // Initial bind
+            bindPhoneActions();
+            
+            // Set up verification modal close handlers
+            // Close button (X) in header
+            $(document).off('click', '#closeVerificationModal').on('click', '#closeVerificationModal', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeVerificationModal();
+                return false;
             });
             
-            // Resend button click handler
-            $('.resend-btn').click(function() {
-                const phoneId = $(this).data('phone-id');
-                resendVerificationCode(phoneId);
+            // Cancel button in footer
+            $(document).off('click', '#cancelVerificationBtn').on('click', '#cancelVerificationBtn', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeVerificationModal();
+                return false;
             });
             
             // Resend button in modal
-            $('#resendFromModal').click(function() {
+            $('#resendFromModal').off('click').on('click', function() {
                 const phoneId = $('#modalPhoneId').val();
                 resendVerificationCode(phoneId);
             });
@@ -1324,96 +1760,58 @@ try {
                 }
             });
             
-            // Delete button click handler
-            $('.delete-btn').click(function() {
-                const phoneId = $(this).data('phone-id');
-                const phoneNumber = $(this).data('phone-number');
-                
-                Swal.fire({
-                    title: 'Delete Phone Number?',
-                    text: `Are you sure you want to delete ${phoneNumber}?`,
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#d33',
-                    cancelButtonColor: '#3085d6',
-                    confirmButtonText: 'Yes, delete it!',
-                    cancelButtonText: 'Cancel'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        deletePhoneNumber(phoneId);
-                    }
-                });
-            });
-            
-            // Debug button click handler
-            $('.debug-btn').click(function() {
-                const phoneId = $(this).data('phone-id');
-                debugPhoneStatus(phoneId);
-            });
-            
             // Form submission handler
-            $('#verifyForm').submit(function(e) {
+            $('#verifyForm').off('submit').on('submit', function(e) {
                 e.preventDefault();
                 verifyPhoneNumber();
             });
-            
-            // Close modal when clicking outside
-            $(window).click(function(event) {
-                if (event.target === document.getElementById('verificationModal')) {
-                    closeModal();
-                }
-            });
 
-            // Add phone form submission
-            $('#addPhoneForm').submit(function(e) {
+            // Add phone form submission - Parsley will handle validation
+            $('#addPhoneForm').on('submit', function(e) {
                 const phoneInput = $('#phone_number');
-                if (phoneInput.hasClass('is-invalid')) {
-                    e.preventDefault();
-                    Swal.fire({
-                        title: 'Invalid Phone Number',
-                        text: 'Please enter a valid Philippine phone number starting with 09 (11 digits total)',
-                        icon: 'error',
-                        confirmButtonText: 'OK'
+                const phoneNumber = phoneInput.val().trim();
+                
+                // Final check before submission
+                if (/^09\d{9}$/.test(phoneNumber)) {
+                    // Check if number exists synchronously before submit
+                    $.ajax({
+                        url: window.location.href,
+                        method: 'POST',
+                        async: false,
+                        data: {
+                            action: 'check_phone',
+                            phone_number: phoneNumber,
+                            csrf_token: csrfToken
+                        },
+                        dataType: 'json',
+                        success: function(response) {
+                            if (!response.valid) {
+                                e.preventDefault();
+                                const parsleyInst = getParsleyInstance(phoneInput);
+                                if (parsleyInst) {
+                                    parsleyInst.addError('phoneExists', {message: response.message});
+                                }
+                                Swal.fire({
+                                    title: 'Invalid Phone Number',
+                                    text: response.message,
+                                    icon: 'error',
+                                    confirmButtonText: 'OK'
+                                });
+                                return false;
+                            }
+                        }
                     });
                 }
-            });
-            
-            // Label editing functionality
-            $('.edit-label-btn').click(function() {
-                const phoneId = $(this).data('phone-id');
-                const currentLabel = $(this).data('current-label') || '';
                 
-                // Hide the text and edit button
-                $(this).siblings('.phone-label-text').hide();
-                $(this).hide();
-                
-                // Show the input field
-                const input = $(`.label-input[data-phone-id="${phoneId}"]`);
-                input.show().focus().val(currentLabel);
-            });
-            
-            // Handle label input blur (when user clicks away)
-            $('.label-input').on('blur', function() {
-                const phoneId = $(this).data('phone-id');
-                const newLabel = $(this).val().trim();
-                
-                // Show the text and edit button
-                $(this).hide();
-                $(this).siblings('.phone-label-text').show();
-                $(this).siblings('.edit-label-btn').show();
-                
-                // Only update if the label changed
-                if (newLabel !== $(this).siblings('.phone-label-text').text().replace('No label', '').trim()) {
-                    updatePhoneLabel(phoneId, newLabel);
+                // Parsley validation is handled automatically
+                // Only proceed if form is valid
+                const formParsley = getParsleyInstance($(this));
+                if (formParsley && !formParsley.isValid()) {
+                    e.preventDefault();
+                    return false;
                 }
             });
             
-            // Handle label input enter key
-            $('.label-input').on('keypress', function(e) {
-                if (e.which === 13) { // Enter key
-                    $(this).blur();
-                }
-            });
             
             // Download QR code button
             $('#downloadQrBtn').click(function() {
@@ -1454,10 +1852,15 @@ try {
                 data: {
                     action: 'verify_code',
                     phone_id: phoneId,
-                    code: code
+                    code: code,
+                    csrf_token: csrfToken
                 },
                 dataType: 'json',
                 success: function(response) {
+                    // Update CSRF token from response if provided
+                    if (response.csrf_token) {
+                        csrfToken = response.csrf_token;
+                    }
                     Swal.close();
                     if (response.success) {
                         Swal.fire({
@@ -1503,10 +1906,15 @@ try {
                 method: 'POST',
                 data: {
                     action: 'resend_code',
-                    phone_id: phoneId
+                    phone_id: phoneId,
+                    csrf_token: csrfToken
                 },
                 dataType: 'json',
                 success: function(response) {
+                    // Update CSRF token from response if provided
+                    if (response.csrf_token) {
+                        csrfToken = response.csrf_token;
+                    }
                     Swal.close();
                     if (response.success) {
                         Swal.fire({
@@ -1550,10 +1958,15 @@ try {
                 data: {
                     action: 'update_label',
                     phone_id: phoneId,
-                    label: label
+                    label: label,
+                    csrf_token: csrfToken
                 },
                 dataType: 'json',
                 success: function(response) {
+                    // Update CSRF token from response if provided
+                    if (response.csrf_token) {
+                        csrfToken = response.csrf_token;
+                    }
                     Swal.close();
                     if (response.success) {
                         // Update the displayed label
@@ -1602,10 +2015,15 @@ try {
                 method: 'POST',
                 data: {
                     action: 'delete_phone',
-                    phone_id: phoneId
+                    phone_id: phoneId,
+                    csrf_token: csrfToken
                 },
                 dataType: 'json',
                 success: function(response) {
+                    // Update CSRF token from response if provided
+                    if (response.csrf_token) {
+                        csrfToken = response.csrf_token;
+                    }
                     Swal.close();
                     if (response.success) {
                         Swal.fire({
@@ -1659,10 +2077,78 @@ try {
             }, 1000);
         }
         
-        function closeModal() {
-            $('#verificationModal').hide();
-            $('input[name="verification_code"]').val('').focus();
+        function resetVerificationForm() {
+            // Reset form when modal is closed
+            $('input[name="verification_code"]').val('');
             $('#countdown').removeClass('text-danger').text('Code expires in 15:00');
+            
+            // Clear any Parsley errors
+            const parsleyInst = getParsleyInstance($('#verifyForm'));
+            if (parsleyInst) {
+                parsleyInst.reset();
+            }
+        }
+        
+        // Function to force close verification modal
+        function closeVerificationModal() {
+            const modalElement = document.getElementById('verificationModal');
+            if (!modalElement) return;
+            
+            // Force close - directly manipulate DOM to ensure it closes immediately
+            // Remove modal classes and hide
+            $(modalElement).removeClass('show').css({
+                'display': 'none',
+                'padding-right': ''
+            });
+            $(modalElement).attr('aria-hidden', 'true');
+            $(modalElement).removeAttr('aria-modal');
+            $(modalElement).removeAttr('style');
+            
+            // Remove all modal backdrops
+            $('.modal-backdrop').remove();
+            
+            // Reset body styles
+            $('body').removeClass('modal-open').css({
+                'overflow': '',
+                'padding-right': ''
+            });
+            
+            // Also try Bootstrap method if available (non-blocking)
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                try {
+                    if (typeof bootstrap.Modal.getInstance === 'function') {
+                        const modalInstance = bootstrap.Modal.getInstance(modalElement);
+                        if (modalInstance) {
+                            modalInstance.hide();
+                        }
+                    } else {
+                        const modal = new bootstrap.Modal(modalElement);
+                        modal.hide();
+                    }
+                } catch (e) {
+                    // Ignore Bootstrap errors, we've already closed it manually
+                }
+            }
+            
+            // Try jQuery method as well (non-blocking)
+            try {
+                $(modalElement).modal('hide');
+            } catch (e) {
+                // Ignore jQuery errors, we've already closed it manually
+            }
+            
+            // Reset form
+            resetVerificationForm();
+        }
+        
+        // Handle modal close events
+        $('#verificationModal').on('hidden.bs.modal', function () {
+            resetVerificationForm();
+        });
+        
+        // Keep old function for backwards compatibility
+        function closeModal() {
+            closeVerificationModal();
         }
         
         function debugPhoneStatus(phoneId) {
@@ -1671,10 +2157,15 @@ try {
                 method: 'POST',
                 data: {
                     action: 'debug_status',
-                    phone_id: phoneId
+                    phone_id: phoneId,
+                    csrf_token: csrfToken
                 },
                 dataType: 'json',
                 success: function(response) {
+                    // Update CSRF token from response if provided
+                    if (response.csrf_token) {
+                        csrfToken = response.csrf_token;
+                    }
                     if (response.success && response.status) {
                         const status = response.status;
                         Swal.fire({
@@ -1726,10 +2217,15 @@ try {
                 method: 'POST',
                 data: {
                     action: 'fix_status',
-                    phone_id: phoneId
+                    phone_id: phoneId,
+                    csrf_token: csrfToken
                 },
                 dataType: 'json',
                 success: function(response) {
+                    // Update CSRF token from response if provided
+                    if (response.csrf_token) {
+                        csrfToken = response.csrf_token;
+                    }
                     Swal.fire({
                         title: response.success ? 'Success' : 'Error',
                         text: response.message,
@@ -1765,10 +2261,15 @@ try {
                 url: window.location.href,
                 method: 'POST',
                 data: {
-                    action: 'reset_all_verification'
+                    action: 'reset_all_verification',
+                    csrf_token: csrfToken
                 },
                 dataType: 'json',
                 success: function(response) {
+                    // Update CSRF token from response if provided
+                    if (response.csrf_token) {
+                        csrfToken = response.csrf_token;
+                    }
                     Swal.close();
                     Swal.fire({
                         title: response.success ? 'Success' : 'Error',
@@ -1811,125 +2312,7 @@ try {
             });
         });
         
-        // Search and Filter Functionality
-        let allPhoneRows = $('.phone-item');
-        let totalCount = allPhoneRows.length;
-        
-        // Search input handler
-        $('#phoneSearchInput').on('input', function() {
-            const searchTerm = String($(this).val() || '').toLowerCase().trim();
-            const clearBtn = $('#clearSearchBtn');
-            
-            if (searchTerm.length > 0) {
-                clearBtn.show();
-            } else {
-                clearBtn.hide();
-            }
-            
-            filterPhoneNumbers();
-        });
-        
-        // Clear search button handler
-        $('#clearSearchBtn').click(function() {
-            $('#phoneSearchInput').val('').focus();
-            $(this).hide();
-            filterPhoneNumbers();
-        });
-        
-        // Status filter handlers
-        $('input[name="statusFilter"]').change(function() {
-            filterPhoneNumbers();
-        });
-        
-        // Clear all filters button handler
-        $('#clearAllFiltersBtn').click(function() {
-            $('#phoneSearchInput').val('');
-            $('#clearSearchBtn').hide();
-            $('input[name="statusFilter"][value="all"]').prop('checked', true);
-            filterPhoneNumbers();
-        });
-        
-        function filterPhoneNumbers() {
-            const searchTerm = String($('#phoneSearchInput').val() || '').toLowerCase().trim();
-            const statusFilter = $('input[name="statusFilter"]:checked').val();
-            let visibleCount = 0;
-            
-            console.log('filterPhoneNumbers called with searchTerm:', searchTerm, 'statusFilter:', statusFilter);
-            
-            allPhoneRows.each(function() {
-                const $row = $(this);
-                
-                try {
-                    // Safely get data attributes with proper type conversion
-                    const phoneNumberRaw = $row.data('phone-number');
-                    const labelRaw = $row.data('label');
-                    const statusRaw = $row.data('status');
-                    
-                    console.log('Row data - phoneNumberRaw:', phoneNumberRaw, 'labelRaw:', labelRaw, 'statusRaw:', statusRaw);
-                    
-                    const phoneNumber = phoneNumberRaw ? String(phoneNumberRaw) : '';
-                    const label = labelRaw ? String(labelRaw).toLowerCase() : '';
-                    const status = statusRaw ? String(statusRaw) : '';
-                    const isPrimary = $row.data('is-primary') === 'true';
-                    
-                    let matchesSearch = true;
-                    let matchesStatus = true;
-                
-                // Check search term match
-                if (searchTerm.length > 0) {
-                    matchesSearch = phoneNumber.includes(searchTerm) || 
-                                  label.includes(searchTerm) ||
-                                  status.includes(searchTerm) ||
-                                  (isPrimary && 'primary'.includes(searchTerm));
-                }
-                
-                // Check status filter match
-                if (statusFilter !== 'all') {
-                    if (statusFilter === 'verified') {
-                        matchesStatus = status === 'verified';
-                    } else if (statusFilter === 'unverified') {
-                        matchesStatus = status === 'unverified';
-                    } else if (statusFilter === 'primary') {
-                        matchesStatus = isPrimary;
-                    }
-                }
-                
-                    // Show/hide row based on filters
-                    if (matchesSearch && matchesStatus) {
-                        $row.show();
-                        visibleCount++;
-                    } else {
-                        $row.hide();
-                    }
-                } catch (error) {
-                    console.error('Error processing row:', error, 'Row data:', $row.data());
-                    // Hide the problematic row
-                    $row.hide();
-                }
-            });
-            
-            // Update results count
-            updateResultsCount(visibleCount);
-            
-            // Show/hide no results message
-            if (visibleCount === 0) {
-                $('#noResultsMessage').show();
-                $('.table-responsive').hide();
-            } else {
-                $('#noResultsMessage').hide();
-                $('.table-responsive').show();
-            }
-        }
-        
-        function updateResultsCount(count) {
-            const $countElement = $('#searchResultsCount');
-            if (count === totalCount) {
-                $countElement.text(`Showing ${count} numbers`);
-            } else {
-                $countElement.text(`Showing ${count} of ${totalCount} numbers`);
-            }
-        }
     </script>
-<?php include('../../../../components/scripts.php')?>
+<?php include('../../components/scripts.php')?>
 </body>
 </html>

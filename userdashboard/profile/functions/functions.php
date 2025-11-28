@@ -48,23 +48,37 @@ try {
     $errors['general'] = "Failed to load user data";
 }
 
+// Include CSRF protection
+require_once __DIR__ . '/../../includes/csrf.php';
+
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Determine which form was submitted
-    $formType = $_POST['form_type'] ?? '';
-    
-    switch ($formType) {
-        case 'profile_update':
-            handleProfileUpdate($conn, $user);
-            break;
-        case 'password_change':
-            handlePasswordChange($conn, $user);
-            break;
-        case 'profile_picture':
-            handleProfilePictureUpload($conn, $user);
-            break;
-        default:
-            $errors['general'] = "Invalid form submission";
+    // Validate CSRF token
+    if (!validateCSRFToken()) {
+        $errors['general'] = 'Invalid security token. Please refresh the page and try again.';
+        $_SESSION['swal'] = [
+            'title' => 'Security Error',
+            'text' => 'Invalid security token. Please refresh the page and try again.',
+            'icon' => 'error',
+            'confirmButtonText' => 'OK'
+        ];
+    } else {
+        // Determine which form was submitted
+        $formType = $_POST['form_type'] ?? '';
+        
+        switch ($formType) {
+            case 'profile_update':
+                handleProfileUpdate($conn, $user);
+                break;
+            case 'password_change':
+                handlePasswordChange($conn, $user);
+                break;
+            case 'profile_picture':
+                handleProfilePictureUpload($conn, $user);
+                break;
+            default:
+                $errors['general'] = "Invalid form submission";
+        }
     }
     
     // Refresh user data after updates

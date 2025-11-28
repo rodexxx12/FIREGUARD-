@@ -1,7 +1,13 @@
 <?php
+/**
+ * Get Emergency Buildings API - Secure Version
+ */
+
+// Use centralized error handling
+require_once __DIR__ . '/../../../core/error_handler.php';
+initializeErrorHandling(__DIR__ . '/../../../logs/firefighter_errors.log');
+
 header('Content-Type: application/json');
-ini_set('display_errors', 1);  // Ensure errors are visible for debugging
-error_reporting(E_ALL); // Log all errors
 
 // Include the database connection function
 require_once '../functions/database_connection.php';

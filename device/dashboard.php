@@ -1,33 +1,43 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+/**
+ * Device Dashboard - Secure Version
+ * SECURITY FIX: Removed hardcoded credentials
+ */
+
+// Environment-aware error handling
+$isProduction = (getenv('APP_ENV') === 'production' || 
+                 (isset($_SERVER['HTTP_HOST']) && 
+                  strpos($_SERVER['HTTP_HOST'], 'localhost') === false &&
+                  strpos($_SERVER['HTTP_HOST'], '127.0.0.1') === false));
+
+if ($isProduction) {
+    error_reporting(E_ALL);
+    ini_set('display_errors', '0');
+    ini_set('log_errors', '1');
+    $logDir = __DIR__ . '/../../logs';
+    if (!is_dir($logDir)) {
+        @mkdir($logDir, 0755, true);
+    }
+    ini_set('error_log', $logDir . '/php_errors.log');
+} else {
+    error_reporting(E_ALL);
+    ini_set('display_errors', '1');
+}
+
 date_default_timezone_set('Asia/Manila');
 
-// Database connection
-function getDatabaseConnection() {
-    static $conn = null;
-    if ($conn === null) {
-        $host = "localhost";
-        $dbname = "u520834156_DBBagofire"; 
-        $username = "u520834156_userBagofire";
-        $password = "i[#[GQ!+=C9";
-        
-        try {
-            $conn = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
-            $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-            $conn->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
-            $conn->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-        } catch(PDOException $e) {
-            error_log("Database connection failed: " . $e->getMessage());
-            die(json_encode(['success' => false, 'message' => 'System temporarily unavailable']));
-        }
-    }
-    return $conn;
+// Database connection - SECURITY FIX: Use centralized database connection
+require_once __DIR__ . '/../core/config/config.php';
+require_once __DIR__ . '/../core/database/database.php';
+
+// Use centralized database connection from core - wrap to avoid name collision
+function getDashboardDatabaseConnection() {
+    return getDatabaseConnection(); // Uses centralized PDO connection
 }
 
 // Get dashboard data
 function getDashboardData() {
-    $conn = getDatabaseConnection();
+    $conn = getDashboardDatabaseConnection();
     $data = [];
     
     // Get device status
@@ -86,7 +96,7 @@ function getDashboardData() {
 
 // Get chart data
 function getChartData($hours = 24) {
-    $conn = getDatabaseConnection();
+    $conn = getDashboardDatabaseConnection();
     
     $stmt = $conn->prepare("
         SELECT 
@@ -107,7 +117,7 @@ function getChartData($hours = 24) {
 
 // Get device details
 function getDeviceDetails($device_id) {
-    $conn = getDatabaseConnection();
+    $conn = getDashboardDatabaseConnection();
     
     $stmt = $conn->prepare("
         SELECT 

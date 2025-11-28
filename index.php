@@ -1,9 +1,15 @@
 <?php
 require_once __DIR__ . '/login/functions/functions.php';
 require_once __DIR__ . '/login/functions/security.php';
+
+// Strengthen default security headers (non-breaking)
+header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+header('Referrer-Policy: no-referrer-when-downgrade');
+header('X-Content-Type-Options: nosniff');
+
 // Session is already started by initSecureSession() in init.php (via functions.php -> init.php)
 // No need to start again - initSecureSession() handles it
-$csrf_token = generateCsrfToken();
+$csrf_token = generateCsrfToken('login_form');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -12,6 +18,8 @@ $csrf_token = generateCsrfToken();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FIREGUARD</title>
     <link href="fire/images/logo1.png" rel="icon">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <!-- Google reCAPTCHA -->
     <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     <style>
@@ -107,41 +115,6 @@ $csrf_token = generateCsrfToken();
             opacity: 1;
         }
 
-        /* Inline Register Panel */
-        .inline-register-panel {
-            position: fixed;
-            inset: 0;
-            transform: scale(0.96);
-            opacity: 0;
-            background: rgba(9, 13, 36, 0.92);
-            backdrop-filter: blur(24px);
-            z-index: 1100;
-            transition: transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 320ms ease-out;
-            will-change: transform, opacity;
-            pointer-events: none;
-            display: flex;
-            align-items: flex-start;
-            justify-content: center;
-            padding: 8rem 1.5rem 0.2rem;
-        }
-
-        .inline-register-panel.active {
-            transform: scale(1);
-            opacity: 1;
-            pointer-events: all;
-        }
-
-        .inline-register-content {
-            max-width: 1200px;
-            width: 100%;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.14);
-            border-radius: 22px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-            padding: 0.9rem 2.75rem 0.8rem;
-            position: relative;
-        }
-
         /* Forgot / Reset Password Modals */
         .forgot-container,
         .reset-container {
@@ -219,25 +192,6 @@ $csrf_token = generateCsrfToken();
             transform: translateY(-1px);
         }
 
-        .forgot-container .register-link,
-        .reset-container .register-link {
-            margin-top: 1.5rem;
-            text-align: center;
-            font-size: 0.9rem;
-            color: rgba(255, 255, 255, 0.75);
-        }
-
-        .forgot-container .register-link a,
-        .reset-container .register-link a {
-            color: var(--primary-color);
-            text-decoration: none;
-        }
-
-        .forgot-container .register-link a:hover,
-        .reset-container .register-link a:hover {
-            text-decoration: underline;
-        }
-
         .close-btn {
             position: absolute;
             top: 0.9rem;
@@ -255,414 +209,6 @@ $csrf_token = generateCsrfToken();
 
         body.modal-open {
             overflow: hidden;
-        }
-
-        .inline-register-header {
-            display: grid;
-            grid-template-columns: 1fr auto 1fr;
-            align-items: center;
-            margin-bottom: 2rem;
-            padding-top: 1rem;
-            gap: 1rem;
-        }
-
-        .register-header-left {
-            display: flex;
-            align-items: center;
-        }
-
-        .register-header-center {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .register-header-right {
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;
-        }
-
-        .inline-register-title {
-            font-size: 1.55rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, var(--secondary-color), var(--accent-color));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin: 0;
-        }
-
-        .inline-register-close {
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            color: var(--light-text);
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.1rem;
-            transition: all 0.2s ease;
-        }
-
-        .inline-register-close:hover {
-            background: rgba(66, 133, 244, 0.3);
-            transform: rotate(90deg);
-        }
-
-        .inline-register-subtitle {
-            font-size: 0.95rem;
-            color: var(--gray-text);
-            margin-bottom: 0.7rem;
-            line-height: 1.4;
-        }
-
-        /* Progress Indicator */
-        .register-progress {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0;
-            margin: 0;
-        }
-
-        .progress-step {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0.5rem;
-            position: relative;
-        }
-
-        .progress-step-number {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.1rem;
-            font-weight: 600;
-            background: rgba(255, 255, 255, 0.1);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            color: var(--gray-text);
-            transition: all 0.3s ease;
-        }
-
-        .progress-step.active .progress-step-number {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            border-color: var(--primary-color);
-            color: white;
-            box-shadow: 0 0 15px rgba(255, 68, 68, 0.4);
-        }
-
-        .progress-step.completed .progress-step-number {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            border-color: var(--primary-color);
-            color: white;
-        }
-
-        .progress-connector {
-            width: 60px;
-            height: 2px;
-            background: rgba(255, 255, 255, 0.2);
-            margin-top: -20px;
-        }
-
-        .progress-step.active + .progress-connector {
-            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
-        }
-
-        .progress-step.completed + .progress-connector {
-            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
-        }
-
-        /* Email Verification Button */
-        .email-verification-group {
-            display: flex;
-            gap: 0.75rem;
-            align-items: flex-start;
-        }
-
-        .email-verification-group .inline-login-form-group {
-            flex: 1;
-        }
-
-        .email-input-group {
-            position: relative;
-        }
-
-        .send-verification-btn {
-            background: linear-gradient(135deg, var(--secondary-color), var(--accent-color));
-            color: white;
-            border: none;
-            padding: 0.95rem 1.5rem;
-            border-radius: 12px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            white-space: nowrap;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-top: 0;
-            height: fit-content;
-        }
-
-        .send-verification-btn .send-verification-label {
-            display: inline-block;
-        }
-
-        .send-verification-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(255, 129, 79, 0.4);
-        }
-
-        .verification-instruction {
-            font-size: 0.5rem;
-            color: var(--gray-text);
-            margin: 0;
-            margin-bottom: 0.25rem;
-            margin-left: 1.1rem;
-            line-height: 1.2;
-            position: absolute;
-            top: -1.2rem;
-            left: 0;
-        }
-
-        /* Registration Steps */
-        .register-step {
-            display: none;
-            flex-direction: column;
-            gap: 2rem;
-        }
-
-        .register-step.active {
-            display: flex;
-        }
-
-        /* Step 2: Location with Map Layout */
-        .register-step.location-step {
-            flex-direction: row;
-            gap: 2rem;
-            align-items: stretch;
-        }
-
-        .location-map-container {
-            flex: 1.4;
-            min-height: 400px;
-            border-radius: 16px;
-            overflow: hidden;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            position: relative;
-        }
-
-        #locationMap {
-            width: 100%;
-            height: 100%;
-            min-height: 400px;
-            border-radius: 16px;
-        }
-
-        .current-location-btn {
-            position: absolute;
-            bottom: 15px;
-            left: 15px;
-            z-index: 1000;
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            color: white;
-            border: none;
-            padding: 0.75rem 1.25rem;
-            border-radius: 12px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            transition: all 0.3s ease;
-        }
-
-        .current-location-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(255, 68, 68, 0.4);
-        }
-
-        .current-location-btn:active {
-            transform: translateY(0);
-        }
-
-        .current-location-btn svg {
-            width: 18px;
-            height: 18px;
-        }
-
-        .location-form-container {
-            flex: 0.9;
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
-        }
-
-        /* Validated Field Styles */
-        .validated-field {
-            position: relative;
-        }
-
-        .validated-field .auth-input {
-            background: rgba(255, 255, 255, 0.12);
-        }
-
-        .validated-field .auth-input[readonly] {
-            cursor: not-allowed;
-            background: rgba(255, 255, 255, 0.08);
-        }
-
-        .field-checkmark {
-            position: absolute;
-            bottom: 0.75rem;
-            right: 1rem;
-            color: #4caf50;
-            font-size: 1.1rem;
-            font-weight: bold;
-            z-index: 2;
-            pointer-events: none;
-        }
-
-        .validated-field .address-textarea + label + .field-checkmark {
-            bottom: 0.5rem;
-        }
-
-        .validation-message {
-            margin-top: 0.5rem;
-            font-size: 0.875rem;
-            display: flex;
-            align-items: center;
-            gap: 0.25rem;
-        }
-
-        .validation-message.success {
-            color: #4caf50;
-        }
-
-        .field-info {
-            display: flex;
-            align-items: flex-start;
-            gap: 0.5rem;
-            margin-top: 0.5rem;
-            font-size: 0.8rem;
-            color: rgba(255, 255, 255, 0.6);
-        }
-
-        .field-info svg {
-            flex-shrink: 0;
-            margin-top: 0.1rem;
-            color: rgba(255, 255, 255, 0.5);
-        }
-
-        .field-helper-text {
-            margin-top: 0.25rem;
-            font-size: 0.8rem;
-            color: rgba(255, 255, 255, 0.6);
-        }
-
-        .address-textarea {
-            min-height: 80px;
-            resize: vertical;
-            padding: 0.95rem 2.5rem 0.95rem 1.1rem !important;
-            font-family: inherit;
-        }
-
-        .address-textarea:focus,
-        .address-textarea.has-value {
-            padding-top: 1.3rem !important;
-            padding-bottom: 0.65rem !important;
-        }
-
-        @media (max-width: 968px) {
-            .register-step.location-step {
-                flex-direction: column;
-            }
-
-            .location-map-container {
-                min-height: 300px;
-            }
-
-            #locationMap {
-                min-height: 300px;
-            }
-        }
-
-        body.register-active .hero-content {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-        }
-
-        body.register-active .inline-login-panel {
-            pointer-events: none;
-        }
-
-        body.register-active {
-            overflow: hidden;
-        }
-
-        body.register-active .services,
-        body.register-active .stats,
-        body.register-active footer {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-        }
-
-        .inline-register-actions {
-            margin-top: 0.4rem;
-            text-align: center;
-            font-size: 0.88rem;
-            color: var(--gray-text);
-            display: inline-flex;
-            align-items: baseline;
-            justify-content: center;
-            gap: 0.35rem;
-            white-space: nowrap;
-        }
-
-        .inline-register-actions button {
-            background: none;
-            border: none;
-            color: var(--primary-color);
-            font-weight: 600;
-            cursor: pointer;
-            padding: 0;
-            margin: 0;
-            transition: color 0.2s ease, text-decoration 0.2s ease;
-            -webkit-tap-highlight-color: rgba(255, 68, 68, 0.2);
-            touch-action: manipulation;
-            line-height: 1.2;
-            font-size: inherit;
-        }
-
-        .inline-register-actions button:hover {
-            color: var(--secondary-color);
-            text-decoration: underline;
-        }
-
-        /* Hide "Already have an account?" on Step 2 */
-        #registerStep2.active ~ .inline-register-actions,
-        .register-step.location-step.active ~ .inline-register-actions {
-            display: none;
-        }
-
-        /* Hide "Already have an account?" on Step 3 */
-        #registerStep3.active ~ .inline-register-actions {
-            display: none;
         }
 
         /* Step 3: Device Registration Styles */
@@ -958,6 +504,57 @@ $csrf_token = generateCsrfToken();
             cursor: pointer;
         }
 
+        /* Password Toggle Icon */
+        .password-toggle-btn {
+            position: absolute;
+            right: 1rem;
+            top: 0;
+            bottom: 0;
+            margin: auto 0;
+            background: transparent;
+            border: none;
+            color: var(--gray-text);
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            z-index: 2;
+            width: 24px;
+            height: 24px;
+        }
+
+        .password-toggle-btn i {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            line-height: 1;
+        }
+
+        .password-toggle-btn:hover {
+            color: var(--primary-color);
+            transform: scale(1.1);
+        }
+
+        .password-toggle-btn:focus {
+            outline: none;
+            color: var(--primary-color);
+        }
+
+        .password-toggle-btn:active {
+            transform: scale(0.95);
+        }
+
+        .password-input-group {
+            position: relative;
+        }
+
+        .password-input-group input {
+            padding-right: 3rem;
+        }
+
         .inline-login-submit {
             background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
             color: white;
@@ -1021,8 +618,7 @@ $csrf_token = generateCsrfToken();
                 display: none !important;
             }
             
-            .inline-login-panel,
-            .inline-register-panel {
+            .inline-login-panel {
                 right: 1rem;
                 left: 1rem;
                 width: auto;
@@ -2071,6 +1667,7 @@ $csrf_token = generateCsrfToken();
             margin-bottom: 1rem;
             padding-bottom: 0.5rem;
             border-bottom: 2px solid var(--primary-color);
+            text-align: center;
         }
 
         .footer-column p {
@@ -2078,16 +1675,19 @@ $csrf_token = generateCsrfToken();
             font-size: 0.9rem;
             line-height: 1.6;
             margin-bottom: 1.5rem;
+            text-align: center;
         }
 
         .footer-column ul {
             list-style: none;
             padding: 0;
             margin: 0;
+            text-align: center;
         }
 
         .footer-column ul li {
             margin-bottom: 0.8rem;
+            text-align: center;
         }
 
         .footer-column ul li a {
@@ -2109,6 +1709,7 @@ $csrf_token = generateCsrfToken();
             font-size: 0.9rem;
             margin-bottom: 0.8rem;
             line-height: 1.6;
+            text-align: center;
         }
 
         .footer-column .contact-item a {
@@ -2126,6 +1727,7 @@ $csrf_token = generateCsrfToken();
 
         .social-icons {
             display: flex;
+            justify-content: center;
             gap: 1rem;
             margin-top: 1rem;
         }
@@ -2255,9 +1857,6 @@ $csrf_token = generateCsrfToken();
                 max-width: 90%;
             }
 
-            .inline-register-content {
-                padding: 0.8rem 2rem;
-            }
         }
 
         @media (max-width: 768px) {
@@ -2454,33 +2053,6 @@ $csrf_token = generateCsrfToken();
                 overflow-y: auto;
             }
 
-            .inline-register-panel {
-                padding: 3rem 1rem 1rem;
-                overflow-y: auto;
-                align-items: flex-start;
-                width: 100%;
-                left: 0;
-                right: 0;
-            }
-
-            .inline-register-content {
-                padding: 0.8rem 1.5rem;
-                max-height: calc(100vh - 1rem);
-                overflow-y: auto;
-                border-radius: 18px;
-                gap: 1.25rem;
-            }
-
-            body.register-active .hero {
-                display: block;
-                min-height: 100vh;
-                padding-top: 1rem;
-            }
-
-            body.register-active .hero-content,
-            body.register-active .inline-login-panel {
-                display: none;
-            }
 
             .inline-login-form {
                 gap: 1rem;
@@ -2512,103 +2084,6 @@ $csrf_token = generateCsrfToken();
                 font-size: 0.7rem;
             }
 
-            .inline-register-header {
-                grid-template-columns: 1fr;
-                text-align: center;
-                gap: 1rem;
-            }
-
-            .register-header-left,
-            .register-header-right {
-                justify-content: center;
-            }
-
-            .register-header-right {
-                margin-top: 0.25rem;
-            }
-
-            .inline-register-close {
-                display: none;
-            }
-
-            .inline-register-title {
-                font-size: 1.6rem;
-                line-height: 1.35;
-                letter-spacing: 0.02em;
-            }
-
-            .register-header-center {
-                margin-top: 0.3rem;
-            }
-
-            .register-progress {
-                width: 100%;
-                justify-content: center;
-                gap: 0.5rem;
-                flex-wrap: wrap;
-                margin-top: 0.15rem;
-            }
-
-            .progress-step-number {
-                width: 32px;
-                height: 32px;
-                font-size: 0.85rem;
-            }
-
-            .progress-connector {
-                width: 28px;
-                margin-top: -12px;
-            }
-
-            .email-verification-group {
-                flex-direction: row;
-                gap: 0.5rem;
-                align-items: stretch;
-            }
-
-            .send-verification-btn {
-                width: auto;
-                min-width: 130px;
-                justify-content: center;
-                font-size: 0.85rem;
-                padding: 0.75rem 0.9rem;
-            }
-
-            .send-verification-btn .send-verification-label {
-                display: none;
-            }
-
-            .inline-login-submit,
-            .inline-register-actions button {
-                width: 100%;
-            }
-
-            .inline-register-actions {
-                display: inline-flex;
-                align-items: baseline;
-                justify-content: center;
-                gap: 0.3rem;
-            }
-
-            .inline-register-actions button {
-                width: auto;
-                padding: 0;
-                margin: 0;
-            }
-
-            .location-map-container {
-                min-height: 260px;
-            }
-
-            .device-registration-actions {
-                flex-direction: column;
-                gap: 0.75rem;
-            }
-
-            .device-registration-actions .inline-login-submit,
-            .device-registration-actions .back-btn {
-                width: 100%;
-            }
 
             .modal-header,
             .important-modal-header,
@@ -2705,74 +2180,6 @@ $csrf_token = generateCsrfToken();
                 max-width: 98vw;
             }
 
-            .inline-register-panel {
-                padding: 3rem 0 1rem;
-                align-items: stretch;
-                width: 100%;
-            }
-
-            .inline-register-content {
-                border-radius: 0;
-                min-height: 100vh;
-                padding: 0.85rem 1rem 1rem;
-                gap: 1rem;
-            }
-
-            .inline-register-header {
-                gap: 0.65rem;
-            }
-
-            .inline-register-title {
-                font-size: 1.5rem;
-                line-height: 1.35;
-                letter-spacing: 0.02em;
-            }
-
-            .register-progress {
-                flex-wrap: wrap;
-                row-gap: 0.45rem;
-                gap: 0.45rem;
-                margin-top: 0.2rem;
-            }
-
-            .progress-step-number {
-                width: 26px;
-                height: 26px;
-                font-size: 0.75rem;
-            }
-
-            .progress-connector {
-                width: 18px;
-                margin-top: -8px;
-            }
-
-            .location-map-container {
-                min-height: 220px;
-            }
-
-            .inline-register-close {
-                display: none;
-            }
-
-            .inline-register-actions {
-                gap: 0.25rem;
-            }
-
-            .email-verification-group {
-                gap: 0.35rem;
-            }
-
-            .send-verification-btn {
-                min-width: 48px;
-                width: 48px;
-                height: 46px;
-                padding: 0.65rem;
-            }
-
-            .send-verification-btn svg {
-                width: 18px;
-                height: 18px;
-            }
 
             .inline-login-form input[type="text"],
             .inline-login-form input[type="password"],
@@ -3017,15 +2424,18 @@ $csrf_token = generateCsrfToken();
             </div>
             <form class="inline-login-form" id="inlineLoginForm" method="post" autocomplete="off">
                 <input type="hidden" name="action" value="login">
-                <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token, ENT_QUOTES, 'UTF-8') ?>">
                 <div class="inline-login-form-group" id="usernameGroup">
                     <input type="text" id="inlineLoginUsername" name="username" class="auth-input" placeholder=" " required autocomplete="off">
-                    <label for="inlineLoginUsername">Username or Email</label>
+                    <label for="inlineLoginUsername">Username</label>
                     <div class="validation-feedback" id="usernameFeedback" role="alert"></div>
                 </div>
-                <div class="inline-login-form-group" id="passwordGroup">
+                <div class="inline-login-form-group password-input-group" id="passwordGroup">
                     <input type="password" id="inlineLoginPassword" name="password" class="auth-input" placeholder=" " required autocomplete="off">
                     <label for="inlineLoginPassword">Password</label>
+                    <button type="button" class="password-toggle-btn" id="passwordToggleBtn" aria-label="Toggle password visibility">
+                        <i class="fa-solid fa-eye" id="passwordToggleIcon"></i>
+                    </button>
                     <div class="validation-feedback" id="passwordFeedback" role="alert"></div>
                 </div>
                 <div class="captcha-container">
@@ -3046,12 +2456,27 @@ $csrf_token = generateCsrfToken();
                             $siteKey = $recaptchaConfig['default']['site_key'];
                         }
                     }
-                    // Final fallback
+
                     if (!$siteKey) {
-                        $siteKey = '6LfbevgrAAAAACwWI_mLHlm-imp6R8BISH--kEqO';
+                        $envSiteKey = getenv('RECAPTCHA_SITE_KEY');
+                        if (!empty($envSiteKey)) {
+                            $siteKey = $envSiteKey;
+                        }
+                    }
+
+                    $recaptchaAvailable = true;
+                    if (!$siteKey) {
+                        $recaptchaAvailable = false;
+                        error_log(sprintf('reCAPTCHA site key missing for host "%s"', $host ?: 'unknown'));
                     }
                     ?>
-                    <div class="g-recaptcha" data-sitekey="<?php echo htmlspecialchars($siteKey, ENT_QUOTES, 'UTF-8'); ?>" data-callback="onCaptchaSuccess"></div>
+                    <?php if ($recaptchaAvailable): ?>
+                        <div class="g-recaptcha" data-sitekey="<?php echo htmlspecialchars($siteKey, ENT_QUOTES, 'UTF-8'); ?>" data-callback="onCaptchaSuccess"></div>
+                    <?php else: ?>
+                        <p class="validation-feedback error show" role="alert">
+                            Security check unavailable. Please contact support before attempting to log in.
+                        </p>
+                    <?php endif; ?>
                 </div>
                 <div id="captchaError" class="validation-feedback"></div>
                 <div class="options" style="display: none;">
@@ -3067,162 +2492,9 @@ $csrf_token = generateCsrfToken();
                     <a href="#" id="forgotPasswordLink" style="color: var(--primary-color); text-decoration: none; font-size: 0.85rem;">Forgot password?</a>
                 </div>
                 <h6 class="inline-login-register">
-                    Don't have an account? <a href="../reg/registration.php" id="openRegisterLink">Register</a>
+                    Don't have an account? <a href="../reg/registration.php">Register</a>
                 </h6>
             </form>
-        </div>
-        <div class="inline-register-panel" id="inlineRegisterPanel" aria-hidden="true">
-            <div class="inline-register-content">
-                <div class="inline-register-header">
-                    <div class="register-header-left">
-                        <h2 class="inline-register-title">Create Your Account</h2>
-                    </div>
-                    <div class="register-header-center">
-                        <!-- Progress Indicator -->
-                        <div class="register-progress">
-                            <div class="progress-step active">
-                                <div class="progress-step-number">1</div>
-                            </div>
-                            <div class="progress-connector"></div>
-                            <div class="progress-step">
-                                <div class="progress-step-number">2</div>
-                            </div>
-                            <div class="progress-connector"></div>
-                            <div class="progress-step">
-                                <div class="progress-step-number">3</div>
-                            </div>
-                            <div class="progress-connector"></div>
-                            <div class="progress-step">
-                                <div class="progress-step-number">4</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="register-header-right">
-                        <button class="inline-register-close" id="inlineRegisterClose" aria-label="Close Register">✕</button>
-                    </div>
-                </div>
-
-                <form class="inline-login-form" id="inlineRegisterForm">
-                    <!-- Step 1: Personal Information -->
-                    <div class="register-step active" id="registerStep1">
-                        <div class="inline-login-form-group">
-                            <input type="text" id="registerFullName" name="fullName" class="auth-input" placeholder=" " required>
-                            <label for="registerFullName">Full Name</label>
-                        </div>
-                        <div class="inline-login-form-group birthdate-input-group">
-                            <input type="text" id="registerBirthdate" name="birthdate" class="auth-input calendar-input-trigger" placeholder=" " required>
-                            <label for="registerBirthdate">Birthdate</label>
-                            <button type="button" class="calendar-icon-btn" id="birthdateCalendarBtn" aria-label="Select Date">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                                    <line x1="16" y1="2" x2="16" y2="6"></line>
-                                    <line x1="8" y1="2" x2="8" y2="6"></line>
-                                    <line x1="3" y1="10" x2="21" y2="10"></line>
-                                </svg>
-                            </button>
-                        </div>
-                        <div class="email-verification-group">
-                            <div class="inline-login-form-group email-input-group">
-                                <input type="email" id="registerEmail" name="registerEmail" class="auth-input" placeholder=" " required>
-                                <label for="registerEmail">Email Address</label>
-                            </div>
-                            <button type="button" class="send-verification-btn" id="sendVerificationBtn">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                                </svg>
-                                <span class="send-verification-label">Send Verification</span>
-                            </button>
-                        </div>
-                        <div class="inline-login-form-group">
-                            <input type="number" id="registerContact" name="contactNumber" class="auth-input" placeholder=" " required>
-                            <label for="registerContact">Contact Number</label>
-                        </div>
-                        <button type="button" class="inline-login-submit" id="nextToLocationBtn">
-                            Next: Location
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left: 0.5rem; display: inline-block;">
-                                <polyline points="9 18 15 12 9 6"></polyline>
-                            </svg>
-                        </button>
-                    </div>
-                    
-                    <!-- Step 2: Location -->
-                    <div class="register-step location-step" id="registerStep2">
-                        <div class="location-map-container">
-                            <div id="locationMap"></div>
-                            <button type="button" class="current-location-btn" id="currentLocationBtn" title="Get Current Location">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <path d="M12 2v4m0 12v4M2 12h4m12 0h4"></path>
-                                </svg>
-                                Current Location
-                            </button>
-                        </div>
-                        <div class="location-form-container">
-                            <div class="inline-login-form-group validated-field">
-                                <textarea id="registerFullAddress" name="fullAddress" class="auth-input address-textarea" placeholder=" " readonly required>Bago City College, Rafael M. Salas Drive, Balingasag, Sampinit, Bago, Negros Occidental, Negros Island Region, 6101, Philippines</textarea>
-                                <label for="registerFullAddress">Full Address *</label>
-                                <div class="field-checkmark">✓</div>
-                            </div>
-                            <div class="inline-login-form-group validated-field">
-                                <input type="text" id="registerBarangay" name="barangay" class="auth-input" placeholder=" " required>
-                                <label for="registerBarangay"> </label>
-                                <div class="field-checkmark">✓</div>
-                            </div>
-                            <div class="inline-login-form-group validated-field">
-                                <input type="text" id="registerBuildingName" name="buildingName" class="auth-input" placeholder=" " value="Primary Residence" required>
-                                <label for="registerBuildingName">Building Name *</label>
-                                <div class="field-checkmark">✓</div>
-                            </div>
-                            <div class="inline-login-form-group validated-field">
-                                <input type="text" id="registerBuildingType" name="buildingType" class="auth-input" placeholder=" " value="Residential" required>
-                                <label for="registerBuildingType">Building Type *</label>
-                                <div class="field-checkmark">✓</div>
-                            </div>
-                            <button type="button" class="inline-login-submit" id="nextToAccountBtn">
-                                Next: Account Setup
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left: 0.5rem; display: inline-block;">
-                                    <polyline points="9 18 15 12 9 6"></polyline>
-                                </svg>
-                            </button>
-                            <button type="button" class="inline-login-submit btn-secondary" id="backToPersonalBtn" style="margin-top: 0.5rem; background: transparent; border: 1px solid var(--primary-color); color: var(--primary-color);">
-                                ← Back
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Step 3: Device Registration -->
-                    <div class="register-step" id="registerStep3">
-                        <div class="device-registration-banner">
-                            Please register your device. Enter a valid device number and serial number.
-                        </div>
-                        <div class="inline-login-form-group">
-                            <input type="text" id="registerDeviceNumber" name="deviceNumber" class="auth-input" placeholder=" " required>
-                            <label for="registerDeviceNumber">Device Number *</label>
-                        </div>
-                        <div class="inline-login-form-group">
-                            <input type="text" id="registerSerialNumber" name="serialNumber" class="auth-input" placeholder=" " required>
-                            <label for="registerSerialNumber">Serial Number *</label>
-                        </div>
-                        <div class="device-registration-actions">
-                            <button type="button" class="inline-login-submit back-btn" id="backToLocationBtn">
-                                Back
-                            </button>
-                            <button type="button" class="inline-login-submit" id="nextToCredentialsBtn">
-                                Next: Create Credentials
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left: 0.5rem; display: inline-block;">
-                                    <polyline points="9 18 15 12 9 6"></polyline>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="inline-register-actions">
-                        Already have an account?
-                        <button type="button" id="registerToLogin">Log In</button>
-                    </div>
-                </form>
-            </div>
         </div>
     </section>
 
@@ -3507,13 +2779,10 @@ $csrf_token = generateCsrfToken();
         </div>
     </div>
 
-    <!-- Leaflet Map Library -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-
     <?php include __DIR__ . '/login/php/components/password-forms.php'; ?>
 
     <script>
+        const recaptchaAvailable = <?php echo $recaptchaAvailable ? 'true' : 'false'; ?>;
         // Create animated particles
         const particlesContainer = document.getElementById('particles');
         const particleCount = 50;
@@ -3619,12 +2888,6 @@ $csrf_token = generateCsrfToken();
         const inlineLoginPanel = document.getElementById('inlineLoginPanel');
         const inlineLoginClose = document.getElementById('inlineLoginClose');
         const inlineLoginForm = document.getElementById('inlineLoginForm');
-        const inlineRegisterPanel = document.getElementById('inlineRegisterPanel');
-        const inlineRegisterClose = document.getElementById('inlineRegisterClose');
-        const inlineRegisterForm = document.getElementById('inlineRegisterForm');
-        const registerToLogin = document.getElementById('registerToLogin');
-        const openRegisterLink = document.getElementById('openRegisterLink');
-        const registerFullNameInput = document.getElementById('registerFullName');
         const forgotPasswordLink = document.getElementById('forgotPasswordLink');
         const forgotContainer = document.getElementById('forgotContainer');
         const resetContainer = document.getElementById('resetContainer');
@@ -3647,8 +2910,7 @@ $csrf_token = generateCsrfToken();
 
         function updateHeroSlideState() {
             if (!heroContent) return;
-            const isActive = (inlineLoginPanel && inlineLoginPanel.classList.contains('active')) ||
-                            (inlineRegisterPanel && inlineRegisterPanel.classList.contains('active'));
+            const isActive = (inlineLoginPanel && inlineLoginPanel.classList.contains('active'));
             heroContent.classList.toggle('slide-left', isActive);
         }
 
@@ -3686,9 +2948,6 @@ $csrf_token = generateCsrfToken();
         }
 
         function openInlineLogin() {
-            document.body.classList.remove('register-active');
-            // Safely hide register panel if it's open
-            safelyHidePanel(inlineRegisterPanel);
             if (inlineLoginPanel) {
                 inlineLoginPanel.classList.add('active');
                 inlineLoginPanel.setAttribute('aria-hidden', 'false');
@@ -3723,65 +2982,6 @@ $csrf_token = generateCsrfToken();
             });
         }
 
-        function openInlineRegister() {
-            document.body.classList.add('register-active');
-            // Safely hide login panel if it's open
-            safelyHidePanel(inlineLoginPanel);
-            if (inlineRegisterPanel) {
-                inlineRegisterPanel.classList.add('active');
-                inlineRegisterPanel.setAttribute('aria-hidden', 'false');
-            }
-            // Reset to step 1 when opening
-            setTimeout(() => {
-                const step1 = document.getElementById('registerStep1');
-                const step2 = document.getElementById('registerStep2');
-                const step3 = document.getElementById('registerStep3');
-                const progressSteps = document.querySelectorAll('.progress-step');
-                if (step1 && step2 && step3) {
-                    step1.classList.add('active');
-                    step2.classList.remove('active');
-                    step3.classList.remove('active');
-                    // Reset progress indicator
-                    progressSteps.forEach((progressStep, index) => {
-                        if (index === 0) {
-                            progressStep.classList.add('active');
-                            progressStep.classList.remove('completed');
-                        } else {
-                            progressStep.classList.remove('active', 'completed');
-                        }
-                    });
-                    // Reset title to default
-                    const registerTitle = document.querySelector('.inline-register-title');
-                    if (registerTitle) {
-                        registerTitle.textContent = 'Create Your Account';
-                    }
-                }
-            }, 100);
-            // Ensure hero visible
-            const nav = document.querySelector('nav');
-            const navHeight = nav ? nav.offsetHeight : 0;
-            const top = heroSection ? heroSection.offsetTop - navHeight - 12 : 0;
-            window.scrollTo({ top, behavior: 'smooth' });
-            updateHeroSlideState();
-
-            requestAnimationFrame(() => {
-                authInputs.forEach(input => {
-                    const group = input.closest('.inline-login-form-group');
-                    if (group && (group.classList.contains('label-raised') || input === document.activeElement)) {
-                        updateFloatingLabelState(input);
-                    }
-                });
-                const registerFullNameInput = document.getElementById('registerFullName');
-                if (registerFullNameInput) {
-                    registerFullNameInput.focus();
-                }
-                // Initialize calendar when registration panel opens
-                setTimeout(() => {
-                    initBirthdateCalendar();
-                }, 200);
-            });
-        }
-
         function closeInlineLogin() {
             // Clear validation feedback when closing
             const usernameGroup = document.getElementById('usernameGroup');
@@ -3797,12 +2997,6 @@ $csrf_token = generateCsrfToken();
             }
             
             safelyHidePanel(inlineLoginPanel);
-            updateHeroSlideState();
-        }
-
-        function closeInlineRegister() {
-            document.body.classList.remove('register-active');
-            safelyHidePanel(inlineRegisterPanel);
             updateHeroSlideState();
         }
 
@@ -3849,12 +3043,6 @@ $csrf_token = generateCsrfToken();
         if (inlineLoginClose) {
             inlineLoginClose.addEventListener('click', function() {
                 closeInlineLogin();
-            });
-        }
-
-        if (inlineRegisterClose) {
-            inlineRegisterClose.addEventListener('click', function() {
-                closeInlineRegister();
             });
         }
 
@@ -3925,173 +3113,6 @@ $csrf_token = generateCsrfToken();
             feedbackElement.textContent = '';
         }
 
-        // Add real-time validation listeners
-        const usernameInput = document.getElementById('inlineLoginUsername');
-        const passwordInput = document.getElementById('inlineLoginPassword');
-        let credentialValidationTimeout;
-        let isCheckingCredentials = false;
-
-        // Real-time credential validation when both fields are filled
-        function validateCredentialsRealTime() {
-            const username = usernameInput ? usernameInput.value.trim() : '';
-            const password = passwordInput ? passwordInput.value : '';
-            const usernameGroup = document.getElementById('usernameGroup');
-            const usernameFeedback = document.getElementById('usernameFeedback');
-            const passwordGroup = document.getElementById('passwordGroup');
-            const passwordFeedback = document.getElementById('passwordFeedback');
-            const csrfTokenInput = document.querySelector('input[name="csrf_token"]');
-            const csrfToken = csrfTokenInput ? csrfTokenInput.value : '';
-
-            // Only validate if both fields have values
-            if (!username || !password) {
-                return;
-            }
-
-            if (!csrfToken) {
-                return;
-            }
-
-            // Prevent multiple simultaneous requests
-            if (isCheckingCredentials) {
-                return;
-            }
-
-            isCheckingCredentials = true;
-
-            // Show checking message
-            showValidationFeedback(usernameGroup, usernameFeedback, 'info', 'Checking credentials...');
-            showValidationFeedback(passwordGroup, passwordFeedback, 'info', 'Checking credentials...');
-
-            const formData = new FormData();
-            formData.append('action', 'validate_credentials');
-            formData.append('username', username);
-            formData.append('password', password);
-            formData.append('csrf_token', csrfToken);
-
-            fetch('login/functions/ajax.php', {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.text().then(text => {
-                        try {
-                            return JSON.parse(text);
-                        } catch (e) {
-                            throw new Error('Server error');
-                        }
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                isCheckingCredentials = false;
-
-                if (data.valid === true) {
-                    // Credentials are correct
-                    showValidationFeedback(usernameGroup, usernameFeedback, 'success', data.message || 'Credentials are correct');
-                    showValidationFeedback(passwordGroup, passwordFeedback, 'success', data.message || 'Credentials are correct');
-                } else {
-                    // Credentials are incorrect
-                    showValidationFeedback(usernameGroup, usernameFeedback, 'error', data.message || 'Invalid username or password');
-                    showValidationFeedback(passwordGroup, passwordFeedback, 'error', data.message || 'Invalid username or password');
-                }
-            })
-            .catch(error => {
-                isCheckingCredentials = false;
-                console.error('Credential validation error:', error);
-                // Don't show error on network issues, just clear the checking message
-                hideValidationFeedback(usernameGroup, usernameFeedback);
-                hideValidationFeedback(passwordGroup, passwordFeedback);
-            });
-        }
-
-        // Add listeners to trigger credential validation when both fields are filled
-        if (usernameInput && passwordInput) {
-            // Validate credentials when password changes (if username is already filled)
-            passwordInput.addEventListener('input', function() {
-                clearTimeout(credentialValidationTimeout);
-                const username = usernameInput.value.trim();
-                const password = this.value;
-
-                // Only validate if both fields have content
-                if (username && password) {
-                    credentialValidationTimeout = setTimeout(() => {
-                        validateCredentialsRealTime();
-                    }, 800); // Debounce for 800ms after user stops typing
-                } else {
-                    // Clear credential validation if fields are empty
-                    const usernameGroup = document.getElementById('usernameGroup');
-                    const usernameFeedback = document.getElementById('usernameFeedback');
-                    const passwordGroup = document.getElementById('passwordGroup');
-                    const passwordFeedback = document.getElementById('passwordFeedback');
-                    
-                    // Only clear if showing credential validation messages
-                    if (usernameFeedback && (usernameFeedback.textContent.includes('Credentials') || 
-                        usernameFeedback.textContent.includes('Checking'))) {
-                        hideValidationFeedback(usernameGroup, usernameFeedback);
-                    }
-                    if (passwordFeedback && (passwordFeedback.textContent.includes('Credentials') || 
-                        passwordFeedback.textContent.includes('Checking'))) {
-                        hideValidationFeedback(passwordGroup, passwordFeedback);
-                    }
-                }
-            });
-
-            // Validate credentials when username changes (if password is already filled)
-            usernameInput.addEventListener('input', function() {
-                clearTimeout(credentialValidationTimeout);
-                const username = this.value.trim();
-                const password = passwordInput.value;
-
-                // Only validate if both fields have content
-                if (username && password) {
-                    credentialValidationTimeout = setTimeout(() => {
-                        validateCredentialsRealTime();
-                    }, 800); // Debounce for 800ms after user stops typing
-                } else {
-                    // Clear credential validation if fields are empty
-                    const usernameGroup = document.getElementById('usernameGroup');
-                    const usernameFeedback = document.getElementById('usernameFeedback');
-                    const passwordGroup = document.getElementById('passwordGroup');
-                    const passwordFeedback = document.getElementById('passwordFeedback');
-                    
-                    // Only clear if showing credential validation messages
-                    if (usernameFeedback && (usernameFeedback.textContent.includes('Credentials') || 
-                        usernameFeedback.textContent.includes('Checking'))) {
-                        hideValidationFeedback(usernameGroup, usernameFeedback);
-                    }
-                    if (passwordFeedback && (passwordFeedback.textContent.includes('Credentials') || 
-                        passwordFeedback.textContent.includes('Checking'))) {
-                        hideValidationFeedback(passwordGroup, passwordFeedback);
-                    }
-                }
-            });
-
-            // Validate on blur if both fields are filled
-            passwordInput.addEventListener('blur', function() {
-                clearTimeout(credentialValidationTimeout);
-                const username = usernameInput.value.trim();
-                const password = this.value;
-                if (username && password) {
-                    validateCredentialsRealTime();
-                }
-            });
-
-            // Validate on blur for username if both fields are filled
-            usernameInput.addEventListener('blur', function() {
-                clearTimeout(credentialValidationTimeout);
-                const username = this.value.trim();
-                const password = passwordInput.value;
-                if (username && password) {
-                    validateCredentialsRealTime();
-                }
-            });
-        }
-
         if (inlineLoginForm) {
             inlineLoginForm.addEventListener('submit', function(e) {
                 e.preventDefault();
@@ -4124,6 +3145,12 @@ $csrf_token = generateCsrfToken();
                     const usernameGroup = document.getElementById('usernameGroup');
                     const usernameFeedback = document.getElementById('usernameFeedback');
                     showValidationFeedback(usernameGroup, usernameFeedback, 'error', 'Security token missing. Please refresh the page and try again.');
+                    showToast('Security token missing. Please refresh and try again.', 'error');
+                    return;
+                }
+
+                if (!recaptchaAvailable) {
+                    showToast('Security verification is unavailable. Please contact support.', 'error');
                     return;
                 }
 
@@ -4235,9 +3262,7 @@ $csrf_token = generateCsrfToken();
                         // Show error on both fields
                         showValidationFeedback(usernameGroup, usernameFeedback, 'error', errorMessage);
                         showValidationFeedback(passwordGroup, passwordFeedback, 'error', errorMessage);
-                        
-                        // Also show alert for accessibility
-                        alert(errorMessage);
+                        showToast(errorMessage, 'error');
                         
                         if (loginButton) {
                             loginButton.disabled = false;
@@ -4259,9 +3284,7 @@ $csrf_token = generateCsrfToken();
                     
                     showValidationFeedback(usernameGroup, usernameFeedback, 'error', errorMessage);
                     showValidationFeedback(passwordGroup, passwordFeedback, 'error', errorMessage);
-                    
-                    // Also show alert for accessibility
-                    alert(errorMessage);
+                    showToast(errorMessage, 'error');
                     
                     if (loginButton) {
                         loginButton.disabled = false;
@@ -4278,13 +3301,13 @@ $csrf_token = generateCsrfToken();
                 e.preventDefault();
 
                 if (!forgotEmailInput || !forgotEmailInput.value.trim()) {
-                    alert('Please enter the email associated with your account.');
+                    showToast('Please enter the email associated with your account.', 'warning');
                     return;
                 }
 
                 const csrfInput = forgotPasswordForm.querySelector('input[name="csrf_token"]');
                 if (!csrfInput || !csrfInput.value) {
-                    alert('Security token missing. Please refresh the page and try again.');
+                    showToast('Security token missing. Please refresh the page and try again.', 'error');
                     return;
                 }
 
@@ -4332,585 +3355,17 @@ $csrf_token = generateCsrfToken();
                         throw new Error(data.message || 'Unable to send reset instructions.');
                     }
 
-                    alert(data.message || 'Password reset instructions have been sent to your email.');
+                    showToast(data.message || 'Password reset instructions have been sent to your email.', 'success');
                     forgotPasswordForm.reset();
                     closeForgotModal();
                 })
                 .catch(error => {
                     console.error('Forgot password error:', error);
-                    alert(error.message || 'An error occurred. Please try again later.');
+                    showToast(error.message || 'An error occurred. Please try again later.', 'error');
                 })
                 .finally(() => {
                     setForgotButtonState(false);
                 });
-            });
-        }
-
-        // Registration link - redirect to existing registration page
-        // Note: openRegisterLink is already declared above at line 3263
-        if (openRegisterLink) {
-            openRegisterLink.addEventListener('click', function(e) {
-                e.preventDefault();
-                closeInlineLogin();
-                // Redirect to existing registration page
-                window.location.href = 'reg/registration.php';
-            });
-        }
-        
-        // Register to Login link
-        // Note: registerToLogin is already declared above at line 3262
-        if (registerToLogin) {
-            registerToLogin.addEventListener('click', function(e) {
-                e.preventDefault();
-                closeInlineRegister();
-                openInlineLogin();
-            });
-        }
-
-        // Registration Step Navigation
-        const nextToLocationBtn = document.getElementById('nextToLocationBtn');
-        const registerStep1 = document.getElementById('registerStep1');
-        const registerStep2 = document.getElementById('registerStep2');
-        const registerStep3 = document.getElementById('registerStep3');
-        const progressSteps = document.querySelectorAll('.progress-step');
-        let currentStep = 1;
-
-        function updateProgressIndicator(step) {
-            progressSteps.forEach((progressStep, index) => {
-                if (index < step - 1) {
-                    progressStep.classList.add('completed');
-                    progressStep.classList.remove('active');
-                } else if (index === step - 1) {
-                    progressStep.classList.add('active');
-                    progressStep.classList.remove('completed');
-                } else {
-                    progressStep.classList.remove('active', 'completed');
-                }
-            });
-        }
-
-        function showStep(stepNumber) {
-            // Hide all steps
-            registerStep1.classList.remove('active');
-            registerStep2.classList.remove('active');
-            registerStep3.classList.remove('active');
-
-            // Update title based on step
-            const registerTitle = document.querySelector('.inline-register-title');
-            if (registerTitle) {
-                if (stepNumber === 3) {
-                    registerTitle.textContent = 'Device Registration';
-                } else {
-                    registerTitle.textContent = 'Create Your Account';
-                }
-            }
-
-            // Show current step
-            if (stepNumber === 1) {
-                registerStep1.classList.add('active');
-            } else if (stepNumber === 2) {
-                registerStep2.classList.add('active');
-                // Initialize map when Step 2 is shown
-                setTimeout(() => {
-                    initLocationMap();
-                }, 300);
-                // Initialize floating labels for pre-filled fields
-                setTimeout(() => {
-                    const step2Inputs = registerStep2.querySelectorAll('.auth-input');
-                    step2Inputs.forEach(input => {
-                        updateFloatingLabelState(input);
-                    });
-                }, 100);
-            } else if (stepNumber === 3) {
-                registerStep3.classList.add('active');
-            }
-
-            updateProgressIndicator(stepNumber);
-            currentStep = stepNumber;
-        }
-
-        if (nextToLocationBtn) {
-            nextToLocationBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                // Validate step 1 fields
-                const fullName = document.getElementById('registerFullName');
-                const birthdate = document.getElementById('registerBirthdate');
-                const email = document.getElementById('registerEmail');
-                const contact = document.getElementById('registerContact');
-
-                if (fullName.value && birthdate.value && email.value && contact.value) {
-                    showStep(2);
-                } else {
-                    // Trigger validation
-                    inlineRegisterForm.reportValidity();
-                }
-            });
-        }
-
-        // Step 2 Navigation
-        const nextToAccountBtn = document.getElementById('nextToAccountBtn');
-        const backToPersonalBtn = document.getElementById('backToPersonalBtn');
-
-        if (nextToAccountBtn) {
-            nextToAccountBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                // Validate step 2 fields
-                const fullAddress = document.getElementById('registerFullAddress');
-                const barangay = document.getElementById('registerBarangay');
-                const buildingName = document.getElementById('registerBuildingName');
-                const buildingType = document.getElementById('registerBuildingType');
-
-                if (fullAddress && fullAddress.value && barangay && barangay.value && buildingName && buildingName.value && buildingType && buildingType.value) {
-                    showStep(3);
-                } else {
-                    // Trigger validation
-                    inlineRegisterForm.reportValidity();
-                }
-            });
-        }
-
-        if (backToPersonalBtn) {
-            backToPersonalBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                showStep(1);
-            });
-        }
-
-        // Step 3 Navigation
-        const nextToCredentialsBtn = document.getElementById('nextToCredentialsBtn');
-        const backToLocationBtn = document.getElementById('backToLocationBtn');
-
-        if (nextToCredentialsBtn) {
-            nextToCredentialsBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                // Validate step 3 fields
-                const deviceNumber = document.getElementById('registerDeviceNumber');
-                const serialNumber = document.getElementById('registerSerialNumber');
-
-                if (deviceNumber.value && serialNumber.value) {
-                    // Placeholder: proceed to credentials step (Step 4 if exists, or submit)
-                    alert('Device registered successfully! Proceeding to credentials...');
-                    // You can add Step 4 here or submit the form
-                } else {
-                    // Trigger validation
-                    inlineRegisterForm.reportValidity();
-                }
-            });
-        }
-
-        if (backToLocationBtn) {
-            backToLocationBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                showStep(2);
-            });
-        }
-
-        // Map Initialization for Step 2
-        let locationMap = null;
-        let locationMarker = null;
-
-        function initLocationMap() {
-            const mapContainer = document.getElementById('locationMap');
-            if (!mapContainer || locationMap) return;
-
-            // Initialize map centered on Philippines (default location)
-            locationMap = L.map('locationMap').setView([14.5995, 120.9842], 13);
-
-            // Add OpenStreetMap tiles
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors',
-                maxZoom: 19
-            }).addTo(locationMap);
-
-            // Add default marker
-            locationMarker = L.marker([14.5995, 120.9842], {
-                draggable: true
-            }).addTo(locationMap);
-
-            // Update address fields when marker is dragged
-            locationMarker.on('dragend', function(e) {
-                const position = locationMarker.getLatLng();
-                updateAddressFromCoordinates(position.lat, position.lng);
-            });
-
-            // Add click event to map to set marker position
-            locationMap.on('click', function(e) {
-                if (locationMarker) {
-                    locationMarker.setLatLng(e.latlng);
-                } else {
-                    locationMarker = L.marker(e.latlng, {
-                        draggable: true
-                    }).addTo(locationMap);
-                    locationMarker.on('dragend', function(e) {
-                        const position = locationMarker.getLatLng();
-                        updateAddressFromCoordinates(position.lat, position.lng);
-                    });
-                }
-                updateAddressFromCoordinates(e.latlng.lat, e.latlng.lng);
-            });
-
-            // Function to get and set current location
-            function setCurrentLocation() {
-                if (navigator.geolocation) {
-                    const btn = document.getElementById('currentLocationBtn');
-                    if (btn) {
-                        btn.disabled = true;
-                        btn.style.opacity = '0.7';
-                        btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 2v4m0 12v4M2 12h4m12 0h4"></path></svg> Locating...';
-                    }
-                    
-                    navigator.geolocation.getCurrentPosition(function(position) {
-                        const lat = position.coords.latitude;
-                        const lng = position.coords.longitude;
-                        locationMap.setView([lat, lng], 15);
-                        if (locationMarker) {
-                            locationMarker.setLatLng([lat, lng]);
-                        } else {
-                            locationMarker = L.marker([lat, lng], {
-                                draggable: true
-                            }).addTo(locationMap);
-                            locationMarker.on('dragend', function(e) {
-                                const position = locationMarker.getLatLng();
-                                updateAddressFromCoordinates(position.lat, position.lng);
-                            });
-                        }
-                        updateAddressFromCoordinates(lat, lng);
-                        
-                        if (btn) {
-                            btn.disabled = false;
-                            btn.style.opacity = '1';
-                            btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 2v4m0 12v4M2 12h4m12 0h4"></path></svg> Current Location';
-                        }
-                    }, function(error) {
-                        console.log('Geolocation error:', error);
-                        alert('Unable to get your location. Please check your browser permissions.');
-                        const btn = document.getElementById('currentLocationBtn');
-                        if (btn) {
-                            btn.disabled = false;
-                            btn.style.opacity = '1';
-                            btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 2v4m0 12v4M2 12h4m12 0h4"></path></svg> Current Location';
-                        }
-                    });
-                } else {
-                    alert('Geolocation is not supported by your browser.');
-                }
-            }
-
-            // Try to get user's current location on initial load
-            if (navigator.geolocation) {
-                setCurrentLocation();
-            }
-
-            // Add event listener for current location button
-            const currentLocationBtn = document.getElementById('currentLocationBtn');
-            if (currentLocationBtn) {
-                currentLocationBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setCurrentLocation();
-                });
-            }
-
-            // Update map when address fields change
-            const addressInputs = ['registerStreet', 'registerCity', 'registerProvince', 'registerPostalCode'];
-            addressInputs.forEach(inputId => {
-                const input = document.getElementById(inputId);
-                if (input) {
-                    input.addEventListener('blur', function() {
-                        if (input.value) {
-                            geocodeAddress();
-                        }
-                    });
-                }
-            });
-        }
-
-        function updateAddressFromCoordinates(lat, lng) {
-            // Use Nominatim (OpenStreetMap geocoding) to get address
-            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data && data.address) {
-                        const addr = data.address;
-                        const streetInput = document.getElementById('registerStreet');
-                        const cityInput = document.getElementById('registerCity');
-                        const provinceInput = document.getElementById('registerProvince');
-                        const postalCodeInput = document.getElementById('registerPostalCode');
-
-                        // Street Address - try multiple fields
-                        if (streetInput) {
-                            let streetValue = '';
-                            if (addr.house_number) {
-                                streetValue += addr.house_number + ' ';
-                            }
-                            if (addr.road) {
-                                streetValue += addr.road;
-                            } else if (addr.street) {
-                                streetValue += addr.street;
-                            } else if (addr.neighbourhood) {
-                                streetValue += addr.neighbourhood;
-                            } else if (addr.suburb) {
-                                streetValue += addr.suburb;
-                            }
-                            if (streetValue.trim()) {
-                                streetInput.value = streetValue.trim();
-                            }
-                        }
-
-                        // City - try multiple fields
-                        if (cityInput) {
-                            if (addr.city) {
-                                cityInput.value = addr.city;
-                            } else if (addr.town) {
-                                cityInput.value = addr.town;
-                            } else if (addr.municipality) {
-                                cityInput.value = addr.municipality;
-                            } else if (addr.village) {
-                                cityInput.value = addr.village;
-                            } else if (addr.suburb) {
-                                cityInput.value = addr.suburb;
-                            } else if (addr.neighbourhood) {
-                                cityInput.value = addr.neighbourhood;
-                            }
-                        }
-
-                        // Province/State - try multiple fields
-                        if (provinceInput) {
-                            if (addr.state) {
-                                provinceInput.value = addr.state;
-                            } else if (addr.province) {
-                                provinceInput.value = addr.province;
-                            } else if (addr.region) {
-                                provinceInput.value = addr.region;
-                            } else if (addr.state_district) {
-                                provinceInput.value = addr.state_district;
-                            }
-                        }
-
-                        // Postal Code
-                        if (postalCodeInput && addr.postcode) {
-                            postalCodeInput.value = addr.postcode;
-                        }
-
-                        // Trigger input events to ensure validation
-                        [streetInput, cityInput, provinceInput, postalCodeInput].forEach(input => {
-                            if (input && input.value) {
-                                input.dispatchEvent(new Event('input', { bubbles: true }));
-                                input.dispatchEvent(new Event('change', { bubbles: true }));
-                            }
-                        });
-                    }
-                })
-                .catch(error => {
-                    console.log('Geocoding error:', error);
-                });
-        }
-
-        function geocodeAddress() {
-            const street = document.getElementById('registerStreet')?.value || '';
-            const city = document.getElementById('registerCity')?.value || '';
-            const province = document.getElementById('registerProvince')?.value || '';
-            const postalCode = document.getElementById('registerPostalCode')?.value || '';
-
-            if (!street && !city && !province) return;
-
-            const query = `${street}, ${city}, ${province}, ${postalCode}`.trim().replace(/^,\s*|,\s*$/g, '');
-            
-            if (!query) return;
-
-            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data && data.length > 0) {
-                        const lat = parseFloat(data[0].lat);
-                        const lng = parseFloat(data[0].lon);
-                        if (locationMap) {
-                            locationMap.setView([lat, lng], 15);
-                            if (locationMarker) {
-                                locationMarker.setLatLng([lat, lng]);
-                            } else {
-                                locationMarker = L.marker([lat, lng], {
-                                    draggable: true
-                                }).addTo(locationMap);
-                                locationMarker.on('dragend', function(e) {
-                                    const position = locationMarker.getLatLng();
-                                    updateAddressFromCoordinates(position.lat, position.lng);
-                                });
-                            }
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.log('Geocoding error:', error);
-                });
-        }
-
-
-        // Calendar Button for Birthdate - Initialize function
-        function initBirthdateCalendar() {
-            const birthdateCalendarBtn = document.getElementById('birthdateCalendarBtn');
-            const registerBirthdateInput = document.getElementById('registerBirthdate');
-            
-            if (!birthdateCalendarBtn || !registerBirthdateInput) return;
-            
-            // Remove existing listener if any (by cloning the button)
-            const newBtn = birthdateCalendarBtn.cloneNode(true);
-            birthdateCalendarBtn.parentNode.replaceChild(newBtn, birthdateCalendarBtn);
-            
-            // Get the new button reference
-            const btn = document.getElementById('birthdateCalendarBtn');
-            
-            if (!btn) return;
-            
-            // Create or reuse hidden date input
-            let hiddenDateInput = document.getElementById('hiddenBirthdatePicker');
-            if (hiddenDateInput && hiddenDateInput.parentNode) {
-                hiddenDateInput.parentNode.removeChild(hiddenDateInput);
-            }
-            
-            hiddenDateInput = document.createElement('input');
-            hiddenDateInput.id = 'hiddenBirthdatePicker';
-            hiddenDateInput.type = 'date';
-            
-            // Position it absolutely but within viewport
-            const rect = registerBirthdateInput.getBoundingClientRect();
-            hiddenDateInput.style.position = 'fixed';
-            hiddenDateInput.style.opacity = '0';
-            hiddenDateInput.style.width = Math.max(rect.width, 200) + 'px';
-            hiddenDateInput.style.height = Math.max(rect.height, 40) + 'px';
-            hiddenDateInput.style.top = rect.top + 'px';
-            hiddenDateInput.style.left = rect.left + 'px';
-            hiddenDateInput.style.pointerEvents = 'none';
-            hiddenDateInput.style.zIndex = '9999';
-            
-            document.body.appendChild(hiddenDateInput);
-
-            const showPicker = function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // Update position in case the panel moved
-                const rect = registerBirthdateInput.getBoundingClientRect();
-                hiddenDateInput.style.top = rect.top + 'px';
-                hiddenDateInput.style.left = rect.left + 'px';
-                hiddenDateInput.style.width = Math.max(rect.width, 200) + 'px';
-                hiddenDateInput.style.height = Math.max(rect.height, 40) + 'px';
-                
-                // Set the current value if it exists (try to parse common date formats)
-                if (registerBirthdateInput.value) {
-                    const dateValue = registerBirthdateInput.value;
-                    // Try to parse YYYY-MM-DD format
-                    if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                        hiddenDateInput.value = dateValue;
-                    } else {
-                        // Try to parse other common formats
-                        const parsedDate = new Date(dateValue);
-                        if (!isNaN(parsedDate.getTime())) {
-                            const year = parsedDate.getFullYear();
-                            const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
-                            const day = String(parsedDate.getDate()).padStart(2, '0');
-                            hiddenDateInput.value = `${year}-${month}-${day}`;
-                        }
-                    }
-                }
-                
-                // Temporarily make input clickable for date picker
-                hiddenDateInput.style.pointerEvents = 'auto';
-                
-                // Use showPicker if available (modern browsers)
-                if (hiddenDateInput.showPicker) {
-                    try {
-                        hiddenDateInput.focus();
-                        hiddenDateInput.showPicker();
-                    } catch (err) {
-                        // Fallback: click the hidden input
-                        setTimeout(() => {
-                            hiddenDateInput.focus();
-                            hiddenDateInput.click();
-                        }, 10);
-                    }
-                } else {
-                    // Fallback for older browsers
-                    setTimeout(() => {
-                        hiddenDateInput.focus();
-                        hiddenDateInput.click();
-                    }, 10);
-                }
-            };
-
-            btn.addEventListener('click', showPicker);
-            registerBirthdateInput.addEventListener('click', showPicker);
-            registerBirthdateInput.addEventListener('touchend', showPicker);
-
-            // Sync the date value back to the text input
-            hiddenDateInput.addEventListener('change', function() {
-                if (hiddenDateInput.value) {
-                    registerBirthdateInput.value = hiddenDateInput.value;
-                    // Trigger input event to update floating label
-                    const inputEvent = new Event('input', { bubbles: true });
-                    registerBirthdateInput.dispatchEvent(inputEvent);
-                    // Also trigger change event
-                    const changeEvent = new Event('change', { bubbles: true });
-                    registerBirthdateInput.dispatchEvent(changeEvent);
-                }
-                // Reset pointer events after date selection
-                setTimeout(() => {
-                    hiddenDateInput.style.pointerEvents = 'none';
-                }, 100);
-            });
-        }
-
-        // Send Verification Button
-        const sendVerificationBtn = document.getElementById('sendVerificationBtn');
-        if (sendVerificationBtn) {
-            sendVerificationBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                const email = document.getElementById('registerEmail');
-                if (email.value && email.validity.valid) {
-                    // Placeholder: Send verification email
-                    alert('Verification code sent to ' + email.value);
-                    const svg = sendVerificationBtn.querySelector('svg');
-                    sendVerificationBtn.innerHTML = svg.outerHTML + ' Resend Verification';
-                } else {
-                    email.focus();
-                    email.reportValidity();
-                }
-            });
-        }
-
-        if (openRegisterLink) {
-            // Handle both click and touch events for mobile compatibility
-            const handleRegisterClick = function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                openInlineRegister();
-                return false;
-            };
-            
-            openRegisterLink.addEventListener('click', handleRegisterClick);
-            openRegisterLink.addEventListener('touchend', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                openInlineRegister();
-                return false;
-            });
-        }
-
-        if (registerToLogin) {
-            // Handle both click and touch events for mobile compatibility
-            const handleLoginClick = function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                openInlineLogin();
-                return false;
-            };
-            
-            registerToLogin.addEventListener('click', handleLoginClick);
-            registerToLogin.addEventListener('touchend', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                openInlineLogin();
-                return false;
             });
         }
 
@@ -4979,7 +3434,6 @@ $csrf_token = generateCsrfToken();
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 closeInlineLogin();
-                closeInlineRegister();
                 closeForgotModal();
                 closeResetModal();
             }
@@ -5165,6 +3619,32 @@ $csrf_token = generateCsrfToken();
                 }
             });
         });
+
+        // Password Toggle Functionality
+        const passwordToggleBtn = document.getElementById('passwordToggleBtn');
+        const passwordToggleIcon = document.getElementById('passwordToggleIcon');
+        const passwordInput = document.getElementById('inlineLoginPassword');
+
+        if (passwordToggleBtn && passwordToggleIcon && passwordInput) {
+            passwordToggleBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                
+                // Toggle icon
+                if (type === 'text') {
+                    passwordToggleIcon.classList.remove('fa-eye');
+                    passwordToggleIcon.classList.add('fa-eye-slash');
+                    passwordToggleBtn.setAttribute('aria-label', 'Hide password');
+                } else {
+                    passwordToggleIcon.classList.remove('fa-eye-slash');
+                    passwordToggleIcon.classList.add('fa-eye');
+                    passwordToggleBtn.setAttribute('aria-label', 'Show password');
+                }
+            });
+        }
 
         // reCAPTCHA callback function
         function onCaptchaSuccess(response) {

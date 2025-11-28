@@ -1,13 +1,20 @@
 <?php
+/**
+ * Profile Picture Upload Handler
+ * SECURITY: Improved validation and reduced debug logging
+ */
+
+// Include security utilities
+require_once __DIR__ . '/../../../components/security.php';
+
 function handleProfilePictureUpload($conn, $currentAdmin) {
     global $errors;
     
-    // Debug logging
-    error_log("Profile picture upload handler called");
-    error_log("POST data: " . print_r($_POST, true));
-    error_log("FILES data: " . print_r($_FILES, true));
-    error_log("Session admin_id: " . (isset($_SESSION['admin_id']) ? $_SESSION['admin_id'] : 'Not set'));
-    error_log("Session data: " . print_r($_SESSION, true));
+    // Minimal logging in production
+    $appEnv = getenv('APP_ENV') ?: 'production';
+    if ($appEnv !== 'production') {
+        error_log("Profile picture upload handler called");
+    }
     
     // Check if user is logged in
     if (!isset($_SESSION['admin_id'])) {
@@ -40,39 +47,41 @@ function handleProfilePictureUpload($conn, $currentAdmin) {
     
     $file = $_FILES['profile_image'];
     
-    // Check for upload errors
-    if ($file['error'] !== UPLOAD_ERR_OK) {
-        $errorMessages = [
-            UPLOAD_ERR_INI_SIZE => 'File exceeds upload_max_filesize',
-            UPLOAD_ERR_FORM_SIZE => 'File exceeds MAX_FILE_SIZE',
-            UPLOAD_ERR_PARTIAL => 'File was only partially uploaded',
-            UPLOAD_ERR_NO_FILE => 'No file was uploaded',
-            UPLOAD_ERR_NO_TMP_DIR => 'Missing temporary folder',
-            UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk',
-            UPLOAD_ERR_EXTENSION => 'A PHP extension stopped the file upload'
-        ];
-        
-        $errorMessage = $errorMessages[$file['error']] ?? 'Unknown upload error';
-        $errors['profile_image'] = "File upload error: " . $errorMessage;
-        error_log("File upload error: " . $errorMessage . " (code: " . $file['error'] . ")");
+    // Define allowed MIME types for better security
+    $allowedMimeTypes = [
+        'image/jpeg',
+        'image/jpg',
+        'image/png',
+        'image/gif'
+    ];
+    
+    // Use security utility for file validation
+    $validation = validateFileUpload($file, $allowedMimeTypes, MAX_PROFILE_IMG_SIZE);
+    
+    if (!$validation['valid']) {
+        $errors['profile_image'] = $validation['error'];
+        error_log("File upload validation failed: " . $validation['error']);
         return;
     }
     
-    // Check file size
-    if ($file['size'] > MAX_PROFILE_IMG_SIZE) {
-        $errors['profile_image'] = "File size exceeds maximum limit of " . (MAX_PROFILE_IMG_SIZE / 1024 / 1024) . "MB";
-        error_log("File size too large: " . $file['size'] . " bytes (max: " . MAX_PROFILE_IMG_SIZE . ")");
-        return;
-    }
-    
-    // Get file info
+    // Additional validation: Check file extension
     $fileInfo = pathinfo($file['name']);
-    $extension = strtolower($fileInfo['extension']);
+    $extension = strtolower($fileInfo['extension'] ?? '');
     
-    // Check file type
     if (!in_array($extension, ALLOWED_IMG_TYPES)) {
         $errors['profile_image'] = "Only JPG, JPEG, PNG, and GIF files are allowed";
-        error_log("Invalid file type: " . $extension);
+        error_log("Invalid file extension: " . $extension);
+        return;
+    }
+    
+    // Verify MIME type matches extension (additional security check)
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $detectedMimeType = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
+    
+    if (!in_array($detectedMimeType, $allowedMimeTypes)) {
+        $errors['profile_image'] = "Invalid file type detected";
+        error_log("MIME type mismatch: detected={$detectedMimeType}, extension={$extension}");
         return;
     }
     

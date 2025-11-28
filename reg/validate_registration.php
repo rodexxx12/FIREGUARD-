@@ -1,6 +1,8 @@
 <?php
 header('Content-Type: application/json');
+header('Cache-Control: no-store, must-revalidate');
 require_once 'db_config.php';
+require_once 'security_functions.php';
 
 // Helper functions (copied from registration.php for modularity)
 function is_valid_email($email) {
@@ -23,6 +25,13 @@ function is_username_registered($username) {
 $response = ['exists' => false, 'valid' => false];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    $rateKey = 'validate_registration_' . ($_POST['action'] ?? '') . '_' . get_client_ip();
+    $rate = check_rate_limit($rateKey, 20, 60);
+    if (!$rate['allowed']) {
+        echo json_encode(['exists' => false, 'valid' => false, 'message' => 'Too many attempts. Try again shortly.']);
+        exit;
+    }
+
     $action = $_POST['action'];
     switch ($action) {
         case 'email':

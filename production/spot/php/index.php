@@ -2,6 +2,18 @@
 date_default_timezone_set('Asia/Manila');
 session_start();
 require_once '../../../db/db.php';
+require_once 'classes/SecureQueryBuilder.php';
+require_once 'classes/InputValidator.php';
+require_once 'classes/ErrorHandler.php';
+require_once 'classes/SecurityHeaders.php';
+
+// Initialize error handler
+$isProduction = (getenv('APP_ENV') === 'production');
+ErrorHandler::init($isProduction);
+
+// Set security headers
+$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $_SERVER['SERVER_PORT'] == 443;
+SecurityHeaders::setAll($isHttps);
 
 // Check if user is logged in BEFORE including header.php
 if (!isset($_SESSION['admin_id'])) {
@@ -11,50 +23,42 @@ if (!isset($_SESSION['admin_id'])) {
 
 $conn = getDatabaseConnection();
 
-// Get filter parameters
-$startDate = $_GET['start_date'] ?? '';
-$endDate = $_GET['end_date'] ?? '';
-$reportStatus = $_GET['report_status'] ?? 'no_report';
-$barangayId = $_GET['barangay_id'] ?? '';
-$buildingType = $_GET['building_type'] ?? '';
+// Get filter parameters and validate
+$startDate = InputValidator::validateDate($_GET['start_date'] ?? '');
+$endDate = InputValidator::validateDate($_GET['end_date'] ?? '');
+$reportStatus = InputValidator::validateWhitelist($_GET['report_status'] ?? 'no_report', ['', 'no_report', 'draft', 'pending_review']) ?: 'no_report';
+$barangayId = InputValidator::validateInt($_GET['barangay_id'] ?? 0, 1);
+$buildingType = InputValidator::validateString($_GET['building_type'] ?? '', 100);
 
-// Build dynamic WHERE clause - Only show ACKNOWLEDGED incidents and exclude 'final' status reports
-$whereConditions = ["UPPER(fd.status) = 'ACKNOWLEDGED'", "(sir.reports_status IS NULL OR sir.reports_status != 'final')"];
-$params = [];
+// Build secure dynamic WHERE clause using SecureQueryBuilder
+$builder = new SecureQueryBuilder();
+$builder->addCondition("UPPER(fd.status) = ?", 'ACKNOWLEDGED', PDO::PARAM_STR);
+$builder->addCondition("(sir.reports_status IS NULL OR sir.reports_status != ?)", 'final', PDO::PARAM_STR);
 
-if (!empty($startDate)) {
-    $whereConditions[] = "DATE(fd.timestamp) >= ?";
-    $params[] = $startDate;
+if ($startDate) {
+    $builder->addCondition("DATE(fd.timestamp) >= ?", $startDate, PDO::PARAM_STR);
 }
 
-if (!empty($endDate)) {
-    $whereConditions[] = "DATE(fd.timestamp) <= ?";
-    $params[] = $endDate;
+if ($endDate) {
+    $builder->addCondition("DATE(fd.timestamp) <= ?", $endDate, PDO::PARAM_STR);
 }
 
-if (!empty($reportStatus)) {
-    if ($reportStatus === 'no_report') {
-        $whereConditions[] = "sir.reports_status IS NULL";
-    } else {
-        $whereConditions[] = "sir.reports_status = ?";
-        $params[] = $reportStatus;
-    }
+if ($reportStatus === 'no_report') {
+    $builder->addCondition("sir.reports_status IS NULL");
+} elseif ($reportStatus) {
+    $builder->addCondition("sir.reports_status = ?", $reportStatus, PDO::PARAM_STR);
 }
 
-if (!empty($barangayId)) {
-    $whereConditions[] = "b.barangay_id = ?";
-    $params[] = $barangayId;
+if ($barangayId) {
+    $builder->addCondition("b.barangay_id = ?", $barangayId, PDO::PARAM_INT);
 }
 
-if (!empty($buildingType)) {
-    $whereConditions[] = "b.building_type = ?";
-    $params[] = $buildingType;
+if ($buildingType) {
+    $builder->addCondition("b.building_type = ?", $buildingType, PDO::PARAM_STR);
 }
 
-$whereClause = implode(' AND ', $whereConditions);
-
-// Get filtered ACKNOWLEDGED fire data records
-$stmt = $conn->prepare("
+// Build query with IR number included to fix N+1 problem
+$baseQuery = "
     SELECT fd.*, 
            b.building_name,
            b.building_type,
@@ -78,24 +82,22 @@ $stmt = $conn->prepare("
            COALESCE(br_b.barangay_name, br_fd.barangay_name) AS barangay_name,
            COALESCE(br_b.ir_number, br_fd.ir_number) AS ir_number,
            sir.reports_status,
-           sir.id as spot_report_id
+           sir.id as spot_report_id,
+           sir.ir_number as report_ir_number
     FROM fire_data fd
     LEFT JOIN buildings b ON fd.building_id = b.id
     LEFT JOIN users u ON fd.user_id = u.user_id
     LEFT JOIN barangay br_b ON b.barangay_id = br_b.id
     LEFT JOIN barangay br_fd ON fd.barangay_id = br_fd.id
     LEFT JOIN spot_investigation_reports sir ON fd.id = sir.fire_data_id
-    WHERE $whereClause
-    ORDER BY fd.timestamp DESC
-");
+";
+
+$result = $builder->build($baseQuery);
+$query = $result['query'] . " ORDER BY fd.timestamp DESC";
 
 try {
-    // Bind parameters dynamically
-    $paramIndex = 1;
-    foreach ($params as $key => $param) {
-        $stmt->bindParam($paramIndex, $params[$key], PDO::PARAM_STR);
-        $paramIndex++;
-    }
+    $stmt = $conn->prepare($query);
+    $builder->bindToStatement($stmt);
     $stmt->execute();
     $fireData = $stmt->fetchAll();
 } catch (PDOException $e) {
@@ -231,13 +233,6 @@ function shortenAddress($address) {
                                 <i class="fas fa-info-circle"></i> 
                                 Showing <?php echo count($fireData); ?> incident(s)
                             </span>
-                            <!-- <?php if (empty($fireData)): ?>
-                                <span class="ml-3">
-                                    <a href="?debug=1" class="btn btn-outline-info btn-sm">
-                                        <i class="fas fa-bug"></i> Debug Info
-                                    </a>
-                                </span>
-                            <?php endif; ?> -->
                         </div>
                     </div>
                 </form>
@@ -255,39 +250,6 @@ function shortenAddress($address) {
                     <i class="fas fa-fire text-muted" style="font-size: 3rem;"></i>
                     <h5 class="mt-3 text-muted">No Acknowledged Fire Incidents Found</h5>
                     <p class="text-muted">There are currently no fire incidents with ACKNOWLEDGED status.</p>
-                    <?php if (isset($_GET['debug']) && $_GET['debug'] === '1'): ?>
-                        <div class="alert alert-info mt-3">
-                            <h6>Debug Information:</h6>
-                            <p><strong>Query:</strong> <?php echo htmlspecialchars($whereClause); ?></p>
-                            <p><strong>Parameters:</strong> <?php echo htmlspecialchars(implode(', ', $params)); ?></p>
-                            <?php
-                            // Check total fire_data records
-                            $totalStmt = $conn->prepare("SELECT COUNT(*) as total FROM fire_data");
-                            $totalStmt->execute();
-                            $totalCount = $totalStmt->fetch()['total'];
-                            
-                            // Check ACKNOWLEDGED records
-                            $ackStatus = 'ACKNOWLEDGED';
-                            $ackStmt = $conn->prepare("SELECT COUNT(*) as count FROM fire_data WHERE UPPER(status) = UPPER(?)");
-                            $ackStmt->bindParam(1, $ackStatus, PDO::PARAM_STR);
-                            $ackStmt->execute();
-                            $ackCount = $ackStmt->fetch()['count'];
-                            
-                            // Check all status values
-                            $statusStmt = $conn->prepare("SELECT DISTINCT status, COUNT(*) as count FROM fire_data GROUP BY status ORDER BY count DESC");
-                            $statusStmt->execute();
-                            $statuses = $statusStmt->fetchAll();
-                            ?>
-                            <p><strong>Total fire_data records:</strong> <?php echo $totalCount; ?></p>
-                            <p><strong>ACKNOWLEDGED records:</strong> <?php echo $ackCount; ?></p>
-                            <p><strong>All status values:</strong></p>
-                            <ul>
-                                <?php foreach ($statuses as $status): ?>
-                                    <li><?php echo htmlspecialchars($status['status']); ?>: <?php echo $status['count']; ?> records</li>
-                                <?php endforeach; ?>
-                            </ul>
-                        </div>
-                    <?php endif; ?>
                 </div>
             <?php else: ?>
                 <div class="table-responsive">
@@ -373,15 +335,7 @@ function shortenAddress($address) {
                                     </td>
                                     <td>
                                         <?php if (!empty($incident['spot_report_id'])): ?>
-                                            <?php
-                                            // Get IR number from spot_investigation_reports table
-                                            $spotReportId = $incident['spot_report_id'];
-                                            $irStmt = $conn->prepare("SELECT ir_number FROM spot_investigation_reports WHERE id = ?");
-                                            $irStmt->bindParam(1, $spotReportId, PDO::PARAM_INT);
-                                            $irStmt->execute();
-                                            $irData = $irStmt->fetch();
-                                            ?>
-                                            <strong class="text-primary"><?php echo htmlspecialchars($irData['ir_number'] ?? 'N/A'); ?></strong>
+                                            <strong class="text-primary"><?php echo htmlspecialchars($incident['report_ir_number'] ?? 'N/A'); ?></strong>
                                             <br><small class="text-muted">ID: <?php echo $incident['spot_report_id']; ?></small>
                                         <?php else: ?>
                                             <span class="text-muted">No Report</span>

@@ -648,3 +648,316 @@ border-color: transparent #f6c23e transparent transparent;
         margin-bottom: 1rem;
     }
 }
+
+/* Gentelella Form Validation Styles */
+.form-horizontal .form-group {
+    margin-bottom: 15px;
+}
+
+.form-horizontal .item.form-group {
+    margin-bottom: 15px;
+}
+
+.form-horizontal .label-align {
+    text-align: right;
+    padding-top: 7px;
+    margin-bottom: 0;
+}
+
+.form-horizontal .col-md-9,
+.form-horizontal .col-sm-9 {
+    padding-left: 0;
+}
+
+.form-horizontal .has-feedback-left {
+    padding-left: 42.5px;
+}
+
+.form-horizontal .form-control-feedback.left {
+    left: 0;
+    right: auto;
+}
+
+.form-horizontal .required {
+    color: #e74c3c;
+}
+
+.form-horizontal .optional {
+    color: #95a5a6;
+    font-weight: normal;
+}
+
+/* Override horizontal layout for verification code field */
+#verifyForm .item.form-group {
+    display: block !important;
+    flex-direction: column !important;
+    margin-bottom: 0.5rem !important;
+}
+
+#verifyForm .item.form-group label {
+    display: block !important;
+    width: 100% !important;
+    text-align: left !important;
+    float: none !important;
+    margin-bottom: 0.25rem !important;
+    padding-top: 0 !important;
+    font-size: 1.25rem !important;
+    font-weight: 700 !important;
+}
+
+#verifyForm .item.form-group > div {
+    width: 100% !important;
+    display: block !important;
+    float: none !important;
+    padding-left: 0 !important;
+}
+
+/* Compact verification modal */
+#verificationModal .modal-body {
+    padding: 1rem !important;
+}
+
+#verificationModal .modal-header {
+    padding: 0.75rem 1rem !important;
+}
+
+#verificationModal .modal-footer {
+    padding: 0.5rem 1rem !important;
+}
+
+#verifyForm .alert {
+    margin-bottom: 0.75rem !important;
+    padding: 0.5rem 1rem !important;
+}
+
+/* Ensure phone input text and placeholder align left */
+#phone_number {
+    text-align: left !important;
+}
+
+#phone_number::placeholder {
+    text-align: left;
+}
+
+/* Parsley.js Validation Styles (Gentelella) */
+.parsley-errors-list {
+    margin: 2px 0 3px;
+    padding: 0;
+    list-style-type: none;
+    font-size: 0.9em;
+    line-height: 0.9em;
+    opacity: 0;
+    transition: all .3s ease-in;
+    -o-transition: all .3s ease-in;
+    -moz-transition: all .3s ease-in;
+    -webkit-transition: all .3s ease-in;
+}
+
+.parsley-errors-list.filled {
+    opacity: 1;
+}
+
+.parsley-errors-list > li {
+    color: #e74c3c;
+    margin-top: 5px;
+}
+
+.parsley-error {
+    border-color: #e74c3c !important;
+}
+
+.parsley-success {
+    border-color: #26B99A !important;
+}
+
+.parsley-error:focus,
+.parsley-success:focus {
+    box-shadow: 0 0 0 0.2rem rgba(231, 76, 60, 0.25);
+}
+
+/* Gentelella Modal Styles */
+.modal-header {
+    border-bottom: 1px solid #e5e5e5;
+    padding: 15px;
+}
+
+.modal-header .close {
+    margin-top: -2px;
+}
+
+.modal-title {
+    font-size: 18px;
+    font-weight: 400;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-footer {
+    border-top: 1px solid #e5e5e5;
+    padding: 15px;
+}
+
+/* Gentelella Table Styles */
+.jambo_table {
+    width: 100%;
+}
+
+.jambo_table thead tr.headings th {
+    background-color: #f7f7f7;
+    border-bottom: 2px solid #ddd;
+    padding: 10px 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 12px;
+}
+
+.jambo_table tbody tr.even.pointer {
+    cursor: pointer;
+}
+
+.jambo_table tbody tr.even.pointer:hover {
+    background-color: #f5f5f5;
+}
+
+.jambo_table tbody tr.primary {
+    background-color: rgba(28, 200, 138, 0.05);
+}
+
+.jambo_table .column-title {
+    text-align: left;
+}
+
+.jambo_table .column-title.last {
+    text-align: center;
+}
+
+/* DataTables Customization for Gentelella */
+.dataTables_wrapper .dataTables_filter input {
+    margin-left: 0.5em;
+    border: 1px solid #ddd;
+    padding: 5px 10px;
+    border-radius: 4px;
+}
+
+.dataTables_wrapper .dataTables_length select {
+    border: 1px solid #ddd;
+    padding: 5px 10px;
+    border-radius: 4px;
+    margin: 0 5px;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    padding: 0.5em 1em;
+    margin: 0 2px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background: #f5f5f5;
+    border-color: #999;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    background: #4e73df;
+    color: white !important;
+    border-color: #4e73df;
+}
+
+/* Gentelella Panel Styles */
+.x_panel {
+    background: #fff;
+    border: 1px solid #e3e6f0;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.x_title {
+    border-bottom: 2px solid #e3e6f0;
+    padding: 10px 15px;
+    margin-bottom: 10px;
+    background: #f7f7f7;
+}
+
+.x_title h2 {
+    margin: 5px 0 6px;
+    float: left;
+    display: block;
+    font-size: 18px;
+    font-weight: 400;
+}
+
+.x_title h2 small {
+    margin-left: 10px;
+    font-weight: 400;
+    color: #777;
+}
+
+.x_title .panel_toolbox {
+    float: right;
+    min-width: 70px;
+}
+
+.x_title .panel_toolbox li {
+    float: left;
+    cursor: pointer;
+}
+
+.x_title .panel_toolbox li a {
+    padding: 5px;
+    color: #C5C7CB;
+    font-size: 14px;
+}
+
+.x_title .panel_toolbox li a:hover {
+    color: #73879C;
+}
+
+.x_content {
+    padding: 15px;
+    position: relative;
+    width: 100%;
+    float: left;
+    clear: both;
+    margin-top: 0;
+}
+
+/* Input Group Addon for Gentelella */
+.input-group-addon {
+    padding: 6px 12px;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1;
+    color: #555;
+    text-align: center;
+    background-color: #eee;
+    border: 1px solid #ccc;
+    border-radius: 4px 0 0 4px;
+}
+
+.input-group .form-control:first-child {
+    border-left: 0;
+    border-radius: 0 4px 4px 0;
+}
+
+/* Checkbox Flat Style */
+.checkbox .flat {
+    display: inline-block;
+    margin: 0;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    background: #fff;
+    border: 1px solid #c0c0c0;
+    border-radius: 3px;
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+.checkbox .flat:checked {
+    background: #26B99A;
+    border-color: #26B99A;
+}

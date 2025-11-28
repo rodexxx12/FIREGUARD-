@@ -951,42 +951,81 @@ function init_autosize() {
 
 function init_parsley() {
 
-    if (typeof (parsley) === 'undefined') { return; }
+    if (typeof (parsley) === 'undefined' && typeof (window.Parsley) === 'undefined') { return; }
     console.log('init_parsley');
 
-    $/*.listen*/('parsley:field:validate', function () {
-        validateFront();
-    });
-    $('#demo-form .btn').on('click', function () {
-        $('#demo-form').parsley().validate();
-        validateFront();
-    });
     var validateFront = function () {
-        if (true === $('#demo-form').parsley().isValid()) {
-            $('.bs-callout-info').removeClass('hidden');
-            $('.bs-callout-warning').addClass('hidden');
-        } else {
-            $('.bs-callout-info').addClass('hidden');
-            $('.bs-callout-warning').removeClass('hidden');
+        const $form = $('#demo-form');
+        if (!$form.length) return; // Exit if form doesn't exist
+        
+        try {
+            const parsleyInstance = $form.parsley();
+            if (parsleyInstance && typeof parsleyInstance.isValid === 'function') {
+                if (true === parsleyInstance.isValid()) {
+                    $('.bs-callout-info').removeClass('hidden');
+                    $('.bs-callout-warning').addClass('hidden');
+                } else {
+                    $('.bs-callout-info').addClass('hidden');
+                    $('.bs-callout-warning').removeClass('hidden');
+                }
+            }
+        } catch (e) {
+            console.warn('Parsley validation error:', e);
         }
     };
 
-    $/*.listen*/('parsley:field:validate', function () {
-        validateFront();
-    });
-    $('#demo-form2 .btn').on('click', function () {
-        $('#demo-form2').parsley().validate();
-        validateFront();
-    });
-    var validateFront = function () {
-        if (true === $('#demo-form2').parsley().isValid()) {
-            $('.bs-callout-info').removeClass('hidden');
-            $('.bs-callout-warning').addClass('hidden');
-        } else {
-            $('.bs-callout-info').addClass('hidden');
-            $('.bs-callout-warning').removeClass('hidden');
+    var validateFront2 = function () {
+        const $form2 = $('#demo-form2');
+        if (!$form2.length) return; // Exit if form doesn't exist
+        
+        try {
+            const parsleyInstance2 = $form2.parsley();
+            if (parsleyInstance2 && typeof parsleyInstance2.isValid === 'function') {
+                if (true === parsleyInstance2.isValid()) {
+                    $('.bs-callout-info').removeClass('hidden');
+                    $('.bs-callout-warning').addClass('hidden');
+                } else {
+                    $('.bs-callout-info').addClass('hidden');
+                    $('.bs-callout-warning').removeClass('hidden');
+                }
+            }
+        } catch (e) {
+            console.warn('Parsley validation error:', e);
         }
     };
+
+    // Only set up listeners if the forms exist
+    if ($('#demo-form').length) {
+        $('#demo-form').on('parsley:field:validate', function () {
+            validateFront();
+        });
+        $('#demo-form .btn').on('click', function () {
+            const $form = $('#demo-form');
+            if ($form.length) {
+                const parsleyInstance = $form.parsley();
+                if (parsleyInstance && typeof parsleyInstance.validate === 'function') {
+                    parsleyInstance.validate();
+                }
+            }
+            validateFront();
+        });
+    }
+
+    if ($('#demo-form2').length) {
+        $('#demo-form2').on('parsley:field:validate', function () {
+            validateFront2();
+        });
+        $('#demo-form2 .btn').on('click', function () {
+            const $form2 = $('#demo-form2');
+            if ($form2.length) {
+                const parsleyInstance2 = $form2.parsley();
+                if (parsleyInstance2 && typeof parsleyInstance2.validate === 'function') {
+                    parsleyInstance2.validate();
+                }
+            }
+            validateFront2();
+        });
+    }
 
     try {
         hljs.initHighlightingOnLoad();
@@ -1964,16 +2003,20 @@ function init_charts() {
 
     console.log('init_charts');
 
-    // Chart.js v3+ compatibility - use plugins.legend instead of global.legend
-    if (Chart.defaults && Chart.defaults.plugins) {
-        Chart.defaults.plugins.legend = {
-            display: false
-        };
-    } else if (Chart.defaults && Chart.defaults.global) {
-        // Fallback for Chart.js v2
-        Chart.defaults.global.legend = {
-            enabled: false
-        };
+    // Chart.js compatibility across versions (v2, v3, v4)
+    if (Chart.defaults) {
+        if (Chart.defaults.plugins) {
+            Chart.defaults.plugins.legend = Chart.defaults.plugins.legend || {};
+            Chart.defaults.plugins.legend.display = false;
+        } else if (Chart.defaults.global) {
+            // Chart.js v2.x
+            Chart.defaults.global.legend = Chart.defaults.global.legend || {};
+            Chart.defaults.global.legend.display = false;
+        } else {
+            // Very old versions that expose defaults.legend directly
+            Chart.defaults.legend = Chart.defaults.legend || {};
+            Chart.defaults.legend.display = false;
+        }
     }
 
 

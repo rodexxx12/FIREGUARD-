@@ -1,20 +1,26 @@
 <?php
 /**
  * Remote Database Backup Script
- * 
+ *
  * This script backs up a remote MySQL database using mysqldump or PHP fallback.
- * 
+ *
  * Usage: php backup_remote_db.php
  */
+
+require_once __DIR__ . '/../db/load_env.php';
 
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 // Remote database credentials
-$db_host = 'srv1322.hstgr.io';
-$db_name = 'u520834156_DBBagofire';
-$db_user = 'u520834156_userBagofire';
-$db_pass = 'i[#[GQ!+=C9';
+$db_host = getenv('REMOTE_DB_HOST') ?: '';
+$db_name = getenv('REMOTE_DB_NAME') ?: '';
+$db_user = getenv('REMOTE_DB_USER') ?: '';
+$db_pass = getenv('REMOTE_DB_PASS') ?: '';
+
+if ($db_host === '' || $db_name === '' || $db_user === '') {
+    die("ERROR: Remote database environment variables are not configured.\n");
+}
 
 echo "Starting remote database backup...\n";
 echo "Database: {$db_name}\n";
@@ -22,9 +28,9 @@ echo "Host: {$db_host}\n";
 echo "\n";
 
 // Create backup directory
-$backup_dir = __DIR__ . '/backups/remote';
+$backup_dir = dirname(__DIR__, 2) . '/secure_storage/backups/remote';
 if (!is_dir($backup_dir)) {
-    if (!mkdir($backup_dir, 0755, true)) {
+    if (!mkdir($backup_dir, 0700, true)) {
         die("ERROR: Could not create backup directory: {$backup_dir}\n");
     }
     echo "Created backup directory: {$backup_dir}\n";

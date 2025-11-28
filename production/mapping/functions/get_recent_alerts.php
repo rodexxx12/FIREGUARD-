@@ -6,7 +6,7 @@ function getRecentAlerts($pdo) {
     $alertsLimit = 5;
     
     $statusList = "'" . implode("','", $emergencyStatuses) . "'";
-    $sql = "SELECT * FROM fire_data WHERE UPPER(status) IN ($statusList) ORDER BY timestamp DESC LIMIT " . $alertsLimit;
+    $sql = "SELECT * FROM fire_data WHERE UPPER(status) IN ($statusList) ORDER BY STR_TO_DATE(timestamp, '%Y-%m-%d %H:%i:%s') DESC LIMIT " . $alertsLimit;
     $stmt = $pdo->query($sql);
     $alerts = [];
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {

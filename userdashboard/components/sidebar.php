@@ -3,6 +3,8 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+require_once __DIR__ . '/asset-path.php';
+
 $sidebarUserName = 'Admin';
 
 $nameCandidates = [
@@ -27,7 +29,7 @@ foreach ($nameCandidates as $candidate) {
 <div class="clearfix"></div>
   <div class="profile clearfix">
     <div class="profile_pic">
-    <img src="fireguard.png" alt="Fire Guard Logo" class="img-circle profile_img">
+    <img src="<?= USER_DASHBOARD_ASSET_BASE ?>/components/fireguard.png" alt="Fire Guard Logo" class="img-circle profile_img">
     </div>
     <div class="profile_info">
       <span>Welcome,</span>
@@ -39,15 +41,27 @@ foreach ($nameCandidates as $candidate) {
   <div class="menu_section">
     <h3>General</h3>
     <ul class="nav side-menu">
-      <li><a><i class="fa fa-home"></i> Home <span class="fa fa-chevron-down"></span></a>
+      <li><a class="home-menu-trigger"><i class="fa fa-home"></i> Home <span class="fa fa-chevron-down"></span></a>
         <ul class="nav child_menu">
-          <li><a href="../../mapping/php/main.php">Locate Fire Incident</a></li>
-          <li><a href="../../sensordata/php/index.php">Sensor Data List</a></li>
-          <li><a href="../../building/php/main.php">Register Building</a></li>
-          <li><a href="../../phone/php/UserPhone.php">Register Phone Number</a></li>
+          <li><a href="../../mapping/php/main.php">Locate Incident</a></li>
+          <li><a href="../../sensordata/php/index.php">Sensor List</a></li>
+          <li><a href="../../registerDevice/php/main.php">Devices</a></li>
+          <li><a href="../../building/php/main.php">Buildings</a></li>
+          <li><a href="../../phone/php/UserPhone.php">Phone Number</a></li>
         </ul>
       </li>
     </ul>
+</div>
+
+<!-- Mobile Sidebar Overlay -->
+<div id="mobile-sidebar-overlay" class="mobile-sidebar-overlay">
+  <ul class="mobile-sidebar-menu">
+    <li><a href="../../mapping/php/main.php">Locate Incident</a></li>
+    <li><a href="../../sensordata/php/index.php">Sensor List</a></li>
+    <li><a href="../../registerDevice/php/main.php">Devices</a></li>
+    <li><a href="../../building/php/main.php">Buildings</a></li>
+    <li><a href="../../phone/php/UserPhone.php">Phone Number</a></li>
+  </ul>
 </div>
 
 <style>
@@ -164,4 +178,203 @@ foreach ($nameCandidates as $candidate) {
     }
 }
 
+/* Mobile Sidebar Overlay Styles */
+.mobile-sidebar-overlay {
+    display: none;
+    position: fixed;
+    width: 200px;
+    background: #2A3F54;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    z-index: 9999;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateX(-10px);
+    transition: all 0.2s ease;
+}
+
+.mobile-sidebar-overlay.active {
+    display: block;
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.mobile-sidebar-menu {
+    list-style: none;
+    padding: 8px 0;
+    margin: 0;
+}
+
+.mobile-sidebar-menu li {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.mobile-sidebar-menu li:last-child {
+    border-bottom: none;
+}
+
+.mobile-sidebar-menu li a {
+    display: block;
+    padding: 12px 16px;
+    color: #E7E7E7;
+    text-decoration: none;
+    transition: all 0.15s ease;
+    font-size: 0.9em;
+    font-weight: 400;
+}
+
+.mobile-sidebar-menu li a:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    padding-left: 20px;
+}
+
+/* Show overlay only on mobile devices */
+@media (max-width: 768px) {
+    .mobile-sidebar-overlay {
+        display: block;
+    }
+    
+    /* Make sidebar more compact on mobile but keep it visible */
+    .left_col {
+        width: 60px !important;
+        min-width: 60px;
+    }
+    
+    /* Hide text, show only icons on mobile */
+    .left_col .profile_info,
+    .left_col .site_title,
+    .left_col .menu_section h3,
+    .left_col .nav.side-menu > li > a {
+        font-size: 0;
+        padding: 10px 5px;
+    }
+    
+    .left_col .nav.side-menu > li > a i {
+        font-size: 20px;
+        display: block;
+        text-align: center;
+        margin: 0;
+    }
+    
+    .left_col .nav.side-menu > li > a .fa-chevron-down {
+        display: none;
+    }
+    
+    /* Hide child menu on mobile sidebar */
+    .left_col .child_menu {
+        display: none !important;
+    }
+    
+    /* Keep profile image visible but smaller */
+    .left_col .profile {
+        flex-direction: column;
+        padding: 10px 5px;
+    }
+    
+    .left_col .profile_img {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .left_col .profile_pic {
+        margin-right: 0;
+        margin-bottom: 5px;
+    }
+}
+
+/* Desktop: Hide overlay */
+@media (min-width: 769px) {
+    .mobile-sidebar-overlay {
+        display: none !important;
+    }
+}
+
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const homeTrigger = document.querySelector('.home-menu-trigger');
+    const overlay = document.getElementById('mobile-sidebar-overlay');
+    
+    // Check if we're on mobile
+    function isMobile() {
+        return window.innerWidth <= 768;
+    }
+    
+    // Position overlay beside home icon
+    function positionOverlay() {
+        if (!homeTrigger || !overlay || !isMobile()) return;
+        
+        const rect = homeTrigger.getBoundingClientRect();
+        const sidebarWidth = 60; // Mobile sidebar width
+        const overlayWidth = 200;
+        const spacing = 8;
+        
+        overlay.style.left = (sidebarWidth + spacing) + 'px';
+        overlay.style.top = rect.top + 'px';
+    }
+    
+    // Toggle overlay
+    function toggleOverlay() {
+        if (isMobile() && overlay) {
+            const isActive = overlay.classList.contains('active');
+            if (!isActive) {
+                positionOverlay();
+            }
+            overlay.classList.toggle('active');
+        }
+    }
+    
+    // Close overlay
+    function closeOverlay() {
+        if (overlay) {
+            overlay.classList.remove('active');
+        }
+    }
+    
+    // Event listeners
+    if (homeTrigger) {
+        homeTrigger.addEventListener('click', function(e) {
+            if (isMobile()) {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleOverlay();
+            }
+        });
+    }
+    
+    // Close overlay when clicking outside
+    document.addEventListener('click', function(e) {
+        if (isMobile() && overlay && overlay.classList.contains('active')) {
+            if (!overlay.contains(e.target) && !homeTrigger.contains(e.target)) {
+                closeOverlay();
+            }
+        }
+    });
+    
+    // Close overlay when clicking on menu items
+    const menuItems = document.querySelectorAll('.mobile-sidebar-menu a');
+    menuItems.forEach(function(item) {
+        item.addEventListener('click', function() {
+            setTimeout(closeOverlay, 100);
+        });
+    });
+    
+    // Handle window resize
+    window.addEventListener('resize', function() {
+        if (!isMobile()) {
+            closeOverlay();
+        } else if (overlay && overlay.classList.contains('active')) {
+            positionOverlay();
+        }
+    });
+    
+    // Reposition on scroll
+    window.addEventListener('scroll', function() {
+        if (isMobile() && overlay && overlay.classList.contains('active')) {
+            positionOverlay();
+        }
+    });
+});
+</script>

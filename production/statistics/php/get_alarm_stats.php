@@ -1,12 +1,41 @@
 <?php
+// Suppress error output for JSON responses
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
+ini_set('log_errors', 1);
+
+// Start output buffering to catch any accidental output
+if (!ob_get_level()) {
+    ob_start();
+}
+
 require_once 'common/database_utils.php';
 
 try {
-    // Get filter parameters
-    $status = $_GET['status'] ?? '';
-    $startDate = $_GET['start_date'] ?? '';
-    $endDate = $_GET['end_date'] ?? '';
-    $barangay = $_GET['barangay'] ?? '';
+    // Get filter parameters with validation
+    $statusRaw = $_GET['status'] ?? null;
+    $status = DatabaseUtils::sanitizeEnum($statusRaw, ['EMERGENCY', 'FIRE', 'NORMAL', 'ACKNOWLEDGED', 'WARNING']);
+    if ($statusRaw && !$status) {
+        DatabaseUtils::sendError('Invalid status filter value');
+    }
+
+    $startDateRaw = $_GET['start_date'] ?? null;
+    $startDate = DatabaseUtils::sanitizeDate($startDateRaw);
+    if ($startDateRaw && !$startDate) {
+        DatabaseUtils::sendError('Invalid start date. Use YYYY-MM-DD format.');
+    }
+
+    $endDateRaw = $_GET['end_date'] ?? null;
+    $endDate = DatabaseUtils::sanitizeDate($endDateRaw);
+    if ($endDateRaw && !$endDate) {
+        DatabaseUtils::sendError('Invalid end date. Use YYYY-MM-DD format.');
+    }
+
+    $barangayRaw = $_GET['barangay'] ?? null;
+    $barangay = DatabaseUtils::sanitizeInt($barangayRaw, 1);
+    if ($barangayRaw !== null && $barangay === null) {
+        DatabaseUtils::sendError('Invalid barangay identifier.');
+    }
     
     // Build optimized query using common utilities
     $sql = "SELECT 
@@ -34,15 +63,19 @@ try {
     $results = DatabaseUtils::executeQuery($sql, $params);
     
     // Process data for chart - optimized
-    $dates = array_unique(array_column($results, 'date'));
+    $dates = array_values(array_unique(array_column($results, 'date')));
     sort($dates);
+    $dateIndexMap = array_flip($dates);
     
     // Initialize data arrays
     $fireData = $normalData = $warningData = array_fill(0, count($dates), 0);
     
     // Fill data efficiently
     foreach ($results as $row) {
-        $dateIndex = array_search($row['date'], $dates);
+        if (!isset($dateIndexMap[$row['date']])) {
+            continue;
+        }
+        $dateIndex = $dateIndexMap[$row['date']];
         $count = (int)$row['count'];
         
         switch (strtoupper($row['status'])) {

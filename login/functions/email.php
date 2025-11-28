@@ -56,30 +56,47 @@ function sendPasswordResetEmail($email) {
     
     // Build reset link
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
-    $resetLink = $protocol . $_SERVER['HTTP_HOST'] . "/login/php/reset_password.php?token=" . urlencode($token) . "&email=" . urlencode($email);
+    $baseUrl = rtrim((string)loginEnv('APP_URL', $protocol . ($_SERVER['HTTP_HOST'] ?? 'localhost')), '/');
+    $resetLink = $baseUrl . "/login/php/reset_password.php?token=" . urlencode($token) . "&email=" . urlencode($email);
     
     // Initialize PHPMailer
     $mail = new PHPMailer(true);
     
     try {
         // Server settings
+        $smtpHost = (string)loginEnv('SMTP_HOST', '');
+        $smtpUser = (string)loginEnv('SMTP_USER', '');
+        $smtpPass = (string)loginEnv('SMTP_PASS', '');
+        $smtpPort = (int)loginEnv('SMTP_PORT', 465);
+        $smtpEncryption = strtolower((string)loginEnv('SMTP_ENCRYPTION', 'smtps'));
+        $smtpAllowSelfSigned = loginEnvBool('SMTP_ALLOW_SELF_SIGNED', false);
+        $fromAddress = (string)loginEnv('SMTP_FROM_ADDRESS', 'fireguard@bccbsis.com');
+        $fromName = (string)loginEnv('SMTP_FROM_NAME', 'Fire Detection System');
+
+        if ($smtpHost === '' || $smtpUser === '' || $smtpPass === '') {
+            error_log('SMTP configuration is incomplete. Cannot send password reset email.');
+            return false;
+        }
+
         $mail->isSMTP();
-        $mail->Host       = 'smtp.hostinger.com';
+        $mail->Host       = $smtpHost;
         $mail->SMTPAuth   = true;
-        $mail->Username   = 'fireguard@bccbsis.com';
-        $mail->Password   = '1j/EIh?7Q';
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-        $mail->Port       = 465;
-        $mail->SMTPOptions = array(
-            'ssl' => array(
-                'verify_peer' => false,
-                'verify_peer_name' => false,
-                'allow_self_signed' => true
-            )
-        );
+        $mail->Username   = $smtpUser;
+        $mail->Password   = $smtpPass;
+        $mail->SMTPSecure = ($smtpEncryption === 'tls')
+            ? PHPMailer::ENCRYPTION_STARTTLS
+            : PHPMailer::ENCRYPTION_SMTPS;
+        $mail->Port       = $smtpPort > 0 ? $smtpPort : 465;
+        $mail->SMTPOptions = [
+            'ssl' => [
+                'verify_peer' => !$smtpAllowSelfSigned,
+                'verify_peer_name' => !$smtpAllowSelfSigned,
+                'allow_self_signed' => $smtpAllowSelfSigned
+            ]
+        ];
         
         // Recipients
-        $mail->setFrom('fireguard@bccbsis.com', 'Fire Detection System');
+        $mail->setFrom($fromAddress, $fromName);
         $mail->addAddress($email);
         
         // Content

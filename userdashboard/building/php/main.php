@@ -1,14 +1,175 @@
 <?php
-session_start();
+// Error handling - environment-aware
+$isProduction = (getenv('APP_ENV') === 'production' || 
+                (isset($_SERVER['HTTP_HOST']) && 
+                 strpos($_SERVER['HTTP_HOST'], 'localhost') === false && 
+                 strpos($_SERVER['HTTP_HOST'], '127.0.0.1') === false));
+
+if ($isProduction) {
+    error_reporting(E_ALL);
+    ini_set('display_errors', '0');
+    ini_set('log_errors', '1');
+    $logDir = __DIR__ . '/../../logs';
+    if (!is_dir($logDir)) {
+        @mkdir($logDir, 0755, true);
+    }
+    ini_set('error_log', $logDir . '/php_errors.log');
+} else {
+    error_reporting(E_ALL);
+    ini_set('display_errors', '1');
+}
+
+// Start session first (before including session_config)
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Secure session configuration (now safe to include)
+require_once __DIR__ . '/../../includes/session_config.php';
+
 if (!isset($_SESSION['user_id'])) {
     header("Location: ../../../index.php");
     exit();
 }
 
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
 include('../../db/db.php');
+
+// ============================================
+// SECURITY: CSRF Token Generation
+// ============================================
+/**
+ * Generate CSRF token if not exists, or return existing one
+ * Token is stored in session and regenerated periodically
+ */
+function generateCSRFToken() {
+    if (!isset($_SESSION['csrf_token']) || !isset($_SESSION['csrf_token_time']) || 
+        (time() - $_SESSION['csrf_token_time']) > 3600) { // Regenerate every hour
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        $_SESSION['csrf_token_time'] = time();
+    }
+    return $_SESSION['csrf_token'];
+}
+
+/**
+ * Validate CSRF token
+ */
+function validateCSRFToken($token) {
+    if (!isset($_SESSION['csrf_token'])) {
+        error_log("CSRF validation failed: No token in session");
+        return false;
+    }
+    
+    // Use hash_equals for timing-safe comparison
+    if (!hash_equals($_SESSION['csrf_token'], $token)) {
+        error_log("CSRF validation failed: Token mismatch from IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+        return false;
+    }
+    
+    return true;
+}
+
+/**
+ * Secure input sanitization - removes htmlspecialchars from input processing
+ * Data should be stored clean in database, escaped only on output
+ */
+function sanitizeInput($input, $type = 'string', $maxLength = null) {
+    if ($input === null || $input === '') {
+        return null;
+    }
+    
+    // Remove null bytes and control characters
+    $input = str_replace(["\0", "\x00"], '', $input);
+    $input = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $input);
+    
+    switch ($type) {
+        case 'string':
+            $input = trim($input);
+            // Remove any HTML tags but keep content
+            $input = strip_tags($input);
+            // Limit length if specified
+            if ($maxLength !== null && mb_strlen($input) > $maxLength) {
+                $input = mb_substr($input, 0, $maxLength);
+            }
+            break;
+            
+        case 'int':
+            $input = filter_var($input, FILTER_VALIDATE_INT);
+            if ($input === false) {
+                return null;
+            }
+            break;
+            
+        case 'float':
+            $input = filter_var($input, FILTER_VALIDATE_FLOAT);
+            if ($input === false) {
+                return null;
+            }
+            break;
+            
+        case 'email':
+            $input = filter_var(trim($input), FILTER_VALIDATE_EMAIL);
+            if ($input === false) {
+                return null;
+            }
+            break;
+            
+        case 'phone':
+            // Allow only digits, spaces, +, -, (, )
+            $input = preg_replace('/[^0-9+\-\(\)\s]/', '', $input);
+            $input = trim($input);
+            if ($maxLength !== null && mb_strlen($input) > $maxLength) {
+                $input = mb_substr($input, 0, $maxLength);
+            }
+            break;
+            
+        case 'date':
+            // Validate YYYY-MM-DD format
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $input)) {
+                return null;
+            }
+            // Validate it's a real date
+            $date = DateTime::createFromFormat('Y-m-d', $input);
+            if (!$date || $date->format('Y-m-d') !== $input) {
+                return null;
+            }
+            break;
+            
+        case 'building_type':
+            // Whitelist validation
+            $allowedTypes = ['residential', 'commercial', 'industrial', 'institutional'];
+            if (!in_array($input, $allowedTypes, true)) {
+                return null;
+            }
+            break;
+    }
+    
+    return $input;
+}
+
+/**
+ * Validate and sanitize coordinates
+ */
+function validateCoordinate($coord, $type = 'latitude') {
+    $coord = filter_var($coord, FILTER_VALIDATE_FLOAT);
+    if ($coord === false) {
+        return null;
+    }
+    
+    if ($type === 'latitude') {
+        if ($coord < -90 || $coord > 90) {
+            return null;
+        }
+    } else { // longitude
+        if ($coord < -180 || $coord > 180) {
+            return null;
+        }
+    }
+    
+    return $coord;
+}
+
+// Generate CSRF token for forms
+$csrf_token = generateCSRFToken();
 
 // Create an alias function for getDBConnection to maintain compatibility
 function getDBConnection() {
@@ -239,8 +400,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['act
         exit;
     }
     
-    $lat = floatval($_GET['lat']);
-    $lng = floatval($_GET['lng']);
+    // ============================================
+    // SECURITY: Coordinate Validation
+    // ============================================
+    $lat = validateCoordinate($_GET['lat'], 'latitude');
+    $lng = validateCoordinate($_GET['lng'], 'longitude');
+    
+    if ($lat === null || $lng === null) {
+        echo json_encode(['status' => 'error', 'message' => 'Invalid coordinates']);
+        exit;
+    }
     
     $address = getAddressFromCoordinates($lat, $lng);
     
@@ -258,7 +427,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['act
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json');
 
-    // Check if this is a test request
+    // Check if this is a test request (no CSRF needed for test)
     if (isset($_POST['test_db'])) {
         try {
             $conn = getDBConnection();
@@ -272,9 +441,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Exception $e) {
             echo json_encode([
                 'status' => 'error',
-                'message' => 'Database test failed: ' . $e->getMessage()
+                'message' => 'Database test failed'
             ]);
         }
+        exit;
+    }
+
+    // ============================================
+    // SECURITY: CSRF Token Validation
+    // ============================================
+    if (!isset($_POST['csrf_token']) || !validateCSRFToken($_POST['csrf_token'])) {
+        http_response_code(403);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Security validation failed. Please refresh the page and try again.'
+        ]);
         exit;
     }
 
@@ -286,27 +467,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception("Failed to create buildings table");
         }
         
-        // Get and sanitize form values
+        // ============================================
+        // SECURITY: Proper Input Sanitization
+        // Store clean data in database, escape on output only
+        // ============================================
         $user_id = $_SESSION['user_id'];
-        $building_name = isset($_POST['building_name']) ? htmlspecialchars(trim($_POST['building_name'])) : '';
-        $building_type = isset($_POST['building_type']) ? htmlspecialchars(trim($_POST['building_type'])) : '';
-        $address = isset($_POST['address']) ? htmlspecialchars(trim($_POST['address'])) : '';
-        $contact_person = isset($_POST['contact_person']) ? htmlspecialchars(trim($_POST['contact_person'])) : '';
-        $contact_number = isset($_POST['contact_number']) ? htmlspecialchars(trim($_POST['contact_number'])) : '';
-        $total_floors = isset($_POST['total_floors']) ? intval($_POST['total_floors']) : 1;
+        $building_name = isset($_POST['building_name']) ? sanitizeInput($_POST['building_name'], 'string', 255) : '';
+        $building_type = isset($_POST['building_type']) ? sanitizeInput($_POST['building_type'], 'building_type') : '';
+        $address = isset($_POST['address']) ? sanitizeInput($_POST['address'], 'string', 500) : '';
+        $contact_person = isset($_POST['contact_person']) ? sanitizeInput($_POST['contact_person'], 'string', 255) : '';
+        $contact_number = isset($_POST['contact_number']) ? sanitizeInput($_POST['contact_number'], 'phone', 20) : null;
+        $total_floors = isset($_POST['total_floors']) ? sanitizeInput($_POST['total_floors'], 'int') : 1;
         $has_sprinkler_system = isset($_POST['has_sprinkler_system']) ? 1 : 0;
         $has_fire_alarm = isset($_POST['has_fire_alarm']) ? 1 : 0;
         $has_fire_extinguishers = isset($_POST['has_fire_extinguishers']) ? 1 : 0;
         $has_emergency_exits = isset($_POST['has_emergency_exits']) ? 1 : 0;
         $has_emergency_lighting = isset($_POST['has_emergency_lighting']) ? 1 : 0;
         $has_fire_escape = isset($_POST['has_fire_escape']) ? 1 : 0;
-        $last_inspected = !empty($_POST['last_inspected']) ? $_POST['last_inspected'] : null;
-        $latitude = !empty($_POST['latitude']) ? floatval($_POST['latitude']) : null;
-        $longitude = !empty($_POST['longitude']) ? floatval($_POST['longitude']) : null;
-        $construction_year = !empty($_POST['construction_year']) ? intval($_POST['construction_year']) : null;
-        $building_area = !empty($_POST['building_area']) ? floatval($_POST['building_area']) : null;
-        $geo_fence_id = !empty($_POST['geo_fence_id']) ? intval($_POST['geo_fence_id']) : null;
-        $barangay_id = !empty($_POST['barangay_id']) ? intval($_POST['barangay_id']) : null;
+        $last_inspected = !empty($_POST['last_inspected']) ? sanitizeInput($_POST['last_inspected'], 'date') : null;
+        $latitude = !empty($_POST['latitude']) ? validateCoordinate($_POST['latitude'], 'latitude') : null;
+        $longitude = !empty($_POST['longitude']) ? validateCoordinate($_POST['longitude'], 'longitude') : null;
+        $construction_year = !empty($_POST['construction_year']) ? sanitizeInput($_POST['construction_year'], 'int') : null;
+        $building_area = !empty($_POST['building_area']) ? sanitizeInput($_POST['building_area'], 'float') : null;
+        $geo_fence_id = !empty($_POST['geo_fence_id']) ? sanitizeInput($_POST['geo_fence_id'], 'int') : null;
+        $barangay_id = !empty($_POST['barangay_id']) ? sanitizeInput($_POST['barangay_id'], 'int') : null;
 
         // Debug: Log the received data
         error_log("Received building data: " . json_encode($_POST));
@@ -320,25 +504,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         
-        // Validation
+        // ============================================
+        // SECURITY: Enhanced Input Validation
+        // ============================================
         $errors = [];
-        if (empty($building_name)) $errors[] = 'Building name is required';
-        if (empty($building_type)) $errors[] = 'Building type is required';
+        
+        // Required fields
+        if (empty($building_name)) {
+            $errors[] = 'Building name is required';
+        }
+        
+        if (empty($building_type)) {
+            $errors[] = 'Building type is required';
+        } elseif ($building_type === null) {
+            $errors[] = 'Invalid building type selected';
+        }
+        
+        // Address or coordinates required
         if (empty($address) && (empty($latitude) || empty($longitude))) {
             $errors[] = 'Address is required. Please provide an address or select a location on the map.';
         }
-        if (!empty($contact_number) && !preg_match('/^[0-9+\- ]+$/', $contact_number)) {
-            $errors[] = 'Invalid contact number format';
+        
+        // Validate coordinates if provided
+        if (!empty($latitude) && $latitude === null) {
+            $errors[] = 'Invalid latitude value';
         }
-        if ($total_floors < 1 || $total_floors > 200) $errors[] = 'Invalid number of floors (1-200)';
-        if (!empty($construction_year) && ($construction_year < 1800 || $construction_year > date('Y'))) {
+        if (!empty($longitude) && $longitude === null) {
+            $errors[] = 'Invalid longitude value';
+        }
+        
+        // Validate numeric fields
+        if ($total_floors === null || $total_floors < 1 || $total_floors > 200) {
+            $errors[] = 'Invalid number of floors (1-200)';
+        }
+        
+        if ($construction_year !== null && ($construction_year < 1800 || $construction_year > date('Y'))) {
             $errors[] = 'Invalid construction year (1800-' . date('Y') . ')';
         }
-        if (!empty($last_inspected)) {
-            $inspection_date = DateTime::createFromFormat('Y-m-d', $last_inspected);
-            if (!$inspection_date || $inspection_date->format('Y-m-d') !== $last_inspected) {
-                $errors[] = 'Invalid inspection date format';
-            }
+        
+        if ($building_area !== null && ($building_area < 0 || $building_area > 999999.99)) {
+            $errors[] = 'Invalid building area';
+        }
+        
+        // Contact number validation (if provided)
+        if ($contact_number !== null && empty($contact_number)) {
+            $contact_number = null; // Allow empty contact number
+        }
+        
+        // Date validation is handled in sanitizeInput, but double-check
+        if ($last_inspected !== null && $last_inspected === null) {
+            $errors[] = 'Invalid inspection date format';
         }
 
         // GEO-FENCING: Check against active geo-fences from database
@@ -362,13 +577,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!empty($errors)) {
             http_response_code(400);
-            echo json_encode(['status' => 'error', 'message' => implode('<br>', $errors)]);
+            // Escape error messages for output
+            $escaped_errors = array_map(function($error) {
+                return htmlspecialchars($error, ENT_QUOTES, 'UTF-8');
+            }, $errors);
+            echo json_encode(['status' => 'error', 'message' => implode('<br>', $escaped_errors)]);
             exit;
         }
 
         // Check if this is an edit (building_id provided)
         if (!empty($_POST['building_id'])) {
-            $building_id = intval($_POST['building_id']);
+            $building_id = sanitizeInput($_POST['building_id'], 'int');
+            if ($building_id === null || $building_id <= 0) {
+                http_response_code(400);
+                echo json_encode(['status' => 'error', 'message' => 'Invalid building ID']);
+                exit;
+            }
             
             // Verify the building belongs to the user
             $check_stmt = $conn->prepare("SELECT id FROM buildings WHERE id = ? AND user_id = ?");
@@ -440,7 +664,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (Exception $e) {
         error_log("Building registration error: " . $e->getMessage());
         http_response_code(500);
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()]);
+        // Don't expose internal error messages to users
+        echo json_encode(['status' => 'error', 'message' => 'An error occurred. Please try again or contact support.']);
     }
     exit;
 }
@@ -450,16 +675,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
     header('Content-Type: application/json');
     
     try {
-        // Get raw input and decode JSON
-        $input = json_decode(file_get_contents('php://input'), true);
+        // ============================================
+        // SECURITY: JSON Input Validation with CSRF
+        // ============================================
+        $raw_input = file_get_contents('php://input');
+        if (empty($raw_input)) {
+            throw new Exception('No input provided');
+        }
+        
+        $input = json_decode($raw_input, true);
         if (json_last_error() !== JSON_ERROR_NONE) {
             throw new Exception('Invalid JSON input');
         }
         
-        $building_id = isset($input['building_id']) ? (int)$input['building_id'] : 0;
+        // Validate CSRF token
+        if (!isset($input['csrf_token']) || !validateCSRFToken($input['csrf_token'])) {
+            http_response_code(403);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Security validation failed. Please refresh the page and try again.'
+            ]);
+            exit;
+        }
+        
+        $building_id = isset($input['building_id']) ? sanitizeInput($input['building_id'], 'int') : null;
         $user_id = $_SESSION['user_id'] ?? 0;
         
-        if ($building_id <= 0) {
+        if ($building_id === null || $building_id <= 0) {
             throw new Exception('Invalid building ID');
         }
         
@@ -488,10 +730,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
         ]);
         
     } catch (Exception $e) {
+        error_log("Building deletion error: " . $e->getMessage());
         http_response_code(500);
+        // Don't expose internal error messages
         echo json_encode([
             'status' => 'error',
-            'message' => $e->getMessage()
+            'message' => 'Failed to delete building. Please try again.'
         ]);
     }
     exit;
@@ -501,6 +745,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] === 'get_building') {
     header('Content-Type: application/json');
     
+    // ============================================
+    // SECURITY: GET Parameter Validation
+    // ============================================
     if (!isset($_GET['building_id'])) {
         echo json_encode(['status' => 'error', 'message' => 'Building ID is required']);
         exit;
@@ -508,7 +755,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['act
     
     try {
         $conn = getDBConnection();
-        $building_id = intval($_GET['building_id']);
+        $building_id = sanitizeInput($_GET['building_id'], 'int');
+        
+        if ($building_id === null || $building_id <= 0) {
+            echo json_encode(['status' => 'error', 'message' => 'Invalid building ID']);
+            exit;
+        }
+        
         $user_id = $_SESSION['user_id'];
         
         // Fetch building data with all fields
@@ -1076,6 +1329,7 @@ if (isset($_SESSION['user_id'])) {
 
                 <form id="buildingForm">
                     <input type="hidden" name="building_id" id="building_id" value="">
+                    <input type="hidden" name="csrf_token" id="csrf_token" value="<?php echo htmlspecialchars($csrf_token, ENT_QUOTES, 'UTF-8'); ?>">
                     <!-- Step 1: Basic Information -->
                     <div class="step-content" id="stepContent1">
                         <h2 class="StepTitle">Step 1 Content</h2>
@@ -2783,7 +3037,10 @@ $(document).on('click', '.delete-building', function() {
                 type: 'DELETE',
                 url: '',
                 contentType: 'application/json',
-                data: JSON.stringify({ building_id: buildingId }),
+                data: JSON.stringify({ 
+                    building_id: buildingId,
+                    csrf_token: $('#csrf_token').val() || '<?php echo htmlspecialchars($csrf_token, ENT_QUOTES, 'UTF-8'); ?>'
+                }),
                 dataType: 'json'
             }).catch(error => {
                 console.error('Delete error:', error);
@@ -3651,7 +3908,14 @@ function isPointInPolygon(point, vs) {
             }
         });
 
-        const editBuildingPrefillId = <?php echo isset($_GET['edit_building']) ? (int)$_GET['edit_building'] : 'null'; ?>;
+        const editBuildingPrefillId = <?php 
+            if (isset($_GET['edit_building'])) {
+                $edit_id = sanitizeInput($_GET['edit_building'], 'int');
+                echo ($edit_id !== null && $edit_id > 0) ? $edit_id : 'null';
+            } else {
+                echo 'null';
+            }
+        ?>;
         if (editBuildingPrefillId) {
             setTimeout(() => {
                 loadBuildingForEdit(editBuildingPrefillId);
@@ -3663,6 +3927,6 @@ function isPointInPolygon(point, vs) {
             }, 600);
         }
     </script>
-	<?php include('../../../../components/scripts.php'); ?>
+	<?php include('../../components/scripts.php'); ?>
 </body>
 </html>

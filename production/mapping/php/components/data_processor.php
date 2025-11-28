@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '../../../functions/functions.php'; 
-// require_once __DIR__ . '../../../../alarm/alarm.php';
+require_once __DIR__ . '../../../../alarm/alarm.php';
 
 // Initialize database connection
 $pdo = getDatabaseConnection();
