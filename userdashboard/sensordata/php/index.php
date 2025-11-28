@@ -2,7 +2,7 @@
 session_start();
 // Protect page: require logged-in user
 if (!isset($_SESSION['user_id'])) {
-	header('Location: ../../index.php');
+	header('Location: ../../../index.php');
 	exit;
 }
 ?>

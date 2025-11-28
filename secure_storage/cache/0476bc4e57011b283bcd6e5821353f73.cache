@@ -1,1 +1,0 @@
-{"expires_at":1764286894,"value":{"chartData":{"labels":["Sampinit - Residential","Unknown - Residential"],"data":[8,1]},"meta":{"total_records":881,"filtered_results":2,"date_range":{"start":"2025-10-28","end":"2025-11-27"},"filters":{"barangay":null,"ml_confidence":null,"ml_prediction":null},"query_params":{":start_date":"2025-10-28",":end_date":"2025-11-27"}}}}

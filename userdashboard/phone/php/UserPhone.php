@@ -339,17 +339,23 @@ class UserPhoneModel {
             return [false, $errorMsg];
         }
         
+        // Trim API key and device to ensure no whitespace issues
+        $apiKey = trim($this->apiKey);
+        $device = trim($this->device);
+        
+        // Debug logging (remove in production if needed)
+        error_log("SMS Debug: API Key: " . substr($apiKey, 0, 10) . "... (length: " . strlen($apiKey) . "), Device: $device");
+        
         $params = [
             'message' => "Your verification code is: $code. Valid for 15 minutes.",
             'mobile_number' => $phoneNumber,
-            'device' => $this->device
+            'device' => $device
         ];
 
+        // Use the exact header format from device/smokestore.php (working example)
         $headers = [
             "Content-Type: application/x-www-form-urlencoded",
-            "apikey: {$this->apiKey}",
-            "API-Key: {$this->apiKey}",
-            "Authorization: Bearer {$this->apiKey}"
+            "apikey: $apiKey"
         ];
 
         $ch = curl_init();
