@@ -71,7 +71,7 @@ function get_device_info($device_id) {
     $conn = get_db_connection();
     if (!$conn) return null;
 
-    $stmt = $conn->prepare("SELECT device_id, user_id, device_name, device_number, serial_number, building_id, status FROM devices WHERE device_id = ?");
+    $stmt = $conn->prepare("SELECT device_id, user_id, device_name, device_number, serial_number, building_id, barangay_id, status FROM devices WHERE device_id = ?");
     $stmt->bind_param("i", $device_id);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -373,6 +373,7 @@ function insert_fire_data($smoke_data, $flame_data, $env_data, $device_id) {
 
     $user_id = $device_info['user_id'];
     $building_id = $device_info['building_id'];
+    $barangay_id = isset($device_info['barangay_id']) ? $device_info['barangay_id'] : null;
 
     // Initialize status as null (no action for smoke < 500)
     $status = null;
@@ -388,8 +389,8 @@ function insert_fire_data($smoke_data, $flame_data, $env_data, $device_id) {
     if ($status !== null) {
         $stmt = $conn->prepare("INSERT INTO fire_data (
             status, building_type, smoke, temp, heat, flame_detected,
-            user_id, building_id, smoke_reading_id, flame_reading_id, device_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            user_id, building_id, barangay_id, smoke_reading_id, flame_reading_id, device_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
         if (!$stmt) {
             error_log("Prepare failed: " . $conn->error);
@@ -402,7 +403,7 @@ function insert_fire_data($smoke_data, $flame_data, $env_data, $device_id) {
         $heat = $env_data['heat_index'];
 
         $stmt->bind_param(
-            "ssiiiisiiii",
+            "ssiiiisiiiii",
             $status,
             $building_type,
             $smoke_data['smoke'],
@@ -411,6 +412,7 @@ function insert_fire_data($smoke_data, $flame_data, $env_data, $device_id) {
             $flame_data['flame_detected'],
             $user_id,
             $building_id,
+            $barangay_id,
             $smoke_data['id'],
             $flame_data['id'],
             $device_id

@@ -69,7 +69,7 @@ function validateDateInput($dateString) {
 }
 
 // Fetch fire data with device location information
-function getFireData($startDate = null, $endDate = null) {
+function getFireData($startDate = null, $endDate = null, $barangayId = null) {
     $conn = getDatabaseConnection();
     
     $query = "
@@ -101,23 +101,29 @@ function getFireData($startDate = null, $endDate = null) {
             COALESCE(fd.gps_longitude, fd.geo_long) as display_long,
             -- Calculate fire risk level for the barangay
             CASE 
-                WHEN COALESCE(incident_counts.total_incidents, 0) > 0 THEN 'HIGH'
+                WHEN COALESCE(incident_counts.emergency_incidents, 0) > 0 THEN 'HIGH'
                 ELSE 'SAFE'
-            END as fire_risk_level
+            END as fire_risk_level,
+            CASE 
+                WHEN COALESCE(incident_counts.emergency_incidents, 0) > 0 THEN 1
+                ELSE 0
+            END as has_alert
         FROM fire_data fd
         LEFT JOIN devices d ON fd.device_id = d.device_id
         LEFT JOIN barangay br ON COALESCE(d.barangay_id, fd.barangay_id) = br.id
         LEFT JOIN (
             SELECT 
                 COALESCE(d2.barangay_id, fd2.barangay_id) as barangay_id,
-                COUNT(*) as total_incidents
+                COUNT(*) as total_incidents,
+                SUM(CASE WHEN fd2.status IN ('EMERGENCY', 'ACKNOWLEDGED') THEN 1 ELSE 0 END) as emergency_incidents
             FROM fire_data fd2
             LEFT JOIN devices d2 ON fd2.device_id = d2.device_id
             WHERE COALESCE(d2.barangay_id, fd2.barangay_id) IS NOT NULL
             GROUP BY barangay_id
         ) incident_counts ON br.id = incident_counts.barangay_id
-        WHERE (fd.gps_latitude IS NOT NULL AND fd.gps_longitude IS NOT NULL) 
-           OR (fd.geo_lat IS NOT NULL AND fd.geo_long IS NOT NULL)
+        WHERE ((fd.gps_latitude IS NOT NULL AND fd.gps_longitude IS NOT NULL) 
+           OR (fd.geo_lat IS NOT NULL AND fd.geo_long IS NOT NULL))
+          AND fd.status IN ('EMERGENCY', 'ACKNOWLEDGED')
     ";
     
     $params = [];
@@ -133,6 +139,11 @@ function getFireData($startDate = null, $endDate = null) {
     } elseif ($endDate) {
         $query .= " AND DATE(fd.timestamp) <= :end_date";
         $params[':end_date'] = $endDate;
+    }
+    
+    if ($barangayId !== null) {
+        $query .= " AND COALESCE(d.barangay_id, fd.barangay_id) = :barangay_id";
+        $params[':barangay_id'] = $barangayId;
     }
     
     $query .= " ORDER BY fd.timestamp DESC";
@@ -182,7 +193,7 @@ function getDevicesWithCoordinates() {
             br.longitude AS barangay_long,
             -- Calculate fire risk level for the barangay
             CASE 
-                WHEN COALESCE(incident_counts.total_incidents, 0) > 0 THEN 'HIGH'
+                WHEN COALESCE(incident_counts.emergency_incidents, 0) > 0 THEN 'HIGH'
                 ELSE 'SAFE'
             END as fire_risk_level,
             -- Check if device has emergency status
@@ -218,7 +229,8 @@ function getDevicesWithCoordinates() {
         LEFT JOIN (
             SELECT 
                 COALESCE(d2.barangay_id, fd2.barangay_id) as barangay_id,
-                COUNT(*) as total_incidents
+                COUNT(*) as total_incidents,
+                SUM(CASE WHEN fd2.status IN ('EMERGENCY', 'ACKNOWLEDGED') THEN 1 ELSE 0 END) as emergency_incidents
             FROM fire_data fd2
             LEFT JOIN devices d2 ON fd2.device_id = d2.device_id
             WHERE COALESCE(d2.barangay_id, fd2.barangay_id) IS NOT NULL
@@ -276,9 +288,13 @@ function getBarangays($forceBarangayId = null) {
             COALESCE(incident_counts.emergency_incidents, 0) as emergency_incidents,
             -- Calculate fire risk level (based on incidents)
             CASE 
-                WHEN COALESCE(incident_counts.total_incidents, 0) > 0 THEN 'HIGH'
+                WHEN COALESCE(incident_counts.emergency_incidents, 0) > 0 THEN 'HIGH'
                 ELSE 'SAFE'
-            END as fire_risk_level
+            END as fire_risk_level,
+            CASE 
+                WHEN COALESCE(incident_counts.emergency_incidents, 0) > 0 THEN 1
+                ELSE 0
+            END as has_alert
         FROM barangay br
         LEFT JOIN (
             SELECT 
@@ -342,38 +358,34 @@ function getBarangayHeatData($barangayId = null) {
         FROM barangay br
         LEFT JOIN (
             SELECT 
-                COALESCE(d.barangay_id, fd.barangay_id, b.barangay_id) as barangay_id,
+                COALESCE(d.barangay_id, fd.barangay_id) as barangay_id,
                 fd.heat as latest_heat_value,
                 fd.timestamp as latest_heat_timestamp,
                 ROW_NUMBER() OVER (
-                    PARTITION BY COALESCE(d.barangay_id, fd.barangay_id, b.barangay_id) 
+                    PARTITION BY COALESCE(d.barangay_id, fd.barangay_id) 
                     ORDER BY fd.timestamp DESC
                 ) as rn
             FROM fire_data fd
             LEFT JOIN devices d ON fd.device_id = d.device_id
-            LEFT JOIN buildings b ON fd.building_id = b.id
             WHERE d.barangay_id IS NOT NULL 
-               OR fd.barangay_id IS NOT NULL 
-               OR b.barangay_id IS NOT NULL
+               OR fd.barangay_id IS NOT NULL
         ) latest_heat ON br.id = latest_heat.barangay_id AND latest_heat.rn = 1
         LEFT JOIN (
             SELECT 
-                COALESCE(d.barangay_id, fd.barangay_id, b.barangay_id) as barangay_id,
+                COALESCE(d.barangay_id, fd.barangay_id) as barangay_id,
                 AVG(fd.heat) as avg_heat,
                 MAX(fd.heat) as max_heat,
                 MIN(fd.heat) as min_heat,
                 COUNT(*) as total_readings
             FROM fire_data fd
             LEFT JOIN devices d ON fd.device_id = d.device_id
-            LEFT JOIN buildings b ON fd.building_id = b.id
             WHERE d.barangay_id IS NOT NULL 
-               OR fd.barangay_id IS NOT NULL 
-               OR b.barangay_id IS NOT NULL
-            GROUP BY COALESCE(d.barangay_id, fd.barangay_id, b.barangay_id)
+               OR fd.barangay_id IS NOT NULL
+            GROUP BY COALESCE(d.barangay_id, fd.barangay_id)
         ) heat_stats ON br.id = heat_stats.barangay_id
         LEFT JOIN (
             SELECT 
-                COALESCE(d.barangay_id, fd.barangay_id, b.barangay_id) as barangay_id,
+                COALESCE(d.barangay_id, fd.barangay_id) as barangay_id,
                 AVG(CASE WHEN MONTH(STR_TO_DATE(fd.timestamp, '%Y-%m-%d %H:%i:%s')) = 1 THEN fd.heat ELSE NULL END) as jan_avg,
                 AVG(CASE WHEN MONTH(STR_TO_DATE(fd.timestamp, '%Y-%m-%d %H:%i:%s')) = 2 THEN fd.heat ELSE NULL END) as feb_avg,
                 AVG(CASE WHEN MONTH(STR_TO_DATE(fd.timestamp, '%Y-%m-%d %H:%i:%s')) = 3 THEN fd.heat ELSE NULL END) as mar_avg,
@@ -388,13 +400,11 @@ function getBarangayHeatData($barangayId = null) {
                 AVG(CASE WHEN MONTH(STR_TO_DATE(fd.timestamp, '%Y-%m-%d %H:%i:%s')) = 12 THEN fd.heat ELSE NULL END) as dec_avg
             FROM fire_data fd
             LEFT JOIN devices d ON fd.device_id = d.device_id
-            LEFT JOIN buildings b ON fd.building_id = b.id
             WHERE (d.barangay_id IS NOT NULL 
-                OR fd.barangay_id IS NOT NULL 
-                OR b.barangay_id IS NOT NULL)
+                OR fd.barangay_id IS NOT NULL)
             AND fd.heat IS NOT NULL 
             AND fd.timestamp IS NOT NULL
-            GROUP BY COALESCE(d.barangay_id, fd.barangay_id, b.barangay_id)
+            GROUP BY COALESCE(d.barangay_id, fd.barangay_id)
         ) monthly_heat ON br.id = monthly_heat.barangay_id
         " . $whereClause . "
         ORDER BY br.barangay_name ASC
@@ -561,96 +571,12 @@ function getBarangayMLAnalytics($barangayId = null) {
     }
 }
 
-// Fetch building safety features statistics for barangays
-function getBarangaySafetyStats($barangayId = null) {
-    $conn = getDatabaseConnection();
-    
-    $whereClause = "";
-    $params = [];
-    
-    if ($barangayId) {
-        $whereClause = "WHERE br.id = :barangay_id";
-        $params[':barangay_id'] = $barangayId;
-    }
-    
-    $query = "
-        SELECT 
-            br.id as barangay_id,
-            br.barangay_name,
-            -- Building counts
-            COALESCE(safety_stats.total_buildings, 0) as total_buildings,
-            -- Safety features counts
-            COALESCE(safety_stats.buildings_with_sprinklers, 0) as buildings_with_sprinklers,
-            COALESCE(safety_stats.buildings_with_fire_alarms, 0) as buildings_with_fire_alarms,
-            COALESCE(safety_stats.buildings_with_extinguishers, 0) as buildings_with_extinguishers,
-            COALESCE(safety_stats.buildings_with_emergency_exits, 0) as buildings_with_emergency_exits,
-            COALESCE(safety_stats.buildings_with_emergency_lighting, 0) as buildings_with_emergency_lighting,
-            COALESCE(safety_stats.buildings_with_fire_escape, 0) as buildings_with_fire_escape,
-            -- Safety compliance
-            COALESCE(safety_stats.fully_compliant_buildings, 0) as fully_compliant_buildings,
-            COALESCE(safety_stats.partially_compliant_buildings, 0) as partially_compliant_buildings,
-            COALESCE(safety_stats.non_compliant_buildings, 0) as non_compliant_buildings,
-            -- Inspection status
-            COALESCE(safety_stats.recently_inspected, 0) as recently_inspected,
-            COALESCE(safety_stats.overdue_inspection, 0) as overdue_inspection,
-            COALESCE(safety_stats.never_inspected, 0) as never_inspected
-        FROM barangay br
-        LEFT JOIN (
-            SELECT 
-                barangay_id,
-                COUNT(*) as total_buildings,
-                SUM(has_sprinkler_system) as buildings_with_sprinklers,
-                SUM(has_fire_alarm) as buildings_with_fire_alarms,
-                SUM(has_fire_extinguishers) as buildings_with_extinguishers,
-                SUM(has_emergency_exits) as buildings_with_emergency_exits,
-                SUM(has_emergency_lighting) as buildings_with_emergency_lighting,
-                SUM(has_fire_escape) as buildings_with_fire_escape,
-                SUM(CASE WHEN has_sprinkler_system = 1 AND has_fire_alarm = 1 AND has_fire_extinguishers = 1 
-                         AND has_emergency_exits = 1 AND has_emergency_lighting = 1 AND has_fire_escape = 1 
-                         THEN 1 ELSE 0 END) as fully_compliant_buildings,
-                SUM(CASE WHEN (has_sprinkler_system + has_fire_alarm + has_fire_extinguishers + 
-                              has_emergency_exits + has_emergency_lighting + has_fire_escape) >= 3 
-                         AND (has_sprinkler_system + has_fire_alarm + has_fire_extinguishers + 
-                              has_emergency_exits + has_emergency_lighting + has_fire_escape) < 6 
-                         THEN 1 ELSE 0 END) as partially_compliant_buildings,
-                SUM(CASE WHEN (has_sprinkler_system + has_fire_alarm + has_fire_extinguishers + 
-                              has_emergency_exits + has_emergency_lighting + has_fire_escape) < 3 
-                         THEN 1 ELSE 0 END) as non_compliant_buildings,
-                SUM(CASE WHEN last_inspected IS NOT NULL AND last_inspected >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) THEN 1 ELSE 0 END) as recently_inspected,
-                SUM(CASE WHEN last_inspected IS NOT NULL AND last_inspected < DATE_SUB(CURDATE(), INTERVAL 6 MONTH) THEN 1 ELSE 0 END) as overdue_inspection,
-                SUM(CASE WHEN last_inspected IS NULL THEN 1 ELSE 0 END) as never_inspected
-            FROM buildings
-            WHERE barangay_id IS NOT NULL
-            GROUP BY barangay_id
-        ) safety_stats ON br.id = safety_stats.barangay_id
-        " . $whereClause . "
-        ORDER BY br.barangay_name ASC
-    ";
-    
-    try {
-        $stmt = $conn->prepare($query);
-        $stmt->execute($params);
-        
-        if ($barangayId) {
-            return $stmt->fetch();
-        } else {
-            return $stmt->fetchAll();
-        }
-    } catch (PDOException $e) {
-        error_log("Error fetching barangay safety stats: " . $e->getMessage());
-        return $barangayId ? null : [];
-    }
-}
-
-// Removed: getBuildingStats function - buildings are no longer used
-
 // Get devices data
 $devices = getDevicesWithCoordinates();
 
 // Get incidents and barangays with optional date filtering - VALIDATE INPUTS
 $startDate = validateDateInput($_GET['start_date'] ?? null);
 $endDate = validateDateInput($_GET['end_date'] ?? null);
-$incidents = getFireData($startDate, $endDate);
 
 // Validate and sanitize barangay_id/user_id from GET
 $preselectBarangayId = null;
@@ -675,12 +601,11 @@ if (isset($_GET['barangay_id']) && ctype_digit((string)$_GET['barangay_id'])) {
         $preselectBarangayId = getUserBarangayId($userId);
     }
 }
+$incidents = getFireData($startDate, $endDate, $preselectBarangayId);
 $barangays = getBarangays($preselectBarangayId);
 // Get comprehensive data for all barangays
 $barangayHeatData = getBarangayHeatData();
 $barangayDeviceStats = getBarangayDeviceStats();
-$barangaySafetyStats = getBarangaySafetyStats();
-
 // Optionally detect user's barangay for preselection
 function getUserBarangayId($userId) {
     if (empty($userId)) { return null; }
@@ -1867,6 +1792,7 @@ function getUserBarangayId($userId) {
         var allMarkers = [];
         var barangayMarkers = [];
         var incidentMarkers = [];
+        var barangayDataset = <?php echo je($barangays); ?>;
         var selectedBarangayCircle = null;
         var barangayCircleColor = '#dc2626'; // red
         var allBarangayLayers = []; // circles + labels
@@ -2423,7 +2349,7 @@ function getUserBarangayId($userId) {
                 return;
             }
             // Fallback to barangay centroid
-            var brgyData = <?php echo je($barangays); ?>;
+            var brgyData = barangayDataset;
             var found = brgyData.find(function(b) { return String(b.id) === String(brgyId); });
             if (found && found.latitude && found.longitude) {
                 map.setView([parseFloat(found.latitude), parseFloat(found.longitude)], 14);
@@ -2438,7 +2364,7 @@ function getUserBarangayId($userId) {
                 selectedBarangayCircle = null;
             }
             if (!brgyId) { return; }
-            var brgyData = <?php echo je($barangays); ?>;
+            var brgyData = barangayDataset;
             var found = brgyData.find(function(b) { return String(b.id) === String(brgyId); });
             if (!found || !found.latitude || !found.longitude) { return; }
             var lat = parseFloat(found.latitude);
@@ -2480,10 +2406,9 @@ function getUserBarangayId($userId) {
                 hideBarangayHoverInfo();
                 return;
             }
-            var brgyData = <?php echo je($barangays); ?>;
+            var brgyData = barangayDataset;
             var brgyHeatData = <?php echo je($barangayHeatData); ?>;
             var brgyDeviceStats = <?php echo je($barangayDeviceStats); ?>;
-            var brgySafetyStats = <?php echo je($barangaySafetyStats); ?>;
             // Create lookup maps for all data by barangay ID
             var heatDataMap = {};
             brgyHeatData.forEach(function(heatData) {
@@ -2496,20 +2421,38 @@ function getUserBarangayId($userId) {
             });
             
             
-            var safetyStatsMap = {};
-            brgySafetyStats.forEach(function(safetyStats) {
-                safetyStatsMap[safetyStats.barangay_id] = safetyStats;
-            });
-            
             brgyData.forEach(function(b, index){
                 if (!b || !b.latitude || !b.longitude) { return; }
                 var lat = parseFloat(b.latitude);
                 var lng = parseFloat(b.longitude);
+                var brgyName = (b.barangay_name || 'Barangay');
+                var escapedName = brgyName.replace(/</g,'&lt;').replace(/>/g,'&gt;');
                 
-                // Determine fire risk level and colors
-                var fireRiskLevel = b.fire_risk_level || 'SAFE';
+                // Count devices and incidents for this barangay
+                var deviceCount = allMarkers.filter(function(markerItem) {
+                    return markerItem.type === 'device' && String(markerItem.barangayId) === String(b.id);
+                }).length;
+                
+                var incidentCount = incidentMarkers.filter(function(incident) {
+                    return String(incident.barangayId) === String(b.id);
+                }).length;
+                var totalIncidents = parseInt(b.total_incidents || 0, 10);
+                var emergencyIncidents = parseInt(b.emergency_incidents || 0, 10);
+                
+                var fireRiskLevel = ((b.fire_risk_level || 'SAFE').toString().toUpperCase());
+                var hasAlert = Boolean(b.has_alert);
+                if (emergencyIncidents > 0) {
+                    fireRiskLevel = 'HIGH';
+                    hasAlert = true;
+                } else if (incidentCount > 0 || totalIncidents > 0) {
+                    // Still highlight barangay if it has recent incidents with coordinates
+                    fireRiskLevel = fireRiskLevel === 'SAFE' ? 'MEDIUM' : fireRiskLevel;
+                }
+                b.fire_risk_level = fireRiskLevel;
+                b.has_alert = hasAlert ? 1 : 0;
+                
+                // Determine colors based on fire risk level
                 var circleColor;
-                
                 switch(fireRiskLevel) {
                     case 'HIGH':
                         circleColor = '#dc2626'; // Red
@@ -2539,30 +2482,28 @@ function getUserBarangayId($userId) {
                     animateEnhancedCircleExpansion(circle, 1200, 2500, true); // Expand to 1200m radius over 2.5 seconds for slower, smoother effect
                 }, index * 100); // Stagger animations by 100ms each for more gradual wave effect
                 
-                // Select icon based on fire risk level
-                var fireRiskLevel = b.fire_risk_level || 'SAFE';
-                var icon, riskText, circleColor;
-                
+                // Select icon and popup color based on fire risk level
+                var icon, riskText, popupColor;
                 switch(fireRiskLevel) {
                     case 'HIGH':
                         icon = BrgyRiskIcon;
-                        riskText = 'High Fire Risk (Has Incidents)';
-                        circleColor = '#dc2626'; // Red
+                        riskText = 'High Fire Risk (Active Alerts)';
+                        popupColor = '#dc2626';
                         break;
                     case 'MEDIUM':
                         icon = BrgyAlertIcon;
-                        riskText = 'Medium Fire Risk (Unsafe Buildings)';
-                        circleColor = '#f59e0b'; // Orange
+                        riskText = 'Medium Fire Risk (Recent Activity)';
+                        popupColor = '#f59e0b';
                         break;
                     case 'LOW':
                         icon = BrgySafeIcon;
-                        riskText = 'Low Fire Risk (Safe Buildings)';
-                        circleColor = '#10b981'; // Green
+                        riskText = 'Low Fire Risk (Monitored)';
+                        popupColor = '#10b981';
                         break;
                     default:
                         icon = BrgySafeIcon;
-                        riskText = 'Safe (No Buildings)';
-                        circleColor = '#16a34a'; // Blue
+                        riskText = 'Safe (No Recent Incidents)';
+                        popupColor = '#16a34a';
                 }
                 
                 var marker = L.marker([lat, lng], { icon: icon, zIndexOffset: 2000, opacity: 0 }).addTo(map);
@@ -2572,21 +2513,9 @@ function getUserBarangayId($userId) {
                     animateMarkerBounce(marker, 1);
                 }, index * 75 + 300); // Start after circle starts expanding
                 
-                var brgyName = (b.barangay_name || 'Barangay');
-                var escapedName = brgyName.replace(/</g,'&lt;').replace(/>/g,'&gt;');
-                
-                // Count devices and incidents for this barangay
-                var deviceCount = allMarkers.filter(function(marker) {
-                    return marker.type === 'device' && String(marker.barangayId) === String(b.id);
-                }).length;
-                
-                var incidentCount = incidentMarkers.filter(function(incident) {
-                    return String(incident.barangayId) === String(b.id);
-                }).length;
-                
                 var popupHtml = '<div class="info-window">' +
                     '<div class="brgy-title">' + escapedName + '</div>' +
-                    '<p><strong>Fire Risk Level:</strong> <span style="color: ' + circleColor + '; font-weight: bold;">' + riskText + '</span></p>' +
+                    '<p><strong>Fire Risk Level:</strong> <span style="color: ' + popupColor + '; font-weight: bold;">' + riskText + '</span></p>' +
                     '<p><strong>Coordinates:</strong> ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + '</p>' +
                     '<p><strong>Total Incidents:</strong> ' + getFilteredIncidentCountForBarangay(b.id) + '</p>' +
                     '<p><strong>Emergency Incidents:</strong> ' + getFilteredEmergencyIncidentCountForBarangay(b.id) + '</p>' +
@@ -2613,7 +2542,7 @@ function getUserBarangayId($userId) {
                     
                     // Also show barangay popup when zoomed out (devices not visible)
                     if (currentZoom < showDevicesThreshold) {
-                        showDetailedBarangayPopup(e, brgyName, b.has_alert, lat, lng, deviceCount, incidentCount);
+                        showDetailedBarangayPopup(e, brgyName, hasAlert, lat, lng, deviceCount, incidentCount);
                     }
                 });
                 
@@ -2627,7 +2556,7 @@ function getUserBarangayId($userId) {
                     
                     // Also show barangay popup when zoomed out (devices not visible)
                     if (currentZoom < showDevicesThreshold) {
-                        showDetailedBarangayPopup(e, brgyName, b.has_alert, lat, lng, deviceCount, incidentCount);
+                        showDetailedBarangayPopup(e, brgyName, hasAlert, lat, lng, deviceCount, incidentCount);
                     }
                 });
                 
@@ -2665,34 +2594,18 @@ function getUserBarangayId($userId) {
                 };
                 
                 
-                var safetyStats = safetyStatsMap[b.id] || {
-                    total_buildings: 0,
-                    buildings_with_sprinklers: 0,
-                    buildings_with_fire_alarms: 0,
-                    buildings_with_extinguishers: 0,
-                    buildings_with_emergency_exits: 0,
-                    buildings_with_emergency_lighting: 0,
-                    buildings_with_fire_escape: 0,
-                    fully_compliant_buildings: 0,
-                    partially_compliant_buildings: 0,
-                    non_compliant_buildings: 0,
-                    recently_inspected: 0,
-                    overdue_inspection: 0,
-                    never_inspected: 0
-                };
-                
                 // Add hover event to circle to show barangay information
                 circle.on('mouseover', function(e) {
                     // Calculate filtered incident count based on current date filter
                     var filteredIncidentCount = getFilteredIncidentCountForBarangay(b.id);
-                    showBarangayHoverInfo(e, brgyName, b.has_alert, lat, lng, deviceCount, filteredIncidentCount, b.fire_risk_level, heatData, deviceStats, safetyStats, b.id);
+                    showBarangayHoverInfo(e, brgyName, hasAlert, lat, lng, deviceCount, filteredIncidentCount, fireRiskLevel, heatData, deviceStats, b.id);
                 });
                 
                 // Add hover event to marker to show barangay information
                 marker.on('mouseover', function(e) {
                     // Calculate filtered incident count based on current date filter
                     var filteredIncidentCount = getFilteredIncidentCountForBarangay(b.id);
-                    showBarangayHoverInfo(e, brgyName, b.has_alert, lat, lng, deviceCount, filteredIncidentCount, b.fire_risk_level, heatData, deviceStats, safetyStats, b.id);
+                    showBarangayHoverInfo(e, brgyName, hasAlert, lat, lng, deviceCount, filteredIncidentCount, fireRiskLevel, heatData, deviceStats, b.id);
                 });
                 
                 // Remove hover info when mouse leaves
@@ -2927,8 +2840,6 @@ function getUserBarangayId($userId) {
             
             return filteredIncidents.length;
         }
-
-        // Removed: getFilteredBuildingStats function - buildings are no longer used
 
         function updateBarangayIconsAndPopups() {
             var startDate = document.getElementById('startDate').value;
@@ -3606,14 +3517,11 @@ function getUserBarangayId($userId) {
             // Show barangay overlays by default
             toggleAllBarangays(true);
             if (!initial) { fitToAllBarangays(); }
-            // If preselected barangay exists but has no buildings, ensure it is visible from overlays
+            // Ensure a preselected barangay stays highlighted even if overlays lag
             if (initial && (!selectedBarangayCircle || !map.hasLayer(selectedBarangayCircle))) {
                 drawBarangayCircle(initial);
             }
         })();
-
-
-        // Removed: showBuildingInformation function - buildings are no longer used
 
         // Function to show detailed barangay popup
         function showDetailedBarangayPopup(e, barangayName, hasAlert, lat, lng, deviceCount, incidentCount) {
@@ -3680,7 +3588,7 @@ function getUserBarangayId($userId) {
         var hoverPopup = null;
 
         // Function to show barangay information on hover
-        function showBarangayHoverInfo(e, barangayName, hasAlert, lat, lng, deviceCount, incidentCount, fireRiskLevel, heatData, deviceStats, safetyStats, barangayId) {
+        function showBarangayHoverInfo(e, barangayName, hasAlert, lat, lng, deviceCount, incidentCount, fireRiskLevel, heatData, deviceStats, barangayId) {
             // Remove any existing hover popup
             if (hoverPopup) {
                 map.removeLayer(hoverPopup);
@@ -3804,23 +3712,20 @@ function getUserBarangayId($userId) {
             }
             
             
-            // Safety Features Section
-            var safetyStatsHtml = '';
-            if (safetyStats && safetyStats.total_buildings > 0) {
-                var complianceColor = safetyStats.fully_compliant_buildings > 0 ? '#10b981' : safetyStats.partially_compliant_buildings > 0 ? '#f59e0b' : '#dc2626';
-                var inspectionColor = safetyStats.recently_inspected > 0 ? '#10b981' : safetyStats.overdue_inspection > 0 ? '#dc2626' : '#f59e0b';
-                
-                safetyStatsHtml = 
-                    '<div style="font-weight: bold; margin-bottom: 6px; color: #374151;">🛡️ Safety Features</div>' +
-                    '<div style="margin-bottom: 4px;"><strong>Buildings:</strong> ' + safetyStats.total_buildings + ' total</div>' +
-                    '<div style="margin-bottom: 4px;"><strong>Compliance:</strong> <span style="color: ' + complianceColor + '; font-weight: bold;">' + safetyStats.fully_compliant_buildings + '</span> full | ' + safetyStats.partially_compliant_buildings + ' partial | ' + safetyStats.non_compliant_buildings + ' non-compliant</div>' +
-                    '<div style="margin-bottom: 4px;"><strong>Features:</strong> Sprinklers: ' + safetyStats.buildings_with_sprinklers + ' | Alarms: ' + safetyStats.buildings_with_fire_alarms + ' | Extinguishers: ' + safetyStats.buildings_with_extinguishers + '</div>' +
-                    '<div style="margin-bottom: 4px;"><strong>Inspection:</strong> <span style="color: ' + inspectionColor + '; font-weight: bold;">' + safetyStats.recently_inspected + '</span> recent | ' + safetyStats.overdue_inspection + ' overdue | ' + safetyStats.never_inspected + ' never inspected</div>';
-            } else {
-                safetyStatsHtml = 
-                    '<div style="font-weight: bold; margin-bottom: 6px; color: #374151;">🛡️ Safety Features</div>' +
-                    '<div style="color: #6b7280; font-size: 12px;">No building safety data available</div>';
-            }
+            // Incident Summary Section (fire_data + devices only)
+            var incidentStatsHtml = '';
+            var emergencyCount = getFilteredEmergencyIncidentCountForBarangay(barangayId);
+            var emergencyColor = emergencyCount > 0 ? '#dc2626' : '#10b981';
+            var activeAlertBadge = hasAlert ? '<span style="color: #dc2626; font-weight: bold;">Yes</span>' : '<span style="color: #6b7280;">No</span>';
+            var reportingDevices = deviceStats && deviceStats.total_devices ? deviceStats.total_devices : deviceCount;
+            
+            incidentStatsHtml = 
+                '<div style="font-weight: bold; margin-bottom: 6px; color: #374151;">🔥 Incident Summary</div>' +
+                '<div style="margin-bottom: 4px;"><strong>Total Logged:</strong> ' + incidentCount + '</div>' +
+                '<div style="margin-bottom: 4px;"><strong>Emergency Incidents:</strong> <span style="color: ' + emergencyColor + '; font-weight: bold;">' + emergencyCount + '</span></div>' +
+                '<div style="margin-bottom: 4px;"><strong>Active Alerts:</strong> ' + activeAlertBadge + '</div>' +
+                '<div style="margin-bottom: 4px;"><strong>Devices Reporting:</strong> ' + reportingDevices + '</div>' +
+                '<div style="color: #6b7280; font-size: 11px;">Data sourced from fire_data + devices</div>';
             
             // Create comprehensive hover popup content
             var hoverContent = 
@@ -3840,12 +3745,12 @@ function getUserBarangayId($userId) {
                 deviceStatsHtml +
                 '</div>' +
                 '<div style="flex: 1; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px;">' +
-                safetyStatsHtml +
+                incidentStatsHtml +
                 '</div>' +
                 '</div>' +
                 
                 (hasAlert ? '<div style="color: #dc2626; font-weight: bold; text-align: center; margin-top: 8px; padding: 4px; background: rgba(220, 38, 38, 0.1); border-radius: 4px;">⚠️ ALERT ACTIVE</div>' : '') +
-                '<div style="text-align: center; margin-top: 8px; font-size: 11px; color: #6b7280;">Click to view buildings</div>' +
+                '<div style="text-align: center; margin-top: 8px; font-size: 11px; color: #6b7280;">Click to explore incidents & devices</div>' +
                 '</div>';
             
             // Create and show hover popup

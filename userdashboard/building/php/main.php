@@ -1870,6 +1870,51 @@ if (isset($_SESSION['user_id'])) {
         element.removeClass('is-valid is-invalid').addClass(`is-${type === 'error' ? 'invalid' : 'valid'}`);
     }
 
+    // Global helper to clear live feedback UI state
+    function clearLiveFeedback(element) {
+        const parent = element.parent();
+        parent.find('.live-feedback').remove();
+        element.removeClass('is-valid is-invalid');
+    }
+
+    // Centralized toast notification helper
+    function showToast(type, message) {
+        const iconMap = {
+            success: 'bi-check-circle-fill text-success',
+            danger: 'bi-exclamation-triangle-fill text-danger',
+            warning: 'bi-exclamation-circle-fill text-warning',
+            info: 'bi-info-circle-fill text-info',
+            primary: 'bi-info-circle-fill text-primary',
+            dark: 'bi-moon-fill text-dark',
+            light: 'bi-sun-fill text-muted'
+        };
+
+        const icon = iconMap[type] || 'bi-info-circle-fill text-primary';
+
+        const toast = `
+            <div class="toast shadow-lg fade show position-fixed top-0 end-0 m-4" role="alert" aria-live="assertive" aria-atomic="true"
+                 style="min-width: 320px; background-color: #fff; color: #212529; border-radius: 12px; overflow: hidden;">
+                <div class="d-flex align-items-center p-3 gap-3">
+                    <i class="bi ${icon} fs-4"></i>
+                    <div class="toast-body flex-grow-1 fw-medium">${message}</div>
+                    <button type="button" class="btn-close ms-2" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>`;
+
+        $('.toast').remove();
+        $('body').append(toast);
+        $('.toast').toast('show');
+
+        setTimeout(() => {
+            $('.toast').toast('hide');
+        }, 5000);
+    }
+
+    // Expose helpers globally for scripts outside this closure
+    window.showLiveFeedback = showLiveFeedback;
+    window.clearLiveFeedback = clearLiveFeedback;
+    window.showToast = showToast;
+
     // Global function to update geo-fence dropdown based on location
     function updateGeoFenceDropdown(lat, lng) {
         const fenceCheck = isPointInAnyGeoFence(lat, lng);
@@ -2224,7 +2269,87 @@ if (isset($_SESSION['user_id'])) {
             }
         }
     }
+    
+    // Global helper to sync coordinates, marker, and reverse geocoding
+    function updateCoordinates(lat, lng) {
+        $('#latitude').val(lat.toFixed(6));
+        $('#longitude').val(lng.toFixed(6));
+        
+        if (marker) {
+            marker.setLatLng([lat, lng]);
+        } else if (map) {
+            marker = L.marker([lat, lng]).addTo(map);
+        }
+        
+        // Provide feedback
+        showLiveFeedback($('#latitude'), 'success', 'Location updated');
+        showLiveFeedback($('#longitude'), 'success', 'Location updated');
+        
+        // Automatically get address from coordinates
+        showLiveFeedback($('#latitude'), 'info', 'Getting address...');
+        showLiveFeedback($('#longitude'), 'info', 'Getting address...');
+        
+        // Update geo-fence dropdown
+        updateGeoFenceDropdown(lat, lng);
+        
+        // Update barangay dropdown
+        updateBarangayDropdown(lat, lng);
+        
+        getAddressFromCoordinates(lat, lng)
+            .then(address => {
+                $('#address').val(address);
+                showLiveFeedback($('#address'), 'success', 'Address updated automatically');
+                
+                // Display the retrieved address
+                $('#retrievedAddressText').text(address);
+                $('#retrievedAddressDisplay').show();
+                
+                // Clear loading indicators and show success
+                clearLiveFeedback($('#latitude'));
+                clearLiveFeedback($('#longitude'));
+                showLiveFeedback($('#latitude'), 'success', 'Location and address updated');
+                showLiveFeedback($('#longitude'), 'success', 'Location and address updated');
+                
+                showToast('success', 'Location and address updated automatically!');
+            })
+            .catch(error => {
+                console.error('Failed to get address:', error);
+                clearLiveFeedback($('#latitude'));
+                clearLiveFeedback($('#longitude'));
+                showLiveFeedback($('#latitude'), 'warning', 'Location updated - Could not get address');
+                showLiveFeedback($('#longitude'), 'warning', 'Location updated - Could not get address');
+            });
+    }
 
+    // Ensure Leaflet callbacks can access the helper even if scripts are bundled
+    window.updateCoordinates = updateCoordinates;
+    
+    // Client-side reverse geocoding via PHP proxy to avoid CORS
+    function getAddressFromCoordinates(lat, lng) {
+        return new Promise((resolve, reject) => {
+            const url = `main.php?action=get_address&lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`;
+            
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.status === 'success' && data.address) {
+                        resolve(data.address);
+                    } else {
+                        reject(new Error(data.message || 'No address found for these coordinates'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Reverse geocoding error:', error);
+                    reject(error);
+                });
+        });
+    }
+    
       $(document).ready(function() {
     // Initialize Bootstrap 5 tooltips
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
@@ -2627,83 +2752,6 @@ if (isset($_SESSION['user_id'])) {
                 });
             }, 100);
         }
-    }
-
-    function updateCoordinates(lat, lng) {
-        $('#latitude').val(lat.toFixed(6));
-        $('#longitude').val(lng.toFixed(6));
-        
-        if (marker) {
-            marker.setLatLng([lat, lng]);
-        } else {
-            marker = L.marker([lat, lng]).addTo(map);
-        }
-        
-        // Provide feedback
-        showLiveFeedback($('#latitude'), 'success', 'Location updated');
-        showLiveFeedback($('#longitude'), 'success', 'Location updated');
-        
-        // Automatically get address from coordinates
-        showLiveFeedback($('#latitude'), 'info', 'Getting address...');
-        showLiveFeedback($('#longitude'), 'info', 'Getting address...');
-        
-        // Update geo-fence dropdown
-        updateGeoFenceDropdown(lat, lng);
-        
-        // Update barangay dropdown
-        updateBarangayDropdown(lat, lng);
-        
-        getAddressFromCoordinates(lat, lng)
-            .then(address => {
-                $('#address').val(address);
-                showLiveFeedback($('#address'), 'success', 'Address updated automatically');
-                
-                // Display the retrieved address
-                $('#retrievedAddressText').text(address);
-                $('#retrievedAddressDisplay').show();
-                
-                // Clear loading indicators and show success
-                clearLiveFeedback($('#latitude'));
-                clearLiveFeedback($('#longitude'));
-                showLiveFeedback($('#latitude'), 'success', 'Location and address updated');
-                showLiveFeedback($('#longitude'), 'success', 'Location and address updated');
-                
-                showToast('success', 'Location and address updated automatically!');
-            })
-            .catch(error => {
-                console.error('Failed to get address:', error);
-                clearLiveFeedback($('#latitude'));
-                clearLiveFeedback($('#longitude'));
-                showLiveFeedback($('#latitude'), 'warning', 'Location updated - Could not get address');
-                showLiveFeedback($('#longitude'), 'warning', 'Location updated - Could not get address');
-            });
-    }
-    
-    // Function to get address from coordinates using reverse geocoding via PHP endpoint
-    function getAddressFromCoordinates(lat, lng) {
-        return new Promise((resolve, reject) => {
-            // Call PHP endpoint to avoid CORS issues
-            const url = `main.php?action=get_address&lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`;
-            
-            fetch(url)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.status === 'success' && data.address) {
-                        resolve(data.address);
-                    } else {
-                        reject(new Error(data.message || 'No address found for these coordinates'));
-                    }
-                })
-                .catch(error => {
-                    console.error('Reverse geocoding error:', error);
-                    reject(error);
-                });
-        });
     }
 
     // Get current location button
@@ -3363,45 +3411,6 @@ $(document).on('click', '.delete-building', function() {
         }
     });
     
-    // Helper function to clear live feedback
-    function clearLiveFeedback(element) {
-        const parent = element.parent();
-        parent.find('.live-feedback').remove();
-        element.removeClass('is-valid is-invalid');
-    }
-    
-    function showToast(type, message) {
-    const iconMap = {
-        success: 'bi-check-circle-fill text-success',
-        danger: 'bi-exclamation-triangle-fill text-danger',
-        warning: 'bi-exclamation-circle-fill text-warning',
-        info: 'bi-info-circle-fill text-info',
-        primary: 'bi-info-circle-fill text-primary',
-        dark: 'bi-moon-fill text-dark',
-        light: 'bi-sun-fill text-muted'
-    };
-
-    const icon = iconMap[type] || 'bi-info-circle-fill text-primary';
-
-    const toast = `
-        <div class="toast shadow-lg fade show position-fixed top-0 end-0 m-4" role="alert" aria-live="assertive" aria-atomic="true"
-             style="min-width: 320px; background-color: #fff; color: #212529; border-radius: 12px; overflow: hidden;">
-            <div class="d-flex align-items-center p-3 gap-3">
-                <i class="bi ${icon} fs-4"></i>
-                <div class="toast-body flex-grow-1 fw-medium">${message}</div>
-                <button type="button" class="btn-close ms-2" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
-        </div>`;
-
-    $('.toast').remove(); // Remove any existing toasts
-    $('body').append(toast);
-    $('.toast').toast('show');
-
-    setTimeout(() => {
-        $('.toast').toast('hide');
-    }, 5000);
-}
-
     
     // Validation Functions
     function validateStep1() {

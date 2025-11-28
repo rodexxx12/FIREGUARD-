@@ -54,3 +54,5 @@ php -r "opcache_reset();" || echo "⚠️  Could not clear opcache"
 echo "✅ Rollback complete!"
 echo "📝 Current version backed up to: $CURRENT_BACKUP"
 
+
+

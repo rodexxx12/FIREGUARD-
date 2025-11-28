@@ -17,7 +17,8 @@ if (!headers_sent()) {
     header("X-Frame-Options: DENY");
     header("X-XSS-Protection: 1; mode=block");
     header("Referrer-Policy: strict-origin-when-cross-origin");
-    header("Permissions-Policy: geolocation=(), microphone=(), camera=()");
+    // Allow geolocation on first-party pages but continue blocking other sensors
+    header("Permissions-Policy: geolocation=(self), microphone=(), camera=()");
 }
 ?>
 <!DOCTYPE html>

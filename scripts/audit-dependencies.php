@@ -96,3 +96,5 @@ if (empty($vulnerabilities)) {
 
 echo "\n✅ Audit complete!\n";
 
+
+

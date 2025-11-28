@@ -1009,7 +1009,8 @@ if (!$headerLoaded) {
             lastCheckedId: null,
             lastCheckedTimestamp: null,
             emergencyCheckInterval: null,
-            suppressAlertsUntil: 0
+            suppressAlertsUntil: 0,
+            suppressedAlerts: new Set()
         };
 
         // DOM Elements
@@ -1835,34 +1836,52 @@ if (!$headerLoaded) {
         function suppressAlertForSession(alertId) {
             if (!alertId) return;
             
-            // Get current suppressed alerts from sessionStorage
             const suppressedAlerts = getSuppressedAlerts();
-            suppressedAlerts.add(alertId);
+            suppressedAlerts.add(String(alertId));
+            appState.suppressedAlerts = suppressedAlerts;
             
-            // Save back to sessionStorage
-            sessionStorage.setItem('suppressedAlerts', JSON.stringify(Array.from(suppressedAlerts)));
+            try {
+                sessionStorage.setItem('suppressedAlerts', JSON.stringify(Array.from(suppressedAlerts)));
+            } catch (e) {
+                console.warn('Unable to persist suppressed alerts:', e);
+            }
+
+            // Briefly suppress automatic re-triggers from other timers/polls
+            appState.suppressAlertsUntil = Date.now() + 10000;
             console.log(`🚫 Alert ${alertId} suppressed for this session`);
         }
         
         function getSuppressedAlerts() {
+            if (!appState.suppressedAlerts || !(appState.suppressedAlerts instanceof Set)) {
+                appState.suppressedAlerts = new Set();
+            }
+            
             try {
                 const stored = sessionStorage.getItem('suppressedAlerts');
-                const alerts = stored ? JSON.parse(stored) : [];
-                return new Set(alerts);
+                if (stored) {
+                    const alerts = JSON.parse(stored);
+                    appState.suppressedAlerts = new Set(alerts.map(String));
+                }
             } catch (e) {
-                console.error('Error getting suppressed alerts:', e);
-                return new Set();
+                console.warn('Unable to read suppressed alerts from sessionStorage:', e);
             }
+            
+            return new Set(appState.suppressedAlerts);
         }
         
         function isAlertSuppressed(alertId) {
             if (!alertId) return false;
             const suppressedAlerts = getSuppressedAlerts();
-            return suppressedAlerts.has(alertId);
+            return suppressedAlerts.has(String(alertId));
         }
         
         function clearSuppressedAlerts() {
-            sessionStorage.removeItem('suppressedAlerts');
+            appState.suppressedAlerts = new Set();
+            try {
+                sessionStorage.removeItem('suppressedAlerts');
+            } catch (e) {
+                console.warn('Unable to clear suppressed alerts from sessionStorage:', e);
+            }
             console.log('🧹 All suppressed alerts cleared for session');
         }
 

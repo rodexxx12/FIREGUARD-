@@ -1,8 +1,10 @@
 <?php
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+session_start();
+if (!isset($_SESSION['admin_id'])) {
+    header("Location: ../../../index.php");
+    exit();
+} 
 
 // Include database connection
 require_once '../../../db/db.php';

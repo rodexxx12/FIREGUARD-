@@ -69,3 +69,5 @@ Write-Host "✅ Backup complete: $BackupPath" -ForegroundColor Green
 $Size = (Get-ChildItem -Path $BackupPath -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB
 Write-Host "📊 Backup size: $([math]::Round($Size, 2)) MB" -ForegroundColor Cyan
 
+
+

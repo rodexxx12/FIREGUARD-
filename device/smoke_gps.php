@@ -545,6 +545,7 @@ class SmokeAPI {
 
         $user_id = $device_info['user_id'];
         $building_id = $device_info['building_id'];
+        $barangay_id = isset($device_info['barangay_id']) ? $device_info['barangay_id'] : null;
 
         // Get current Philippine time as string for timestamp field
         $philippine_timestamp = date('Y-m-d H:i:s');
@@ -552,8 +553,8 @@ class SmokeAPI {
         // Insert with status NORMAL and include timestamp field
         $stmt = $conn->prepare("INSERT INTO fire_data (
             status, building_type, smoke, temp, heat, flame_detected, timestamp,
-            user_id, building_id, smoke_reading_id, flame_reading_id, device_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            user_id, building_id, barangay_id, smoke_reading_id, flame_reading_id, device_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
         if (!$stmt) {
             error_log("Prepare failed: " . $conn->error);
@@ -566,7 +567,7 @@ class SmokeAPI {
         $heat = intval($sensor_data['heat']); // Convert to int as per table schema
 
         $stmt->bind_param(
-            "ssiiisssiiii",
+            "ssiiisssiiiii",
             $status,
             $building_type,
             $sensor_data['smoke'],
@@ -576,6 +577,7 @@ class SmokeAPI {
             $philippine_timestamp,
             $user_id,
             $building_id,
+            $barangay_id,
             $smoke_reading_id,
             $flame_reading_id,
             $this->device_id
@@ -602,7 +604,7 @@ class SmokeAPI {
         $conn = Database::getConnection();
         if (!$conn) return null;
 
-        $stmt = $conn->prepare("SELECT device_id, user_id, device_name, device_number, serial_number, building_id, status FROM devices WHERE device_id = ?");
+        $stmt = $conn->prepare("SELECT device_id, user_id, device_name, device_number, serial_number, building_id, barangay_id, status FROM devices WHERE device_id = ?");
         $stmt->bind_param("i", $device_id);
         $stmt->execute();
         $result = $stmt->get_result();
