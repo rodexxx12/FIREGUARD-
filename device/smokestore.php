@@ -1,28 +1,12 @@
 <?php
-/**
- * Device Smoke Store API - Secure Version
- */
+// Enable error reporting
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
-// Use centralized error handling
-require_once __DIR__ . '/../core/error_handler.php';
-initializeErrorHandling(__DIR__ . '/../../logs/device_api_errors.log');
-
-// Secure CORS configuration
-$allowedOrigins = [
-    'https://your-domain.com',
-    'https://api.your-domain.com',
-    'http://localhost',
-    'http://127.0.0.1'
-];
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if (in_array($origin, $allowedOrigins) || empty($origin)) {
-    header('Access-Control-Allow-Origin: ' . ($origin ?: '*'));
-} else {
-    header('Access-Control-Allow-Origin: ' . $allowedOrigins[0]);
-}
+header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST');
 header('Access-Control-Allow-Headers: Content-Type');
-header('Content-Type: application/json');
 
 // Load configuration for SMS
 $config = require 'config.php';
@@ -39,14 +23,34 @@ const CRITICAL_TEMPERATURE_THRESHOLD = 60;  // °C
 const HIGH_SMOKE_THRESHOLD = 2000;
 const HIGH_HEAT_INDEX_THRESHOLD = 35;  // °C
 
-// SECURITY FIX: Use centralized database connection instead of hardcoded credentials
-require_once __DIR__ . '/../core/config/config.php';
-require_once __DIR__ . '/../core/database/database.php';
-
 class Database {
+    private static $host = "localhost";
+    private static $dbname = "u520834156_DBBagofire";
+    private static $username = "u520834156_userBagofire";
+    private static $password = "i[#[GQ!+=C9";
+    
     public static function getConnection() {
-        // Use centralized PDO connection
-        return getDatabaseConnection();
+        static $conn = null;
+        
+        if ($conn === null) {
+            try {
+                $conn = new mysqli(
+                    self::$host, 
+                    self::$username, 
+                    self::$password, 
+                    self::$dbname
+                );
+                
+                if ($conn->connect_error) {
+                    throw new Exception("Database connection failed: " . $conn->connect_error);
+                }
+            } catch (Exception $e) {
+                error_log($e->getMessage());
+                return null;
+            }
+        }
+        
+        return $conn;
     }
 }
 
@@ -446,7 +450,6 @@ private function insertFireData($sensor_data, $smoke_reading_id, $flame_reading_
 
     $user_id = $device_info['user_id'];
     $building_id = $device_info['building_id'];
-    $barangay_id = isset($device_info['barangay_id']) ? $device_info['barangay_id'] : null;
 
     // Check fire detection logic to determine status
     $detection_result = $this->checkFireDetectionLogic($sensor_data);
@@ -455,8 +458,8 @@ private function insertFireData($sensor_data, $smoke_reading_id, $flame_reading_
     if ($detection_result['status'] !== 'NORMAL') {
         $stmt = $conn->prepare("INSERT INTO fire_data (
             status, building_type, smoke, temp, heat, flame_detected,
-            user_id, building_id, barangay_id, smoke_reading_id, flame_reading_id, device_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            user_id, building_id, smoke_reading_id, flame_reading_id, device_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
         if (!$stmt) {
             error_log("Prepare failed: " . $conn->error);
@@ -468,7 +471,7 @@ private function insertFireData($sensor_data, $smoke_reading_id, $flame_reading_
         $heat = $sensor_data['heat'];
 
         $stmt->bind_param(
-            "ssiiiisiiiii",
+            "ssiiiisiiii",
             $detection_result['status'],
             $building_type,
             $sensor_data['smoke'],
@@ -477,7 +480,6 @@ private function insertFireData($sensor_data, $smoke_reading_id, $flame_reading_
             $sensor_data['flame_detected'],
             $user_id,
             $building_id,
-            $barangay_id,
             $smoke_reading_id,
             $flame_reading_id,
             $this->device_id
@@ -507,7 +509,7 @@ private function insertFireData($sensor_data, $smoke_reading_id, $flame_reading_
         $conn = Database::getConnection();
         if (!$conn) return null;
 
-        $stmt = $conn->prepare("SELECT device_id, user_id, device_name, device_number, serial_number, building_id, barangay_id, status FROM devices WHERE device_id = ?");
+        $stmt = $conn->prepare("SELECT device_id, user_id, device_name, device_number, serial_number, building_id, status FROM devices WHERE device_id = ?");
         $stmt->bind_param("i", $device_id);
         $stmt->execute();
         $result = $stmt->get_result();

@@ -1,66 +1,37 @@
 <?php
-/**
- * Device Registration API - Secure Version
- */
-
-// Use centralized error handling
-require_once __DIR__ . '/../core/error_handler.php';
-initializeErrorHandling(__DIR__ . '/../../logs/device_api_errors.log');
+// Enable error reporting
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
 // Set Philippine timezone
 date_default_timezone_set('Asia/Manila');
 
-// Secure CORS configuration
-$allowedOrigins = [
-    'https://your-domain.com',
-    'https://api.your-domain.com',
-    'http://localhost',
-    'http://127.0.0.1'
-];
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if (in_array($origin, $allowedOrigins) || empty($origin)) {
-    header('Access-Control-Allow-Origin: ' . ($origin ?: '*'));
-} else {
-    header('Access-Control-Allow-Origin: ' . $allowedOrigins[0]);
-}
+header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST');
 header('Access-Control-Allow-Headers: Content-Type');
-header('Content-Type: application/json');
-
-// SECURITY FIX: Use centralized database connection instead of hardcoded credentials
-require_once __DIR__ . '/../core/config/config.php';
-require_once __DIR__ . '/../core/database/database.php';
 
 class Database {
-    public static function getConnection() {
-        // Use centralized PDO connection - note: returns PDO, may need mysqli wrapper
-        $pdo = getDatabaseConnection();
-        
-        // Create mysqli wrapper for compatibility (consider refactoring to use PDO)
-        if ($pdo) {
-            // For now, return PDO connection
-            // If code requires mysqli, we need to create a wrapper or refactor
-            return $pdo;
-        }
-        
-        return null;
-    }
+    private static $host = "localhost";
+    private static $dbname = "u520834156_DBBagofire";
+    private static $username = "u520834156_userBagofire";
+    private static $password = "i[#[GQ!+=C9";
     
-    private static function getMysqliWrapper() {
-        // Legacy support - creates mysqli from PDO config
-        // NOTE: Should refactor to use PDO instead
-        require_once __DIR__ . '/../core/config/config.php';
+    public static function getConnection() {
+        static $conn = null;
         
-        $host = config('db.host', 'localhost');
-        $dbname = config('db.name', '');
-        $username = config('db.user', '');
-        $password = config('db.pass', '');
-        
-        try {
-            $conn = new mysqli($host, $username, $password, $dbname);
-            if ($conn->connect_error) {
-                throw new Exception("Database connection failed: " . $conn->connect_error);
-            }
+        if ($conn === null) {
+            try {
+                $conn = new mysqli(
+                    self::$host, 
+                    self::$username, 
+                    self::$password, 
+                    self::$dbname
+                );
+                
+                if ($conn->connect_error) {
+                    throw new Exception("Database connection failed: " . $conn->connect_error);
+                }
             } catch (Exception $e) {
                 error_log($e->getMessage());
                 return null;

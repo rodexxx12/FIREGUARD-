@@ -2518,7 +2518,7 @@ $csrf_token = generateCsrfToken('login_form');
                 <h3>Instant Alerts</h3>
                 <p>Multi-channel notification system reaches emergency responders and stakeholders immediately.</p>
             </div>
-            <div class="service-card">4
+            <div class="service-card">
                 <span class="service-icon">📊</span>
                 <h3>Analytics Dashboard</h3>
                 <p>Comprehensive data visualization for informed decision-making and system optimization.</p>

@@ -765,7 +765,7 @@ if ($current_step_index === false) {
             height: auto;
             transform: translate(-50%, -50%);
             object-fit: cover;
-            filter: brightness(0.5) contrast(1.05) saturate(1.05) blur(8px);
+            filter: brightness(0.5) contrast(1.05) saturate(1.05);
             opacity: 1;
         }
 
@@ -782,8 +782,6 @@ if ($current_step_index === false) {
                 rgba(10, 14, 39, 0.55) 50%,
                 rgba(10, 14, 39, 0.65) 100%
             );
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
             z-index: -2;
             pointer-events: none;
         }

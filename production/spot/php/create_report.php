@@ -1527,4 +1527,4 @@ if ($fireDataId > 0) {
         }
     }
     </script>
-    <?php include '../../../../components/scripts.php'; ?>
+    <?php include '../../components/scripts.php'; ?>

@@ -1,45 +1,14 @@
 <?php
-/**
- * Device Smoke Dashboard - Secure Version
- * SECURITY FIX: Removed hardcoded credentials
- */
-
-// Environment-aware error handling
-$isProduction = (getenv('APP_ENV') === 'production' || 
-                 (isset($_SERVER['HTTP_HOST']) && 
-                  strpos($_SERVER['HTTP_HOST'], 'localhost') === false &&
-                  strpos($_SERVER['HTTP_HOST'], '127.0.0.1') === false));
-
-if ($isProduction) {
-    error_reporting(E_ALL);
-    ini_set('display_errors', '0');
-    ini_set('log_errors', '1');
-    $logDir = __DIR__ . '/../../logs';
-    if (!is_dir($logDir)) {
-        @mkdir($logDir, 0755, true);
-    }
-    ini_set('error_log', $logDir . '/php_errors.log');
-} else {
-    error_reporting(E_ALL);
-    ini_set('display_errors', '1');
-}
-
-// SECURITY FIX: Use centralized database connection
-require_once __DIR__ . '/../core/config/config.php';
-require_once __DIR__ . '/../core/database/database.php';
-
-// Get database connection using centralized system
-$conn = getDatabaseConnection();
+// Database connection
+$conn = new mysqli("localhost", "u520834156_userBagofire", "i[#[GQ!+=C9", "u520834156_DBBagofire");
 
 // Check connection
-if (!$conn) {
-    error_log("Database connection failed in smoke_dashboard.php");
-    die(json_encode(['error' => 'System temporarily unavailable']));
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
 }
 
-// Get latest readings - SECURITY: Use prepared statement (even for static queries)
-$stmt = $conn->prepare("SELECT * FROM smoke_readings ORDER BY reading_time DESC LIMIT 10");
-$stmt->execute();
+// Get latest readings
+$result = $conn->query("SELECT * FROM smoke_readings ORDER BY reading_time DESC LIMIT 10");
 ?>
 
 <!DOCTYPE html>
@@ -62,17 +31,14 @@ $stmt->execute();
             <th>Status</th>
             <th>Timestamp</th>
         </tr>
-        <?php 
-        // Fetch all results using PDO
-        $readings = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        foreach ($readings as $row): ?>
+        <?php while($row = $result->fetch_assoc()): ?>
         <tr class="<?= $row['detected'] ? 'danger' : '' ?>">
-            <td><?= htmlspecialchars($row['id'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
-            <td><?= htmlspecialchars($row['sensor_value'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
-            <td><?= ($row['detected'] ?? 0) ? 'DETECTED' : 'Normal' ?></td>
-            <td><?= htmlspecialchars($row['reading_time'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
+            <td><?= $row['id'] ?></td>
+            <td><?= $row['sensor_value'] ?></td>
+            <td><?= $row['detected'] ? 'DETECTED' : 'Normal' ?></td>
+            <td><?= $row['reading_time'] ?></td>
         </tr>
-        <?php endforeach; ?>
+        <?php endwhile; ?>
     </table>
 </body>
 </html>

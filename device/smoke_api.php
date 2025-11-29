@@ -17,36 +17,23 @@ $apiKey = $config['api_key'];
 $device = $config['device'];
 $url = $config['url'];
 
-/**
- * Database Connection Class
- * SECURITY FIX: Removed hardcoded credentials - now uses environment variables
- * 
- * WARNING: This class uses mysqli. For better security, consider refactoring to use PDO.
- * All credentials are now loaded from .env file, never hardcoded.
- */
 class Database {
-    private static $conn = null;
+    private static $host = "localhost";
+    private static $dbname = "u520834156_DBBagofire";
+    private static $username = "u520834156_userBagofire";
+    private static $password = "i[#[GQ!+=C9";
     
     public static function getConnection() {
-        if (self::$conn === null) {
-            // Load environment configuration
-            require_once __DIR__ . '/../core/config/config.php';
-            
-            // Get database credentials from environment variables
-            $host = config('db.host', 'localhost');
-            $dbname = config('db.name', '');
-            $username = config('db.user', '');
-            $password = config('db.pass', '');
-            
-            // Validate required configuration
-            if (empty($dbname) || empty($username)) {
-                error_log("CRITICAL: Database configuration incomplete in device/smoke_api.php");
-                return null;
-            }
-            
+        static $conn = null;
+        
+        if ($conn === null) {
             try {
-                // Create mysqli connection (temporary - consider migrating to PDO)
-                $conn = new mysqli($host, $username, $password, $dbname);
+                $conn = new mysqli(
+                    self::$host, 
+                    self::$username, 
+                    self::$password, 
+                    self::$dbname
+                );
                 
                 if ($conn->connect_error) {
                     throw new Exception("Database connection failed: " . $conn->connect_error);
@@ -56,16 +43,13 @@ class Database {
                 if (!$conn->query("SET time_zone = '+08:00'")) {
                     error_log("Failed to set MySQL time_zone: " . $conn->error);
                 }
-                
-                self::$conn = $conn;
-                
             } catch (Exception $e) {
-                error_log("Database connection failed in smoke_api.php: " . $e->getMessage());
+                error_log($e->getMessage());
                 return null;
             }
         }
         
-        return self::$conn;
+        return $conn;
     }
 }
 
