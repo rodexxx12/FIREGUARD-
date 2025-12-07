@@ -2,12 +2,9 @@
 function handleProfilePictureUpload($conn, $currentAdmin) {
     global $errors;
     
-    // Debug logging
+    // Log upload attempt (production-safe)
     error_log("Profile picture upload handler called");
-    error_log("POST data: " . print_r($_POST, true));
-    error_log("FILES data: " . print_r($_FILES, true));
     error_log("Session admin_id: " . (isset($_SESSION['admin_id']) ? $_SESSION['admin_id'] : 'Not set'));
-    error_log("Session data: " . print_r($_SESSION, true));
     
     // Check if user is logged in
     if (!isset($_SESSION['admin_id'])) {

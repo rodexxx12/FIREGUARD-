@@ -6,7 +6,8 @@ try {
     require_once __DIR__ . '/../functions/db_connect.php';
     
     // Get total admins
-    $stmt = $pdo->query("SELECT COUNT(*) as total FROM admin");
+    $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM admin");
+    $stmt->execute();
     $totalAdmins = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
 
     // Get active admins

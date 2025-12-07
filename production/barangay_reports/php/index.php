@@ -21,7 +21,7 @@ function getBarangayReportsData($monthFilter = null) {
     
     $query = "
         SELECT 
-            br.id, br.barangay_name, br.ir_number, br.latitude, br.longitude,
+            br.id, br.barangay_name, br.latitude, br.longitude,
             COUNT(sir.id) as total_reports,
             COALESCE(SUM(sir.fatalities), 0) as total_fatalities,
             COALESCE(SUM(sir.injured), 0) as total_injured,
@@ -41,7 +41,7 @@ function getBarangayReportsData($monthFilter = null) {
         ) fd_map ON fd_map.barangay_id = br.id
         LEFT JOIN spot_investigation_reports sir ON fd_map.fire_data_id = sir.fire_data_id
         {$monthCondition}
-        GROUP BY br.id, br.barangay_name, br.ir_number, br.latitude, br.longitude
+        GROUP BY br.id, br.barangay_name, br.latitude, br.longitude
         ORDER BY total_reports DESC, br.barangay_name ASC
     ";
     

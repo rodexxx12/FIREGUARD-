@@ -1,15 +1,39 @@
 <?php
-require_once __DIR__ . '/../functions/functions.php';
+// Start output buffering to catch any errors
+ob_start();
 
-// Ensure session is started
-if (session_status() == PHP_SESSION_NONE) {
-    session_start();
+try {
+    require_once __DIR__ . '/../functions/functions.php';
+    
+    // Ensure session is started
+    if (session_status() == PHP_SESSION_NONE) {
+        session_start();
+    }
+    
+    // Verify that required variables are set
+    if (!isset($admin) || empty($admin)) {
+        throw new Exception("Admin data not initialized. Please ensure you are logged in.");
+    }
+    
+    if (!isset($errors)) {
+        $errors = [];
+    }
+    
+} catch (Exception $e) {
+    ob_clean();
+    http_response_code(500);
+    die("Error loading profile page: " . htmlspecialchars($e->getMessage()) . "<br>Please check server logs for more details.");
+} catch (Error $e) {
+    ob_clean();
+    http_response_code(500);
+    die("Fatal error loading profile page: " . htmlspecialchars($e->getMessage()) . "<br>File: " . htmlspecialchars($e->getFile()) . " Line: " . $e->getLine());
 }
 ?>
   <?php include('../../components/header.php'); ?>
   
   <!-- Profile Page CSS -->
   <link rel="stylesheet" href="../css/style.css">
+</head>
 
 <body class="nav-md" data-admin-id="<?php echo isset($_SESSION['admin_id']) ? $_SESSION['admin_id'] : ''; ?>">
     <div class="container body">
@@ -512,6 +536,8 @@ if (session_status() == PHP_SESSION_NONE) {
         </div>
     </div>
     </main>
+        </div>
+        <!-- /right_col -->
 
     <!-- Profile Picture Upload Modal -->
     <div class="modal fade" id="profilePictureModal" tabindex="-1" aria-labelledby="profilePictureModalLabel" aria-hidden="true">
@@ -603,7 +629,9 @@ if (session_status() == PHP_SESSION_NONE) {
     <?php endif; ?>
     </script>
 
-<?php include '../../../../components/scripts.php'; ?>
+<?php include '../../components/scripts.php'; ?>
 <script src="../js/script.js"></script>
+    </div>
+    <!-- /container body -->
 </body>
 </html>

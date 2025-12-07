@@ -14,8 +14,54 @@ if (file_exists($vendorAutoload)) {
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/security.php';
 
+/**
+ * Ensure password_resets table exists with correct structure
+ */
+function ensurePasswordResetsTable() {
+    static $tableChecked = false;
+    
+    if ($tableChecked) {
+        return true;
+    }
+    
+    try {
+        $conn = getDatabaseConnection();
+        
+        // Check if table exists
+        $stmt = $conn->query("SHOW TABLES LIKE 'password_resets'");
+        if ($stmt->rowCount() === 0) {
+            // Create table if it doesn't exist
+            $conn->exec("
+                CREATE TABLE IF NOT EXISTS password_resets (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    email VARCHAR(255) NOT NULL,
+                    token VARCHAR(64) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    expires_at TIMESTAMP NOT NULL,
+                    UNIQUE KEY unique_email (email),
+                    INDEX idx_token (token),
+                    INDEX idx_expires_at (expires_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+            error_log("Password resets table created successfully");
+        }
+        
+        $tableChecked = true;
+        return true;
+    } catch (PDOException $e) {
+        error_log("Failed to ensure password_resets table exists: " . $e->getMessage());
+        return false;
+    }
+}
+
 function sendPasswordResetEmail($email) {
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return false;
+    }
+    
+    // Ensure table exists
+    if (!ensurePasswordResetsTable()) {
+        error_log("Password reset email failed: Could not ensure password_resets table exists");
         return false;
     }
     
@@ -39,20 +85,36 @@ function sendPasswordResetEmail($email) {
     // Generate a secure token
     $token = bin2hex(random_bytes(32));
     
+    // Normalize email to lowercase for consistent storage
+    $email = strtolower(trim($email));
+    
     // Clean up any existing expired tokens for this email
     $stmt = $conn->prepare("DELETE FROM password_resets WHERE email = ? AND expires_at < NOW()");
     $stmt->execute([$email]);
     
-    // Insert new reset token
-    $stmt = $conn->prepare("
-        INSERT INTO password_resets (email, token, expires_at)
-        VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? HOUR))
-        ON DUPLICATE KEY UPDATE 
-            token = VALUES(token), 
-            expires_at = VALUES(expires_at),
-            created_at = NOW()
-    ");
-    $stmt->execute([$email, $token, PASSWORD_RESET_EXPIRE_HOURS]);
+    // Insert new reset token - store email in lowercase
+    try {
+        // First, try to delete any existing token for this email
+        $stmt = $conn->prepare("DELETE FROM password_resets WHERE email = ?");
+        $stmt->execute([$email]);
+        
+        // Then insert the new token
+        $stmt = $conn->prepare("
+            INSERT INTO password_resets (email, token, expires_at)
+            VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? HOUR))
+        ");
+        $result = $stmt->execute([$email, $token, PASSWORD_RESET_EXPIRE_HOURS]);
+        
+        if (!$result) {
+            error_log("Password reset token insertion failed for email: " . $email);
+            return false;
+        }
+        
+        error_log("Password reset token created successfully for email: " . $email . ", Token preview: " . substr($token, 0, 10) . "...");
+    } catch (PDOException $e) {
+        error_log("Password reset token insertion error: " . $e->getMessage());
+        return false;
+    }
     
     // Build reset link
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
@@ -156,26 +218,122 @@ function sendPasswordResetEmail($email) {
 }
 
 function validatePasswordResetToken($token, $email) {
+    // Trim and validate inputs
+    $originalToken = $token;
+    $token = trim($token);
+    $email = trim(strtolower($email)); // Normalize email to lowercase
+    
     if (empty($token) || empty($email)) {
+        error_log("Password reset validation failed: Empty token or email. Token: " . (empty($token) ? 'empty' : 'present') . ", Email: " . (empty($email) ? 'empty' : 'present'));
+        return false;
+    }
+    
+    // Clean up token: remove any whitespace, newlines, or other non-hex characters
+    $cleanedToken = preg_replace('/[^a-fA-F0-9]/', '', $token);
+    
+    // Try both the original token and cleaned token
+    $tokensToTry = [];
+    if ($cleanedToken !== $token && strlen($cleanedToken) === 64 && ctype_xdigit($cleanedToken)) {
+        $tokensToTry[] = $cleanedToken;
+    }
+    if (strlen($token) === 64 && ctype_xdigit($token)) {
+        $tokensToTry[] = $token;
+    }
+    
+    // If neither token is valid format, log and return false
+    if (empty($tokensToTry)) {
+        error_log("Password reset validation failed: Invalid token format. Original length: " . strlen($originalToken) . ", Cleaned length: " . strlen($cleanedToken) . ", Original is hex: " . (ctype_xdigit($token) ? 'yes' : 'no') . ", Cleaned is hex: " . (ctype_xdigit($cleanedToken) ? 'yes' : 'no'));
+        return false;
+    }
+    
+    // Validate email format
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        error_log("Password reset validation failed: Invalid email format - " . $email);
         return false;
     }
     
     $conn = getDatabaseConnection();
     
     // Clean up expired tokens first
-    $stmt = $conn->prepare("DELETE FROM password_resets WHERE expires_at < NOW()");
-    $stmt->execute();
+    try {
+        $stmt = $conn->prepare("DELETE FROM password_resets WHERE expires_at < NOW()");
+        $stmt->execute();
+    } catch (PDOException $e) {
+        error_log("Password reset cleanup failed: " . $e->getMessage());
+        error_log("Password reset cleanup failed: " . $e->getMessage());
+    }
     
-    // Validate token
-    $stmt = $conn->prepare("
-        SELECT email, expires_at FROM password_resets 
-        WHERE token = ? AND email = ? AND expires_at > NOW()
-        LIMIT 1
-    ");
-    $stmt->execute([$token, $email]);
+    // Try each token variant
+    foreach ($tokensToTry as $tokenToCheck) {
+        // Validate token with case-insensitive email comparison
+        // Use LOWER() in SQL for case-insensitive comparison
+        try {
+            $stmt = $conn->prepare("
+                SELECT email, expires_at, created_at, token FROM password_resets 
+                WHERE token = ? AND LOWER(TRIM(email)) = LOWER(TRIM(?)) AND expires_at > NOW()
+                LIMIT 1
+            ");
+            $stmt->execute([$tokenToCheck, $email]);
+            $tokenCheck = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($tokenCheck) {
+                // Token is valid
+                error_log("Password reset validation succeeded for email: " . $email);
+                return $tokenCheck;
+            }
+        } catch (PDOException $e) {
+            error_log("Password reset validation query failed: " . $e->getMessage());
+        }
+    }
     
-    $result = $stmt->fetch();
-    return $result ? $result : false;
+    // If we get here, token wasn't found - do detailed debugging
+    $debugToken = !empty($tokensToTry) ? $tokensToTry[0] : $token;
+    try {
+        // Check if token exists at all (without email/expiry check)
+        $stmt = $conn->prepare("
+            SELECT email, expires_at, created_at, token FROM password_resets 
+            WHERE token = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$debugToken]);
+        $tokenExists = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($tokenExists) {
+            $storedEmail = strtolower(trim($tokenExists['email']));
+            if ($storedEmail !== $email) {
+                error_log("Password reset validation failed: Email mismatch. Stored: '" . $storedEmail . "', Provided: '" . $email . "', Token preview: " . substr($debugToken, 0, 10) . "...");
+            } else {
+                $expiresAt = $tokenExists['expires_at'];
+                $now = new DateTime();
+                $expiry = new DateTime($expiresAt);
+                if ($expiry < $now) {
+                    error_log("Password reset validation failed: Token expired. Expires: " . $expiresAt . ", Now: " . $now->format('Y-m-d H:i:s'));
+                } else {
+                    error_log("Password reset validation failed: Token found but query didn't match. Expires: " . $expiresAt . ", Now: " . $now->format('Y-m-d H:i:s'));
+                }
+            }
+        } else {
+            // Try to find any tokens for this email
+            $stmt = $conn->prepare("
+                SELECT email, expires_at, created_at, token FROM password_resets 
+                WHERE LOWER(TRIM(email)) = LOWER(TRIM(?))
+                ORDER BY created_at DESC
+                LIMIT 5
+            ");
+            $stmt->execute([$email]);
+            $emailTokens = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            if (!empty($emailTokens)) {
+                error_log("Password reset validation failed: Token not found, but found " . count($emailTokens) . " token(s) for this email. Latest token preview: " . substr($emailTokens[0]['token'], 0, 10) . "...");
+            } else {
+                error_log("Password reset validation failed: Token not found in database - " . substr($debugToken, 0, 20) . "... and no tokens found for email: " . $email);
+            }
+        }
+    } catch (PDOException $e) {
+        error_log("Password reset validation debug query failed: " . $e->getMessage());
+    }
+    
+    return false;
 }
 
 function resetPassword($token, $email, $newPassword) {

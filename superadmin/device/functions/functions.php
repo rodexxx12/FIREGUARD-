@@ -36,7 +36,10 @@ if (isset($_GET['status'])) {
     $status_filter = trim($_GET['status']);
 }
 
-list($devices, $total_devices_count) = $deviceOperations->getDevicesPaginated($page, $per_page, $search_term, $status_filter);
+// Load devices for DataTables client-side pagination
+// Load up to 1000 devices - DataTables will handle pagination on the client side
+// This allows pagination buttons to work properly
+list($devices, $total_devices_count) = $deviceOperations->getDevicesPaginated(1, 1000, $search_term, $status_filter);
 
 $total_pages = (int)ceil($total_devices_count / $per_page);
 

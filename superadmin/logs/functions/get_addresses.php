@@ -8,7 +8,8 @@ try {
     $pdo = getDatabaseConnection();
     
     // Fetch unique locations from the database
-    $stmt = $pdo->query("SELECT DISTINCT location FROM system_logs WHERE location IS NOT NULL AND location != '' ORDER BY location ASC");
+    $stmt = $pdo->prepare("SELECT DISTINCT location FROM system_logs WHERE location IS NOT NULL AND location != '' ORDER BY location ASC");
+    $stmt->execute();
     $locations = $stmt->fetchAll(PDO::FETCH_COLUMN);
     
     // Format locations for better display

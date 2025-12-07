@@ -37,7 +37,7 @@ try {
     // Whitelist of allowed table names to prevent SQL injection
     $allowed_tables = ['users', 'admin_devices', 'devices', 'buildings'];
     $tables = ['users', 'admin_devices', 'devices', 'buildings'];
-    
+
     foreach ($tables as $table) {
         // Validate table name against whitelist
         if (!in_array($table, $allowed_tables)) {
@@ -117,7 +117,7 @@ function get_active_geo_fences() {
         $stmt = $conn->prepare("SELECT id, city_name, country_code, ST_AsText(polygon) as polygon_wkt FROM geo_fences WHERE is_active = 1");
         $stmt->execute();
         $fences = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
+
         $result = [];
         foreach ($fences as $fence) {
             // Parse the WKT polygon to extract coordinates
@@ -186,12 +186,12 @@ function send_verification_email($to, $token) {
         $smtp_username = env_or('SMTP_USERNAME', '');
         $smtp_password = env_or('SMTP_PASSWORD', '');
         $smtp_from_email = env_or('SMTP_FROM_EMAIL', '');
-        
+
         if (empty($smtp_username) || empty($smtp_password) || empty($smtp_from_email)) {
             error_log("SMTP configuration error: Missing required environment variables");
             return false;
         }
-        
+
         $mail->isSMTP();
         $mail->Host       = env_or('SMTP_HOST', 'smtp.hostinger.com');
         $mail->SMTPAuth   = true;
@@ -247,7 +247,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             header("Location: registration.php?step=" . ($_GET['step'] ?? 'personal') . "&error=security");
             exit();
         }
-        
+
         // Check honeypot (bot detection)
         if (check_honeypot($_POST)) {
             error_log("Bot detected from IP: " . get_client_ip());
@@ -256,7 +256,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             header("Location: registration.php?step=" . ($_GET['step'] ?? 'personal') . "&error=security");
             exit();
         }
-        
+
         // Rate limiting check
         $rate_limit = check_rate_limit('registration', 5, 3600); // 5 attempts per hour
         if (!$rate_limit['allowed']) {
@@ -266,7 +266,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             header("Location: registration.php?step=" . ($_GET['step'] ?? 'personal') . "&error=rate_limit");
             exit();
         }
-        
+
         // Validate and process each step
         if (isset($_POST['personal_info_submit'])) {
             // Step 1: Personal Information
@@ -274,7 +274,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $birthdate = trim($_POST['birthdate'] ?? '');
             $email = trim($_POST['email'] ?? '');
             $contact = trim($_POST['contact'] ?? '');
-            
+
             // Validate inputs
             if (empty($fullname)) {
                 $errors['fullname'] = "Full name is required";
@@ -300,7 +300,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $errors['email'] = "Email already registered";
                 }
             }
-            
+
             if (empty($contact)) {
                 $errors['contact'] = "Contact number is required";
             } elseif (!preg_match('/^09\d{9}$/', $contact)) {
@@ -314,7 +314,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $errors['contact'] = "Contact number already registered";
                 }
             }
-            
+
             if (empty($errors)) {
                 $_SESSION['reg_data'] = [
                     'fullname' => $fullname,
@@ -340,17 +340,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $building_type = trim($_POST['building_type'] ?? '');
             $building_name = trim($_POST['building_name'] ?? '');
             $barangay = trim($_POST['barangay'] ?? '');
-            
+
             // Check if address is provided
             if (empty($address)) {
                 $errors['address'] = "Address is required";
             }
-            
+
             // Check if coordinates are provided (either from map click or automatic validation)
             if (empty($latitude) || empty($longitude)) {
                 $errors['location'] = "Please select a location on the map or enter a valid address for automatic validation";
             }
-            
+
             if (empty($building_type)) {
                 $errors['building_type'] = "Building type is required";
             }
@@ -402,12 +402,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $conn = getDatabaseConnection();
                     $stmt = $conn->prepare("INSERT INTO barangay (barangay_name, latitude, longitude) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE latitude = VALUES(latitude), longitude = VALUES(longitude)");
                     $stmt->execute([$barangay, $latitude, $longitude]);
-                    
+
                     // Get the barangay_id (either from insert or existing record)
                     $stmt = $conn->prepare("SELECT id FROM barangay WHERE barangay_name = ?");
                     $stmt->execute([$barangay]);
                     $barangay_result = $stmt->fetch(PDO::FETCH_ASSOC);
-                    
+
                     if ($barangay_result) {
                         $_SESSION['reg_data']['barangay_id'] = $barangay_result['id'];
                         error_log('Barangay ID stored in session: ' . $barangay_result['id'] . ' for barangay: ' . $barangay);
@@ -431,20 +431,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $device_number = trim($_POST['device_number'] ?? '');
             $serial_number = trim($_POST['serial_number'] ?? '');
             $device_barangay_id = trim($_POST['device_barangay_id'] ?? '');
-            
+
             // Auto-fill device_barangay_id from location step's barangay_id if empty
             if (empty($device_barangay_id) && isset($_SESSION['reg_data']['barangay_id'])) {
                 $device_barangay_id = $_SESSION['reg_data']['barangay_id'];
             }
-            
+
             if (empty($device_number)) {
                 $errors['device_number'] = "Device number is required";
             }
-            
+
             if (empty($serial_number)) {
                 $errors['serial_number'] = "Serial number is required";
             }
-            
+
             if (empty($device_barangay_id)) {
                 $errors['device_barangay_id'] = "Barangay is required";
             } else {
@@ -456,7 +456,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $errors['device_barangay_id'] = "Invalid barangay selected.";
                 }
             }
-            
+
             // Check if device exists in admin_devices table and is approved
             if (empty($errors)) {
                 $conn = getDatabaseConnection();
@@ -466,7 +466,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $errors['device_number'] = "Device is not approved or does not exist.";
                 }
             }
-            
+
             // Check if device is already registered in devices table
             if (empty($errors)) {
                 $conn = getDatabaseConnection();
@@ -476,7 +476,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $errors['device_number'] = "Device is already registered in the system.";
                 }
             }
-            
+
             // Check if device is already registered to a user
             if (empty($errors)) {
                 $conn = getDatabaseConnection();
@@ -486,7 +486,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $errors['device_number'] = "Device number already registered to a user.";
                 }
             }
-            
+
             if (empty($errors)) {
                 $_SESSION['reg_data']['device_number'] = $device_number;
                 $_SESSION['reg_data']['serial_number'] = $serial_number;
@@ -545,90 +545,204 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
             // reCAPTCHA verification for final step
             $recaptcha_token = $_POST['g-recaptcha-response'] ?? '';
-            $recaptcha_result = verify_recaptcha($recaptcha_token);
-            if (!$recaptcha_result['success']) {
-                $errors['recaptcha'] = "Please complete the security verification.";
+
+            // Check if reCAPTCHA is configured
+            $recaptcha_config_file = dirname(__DIR__) . '/login/functions/recaptcha_config.php';
+            $recaptcha_configured = false;
+
+            if (file_exists($recaptcha_config_file)) {
+                $config = require $recaptcha_config_file;
+                $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                $site_key = $config['domains'][$host]['site_key'] ?? $config['default']['site_key'] ?? '';
+                $recaptcha_configured = !empty($site_key);
+            }
+
+            // Only verify reCAPTCHA if it's configured
+            if ($recaptcha_configured) {
+                // Check if reCAPTCHA token is present
+                if (empty($recaptcha_token)) {
+                    $errors['recaptcha'] = "Please complete the security verification.";
+                    error_log("Registration: reCAPTCHA token is missing");
+                } else {
+                    $recaptcha_result = verify_recaptcha($recaptcha_token);
+                    if (!$recaptcha_result['success']) {
+                        $error_message = $recaptcha_result['message'] ?? 'Security verification failed';
+                        $error_codes = $recaptcha_result['error_codes'] ?? [];
+
+                        // Log detailed error for debugging
+                        error_log("Registration: reCAPTCHA verification failed - " . $error_message . " (Codes: " . implode(', ', $error_codes) . ")");
+
+                        // Provide user-friendly error message
+                        $errors['recaptcha'] = "Please complete the security verification.";
+                    }
+                }
+            } else {
+                // reCAPTCHA not configured - log warning but allow registration
+                error_log("Registration: reCAPTCHA not configured - skipping verification (development mode)");
             }
 
             if (empty($errors)) {
-                $conn = getDatabaseConnection();
-                $conn->beginTransaction();
-                try {
-                    // Use secure password hashing (argon2id or bcrypt)
-                    $hashed_password = hash_password_secure($password);
-                    if (!$hashed_password) {
-                        throw new Exception("Password hashing failed");
-                    }
-                    
-                    // Generate email verification token
-                    $email_verification_token = bin2hex(random_bytes(32));
-                    $verification_expiry = date('Y-m-d H:i:s', strtotime('+24 hours'));
-                    
-                    // Insert user with email_verified = 0 (requires verification) - status is 'Inactive' until verified
-                    $stmt = $conn->prepare("INSERT INTO users (fullname, birthdate, age, address, email_address, contact_number, device_number, username, password, status, email_verified, email_verification_token, verification_expiry) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Inactive', 0, ?, ?)");
-                    $stmt->execute([
-                        $_SESSION['reg_data']['fullname'],
-                        $_SESSION['reg_data']['birthdate'],
-                        $_SESSION['reg_data']['age'],
-                        $_SESSION['reg_data']['address'],
-                        $_SESSION['reg_data']['email'],
-                        $_SESSION['reg_data']['contact'],
-                        $_SESSION['reg_data']['device_number'],
-                        $username,
-                        $hashed_password,
-                        $email_verification_token,
-                        $verification_expiry
-                    ]);
-                    $user_id = $conn->lastInsertId();
-                    // Insert device (do NOT use admin_device_id if not in table)
-                    $device_barangay_id = $_SESSION['reg_data']['device_barangay_id'] ?? null;
-                    $device_stmt = $conn->prepare("INSERT INTO devices (user_id, device_name, device_number, serial_number, barangay_id, is_active, status) VALUES (?, ?, ?, ?, ?, 1, 'offline')");
-                    $device_name = "User Device";
-                    $device_stmt->execute([
-                        $user_id,
-                        $device_name,
-                        $_SESSION['reg_data']['device_number'],
-                        $_SESSION['reg_data']['serial_number'],
-                        $device_barangay_id
-                    ]);
-                    // Insert building
-                    $barangay_id = $_SESSION['reg_data']['barangay_id'] ?? null;
-                    error_log('Inserting building with barangay_id: ' . ($barangay_id ?? 'NULL'));
-                    
-                    $building_stmt = $conn->prepare("INSERT INTO buildings (user_id, barangay_id, building_name, building_type, address, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?)");
-                    $building_stmt->execute([
-                        $user_id,
-                        $barangay_id,
-                        $_SESSION['reg_data']['building_name'],
-                        $_SESSION['reg_data']['building_type'],
-                        $_SESSION['reg_data']['address'],
-                        $_SESSION['reg_data']['latitude'],
-                        $_SESSION['reg_data']['longitude']
-                    ]);
-                    
-                    // Send verification email
-                    $email_sent = send_verification_email($_SESSION['reg_data']['email'], $email_verification_token);
-                    if (!$email_sent) {
-                        error_log("Failed to send verification email to: " . $_SESSION['reg_data']['email']);
-                    }
-                    
-                    $conn->commit();
-                    // Registration successful - email verification required
-                    // Regenerate session ID for security (prevent session fixation)
-                    regenerate_session_id();
-                    $success = "Welcome to FireGuard! Your account has been created. Please check your email to verify your account before logging in.";
-                    unset($_SESSION['reg_data']);
-                } catch (PDOException $e) {
-                    $conn->rollBack();
-                    // Log detailed error for debugging
-                    error_log("Registration error: " . $e->getMessage());
-                    // Show generic error to user
-                    $errors['database'] = "Registration failed. Please try again or contact support if the problem persists.";
+                // Hash password and store credentials in session (don't insert into database yet)
+                $hashed_password = hash_password_secure($password);
+                if (!$hashed_password) {
+                    $errors['password'] = "Password hashing failed. Please try again.";
+                    $_SESSION['form_errors'] = $errors;
+                    header("Location: registration.php?step=credentials&error=validation");
+                    exit();
                 }
+
+                // Store credentials in session
+                $_SESSION['reg_data']['username'] = $username;
+                $_SESSION['reg_data']['password_hash'] = $hashed_password;
+                $_SESSION['reg_data']['registration_ready'] = true;
+
+                // Log that credentials step is complete
+                error_log("Registration: Credentials validated and cached for email: " . ($_SESSION['reg_data']['email'] ?? 'unknown'));
+
+                // Redirect to confirmation step
+                header("Location: registration.php?step=confirm");
+                exit();
             } else {
                 // Store errors in session for display
                 $_SESSION['form_errors'] = $errors;
                 header("Location: registration.php?step=credentials&error=validation");
+                exit();
+            }
+        }
+        elseif (isset($_POST['confirm_submit'])) {
+            // Step 5: Final Confirmation - NOW insert into database
+
+            // Verify all required data is in session
+            $required_fields = ['fullname','birthdate','age','address','email','contact','device_number','serial_number','building_name','building_type','latitude','longitude','barangay_id','username','password_hash'];
+            $missing_fields = [];
+            foreach ($required_fields as $field) {
+                if (!isset($_SESSION['reg_data'][$field]) || $_SESSION['reg_data'][$field] === '' || $_SESSION['reg_data'][$field] === null) {
+                    $missing_fields[] = $field;
+                }
+            }
+            if (!empty($missing_fields)) {
+                $_SESSION['reg_error'] = 'Session expired or missing information. Please start registration again.';
+                header('Location: registration.php?step=personal&error=session');
+                exit();
+            }
+
+            // Now insert into database
+            $conn = getDatabaseConnection();
+            $conn->beginTransaction();
+            try {
+                // Prepare data for insertion
+                $fullname = $_SESSION['reg_data']['fullname'];
+                $birthdate = $_SESSION['reg_data']['birthdate'];
+                $age = $_SESSION['reg_data']['age'];
+                $address = $_SESSION['reg_data']['address'];
+                $email = $_SESSION['reg_data']['email'];
+                $contact = $_SESSION['reg_data']['contact'];
+                $device_number = $_SESSION['reg_data']['device_number'];
+                $username = $_SESSION['reg_data']['username'];
+                $hashed_password = $_SESSION['reg_data']['password_hash'];
+
+                // Insert into users table - Account is ACTIVE and email is already verified
+                $stmt = $conn->prepare("INSERT INTO users (fullname, birthdate, age, address, email_address, contact_number, device_number, username, password, status, email_verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active', 1)");
+                $stmt->execute([
+                    $fullname,
+                    $birthdate,
+                    $age,
+                    $address,
+                    $email,
+                    $contact,
+                    $device_number,
+                    $username,
+                    $hashed_password
+                ]);
+                $user_id = $conn->lastInsertId();
+
+                if (!$user_id) {
+                    throw new Exception("Failed to get user ID after insertion");
+                }
+
+                error_log("User registered successfully (ID: $user_id) - Account automatically activated");
+
+                // Automatically add phone number to user_phone_numbers table
+                if (!empty($contact)) {
+                    try {
+                        $phone_stmt = $conn->prepare("INSERT INTO user_phone_numbers (user_id, phone_number, label, is_primary, verified) VALUES (?, ?, 'Primary', 1, 1)");
+                        $phone_stmt->execute([
+                            $user_id,
+                            $contact
+                        ]);
+                        error_log("Phone number inserted for user_id: $user_id, phone: $contact");
+                    } catch (PDOException $phone_e) {
+                        // Log error but don't fail registration if phone insertion fails
+                        error_log("Warning: Failed to insert phone number for user_id $user_id: " . $phone_e->getMessage());
+                    }
+                }
+
+                // Insert device data directly (no pending)
+                $device_barangay_id = $_SESSION['reg_data']['device_barangay_id'] ?? null;
+                $device_stmt = $conn->prepare("INSERT INTO devices (user_id, device_name, device_number, serial_number, barangay_id, is_active, status) VALUES (?, ?, ?, ?, ?, 1, 'offline')");
+                $device_stmt->execute([
+                    $user_id,
+                    'User Device',
+                    $_SESSION['reg_data']['device_number'],
+                    $_SESSION['reg_data']['serial_number'],
+                    $device_barangay_id
+                ]);
+                error_log("Device inserted for user_id: $user_id");
+
+                // Insert building data directly (no pending)
+                $barangay_id = $_SESSION['reg_data']['barangay_id'];
+                $building_stmt = $conn->prepare("INSERT INTO buildings (user_id, barangay_id, building_name, building_type, address, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $building_stmt->execute([
+                    $user_id,
+                    $barangay_id,
+                    $_SESSION['reg_data']['building_name'],
+                    $_SESSION['reg_data']['building_type'],
+                    $_SESSION['reg_data']['address'],
+                    $_SESSION['reg_data']['latitude'],
+                    $_SESSION['reg_data']['longitude']
+                ]);
+                error_log("Building inserted for user_id: $user_id");
+
+                $conn->commit();
+
+                // Registration successful - Account is immediately active
+                regenerate_session_id();
+                $success = "Welcome to FireGuard! Your account has been created and is now active. You can login immediately.";
+                unset($_SESSION['reg_data']);
+
+            } catch (PDOException $e) {
+                $conn->rollBack();
+                $error_code = $e->getCode();
+                $error_message = $e->getMessage();
+                error_log("Registration error [Code: $error_code]: " . $error_message);
+
+                if ($error_code == 23000) {
+                    if (strpos($error_message, 'email_address') !== false) {
+                        $errors['database'] = "This email address is already registered.";
+                    } elseif (strpos($error_message, 'username') !== false) {
+                        $errors['database'] = "This username is already taken.";
+                    } elseif (strpos($error_message, 'device_number') !== false) {
+                        $errors['database'] = "This device number is already registered.";
+                    } else {
+                        $errors['database'] = "A duplicate entry was detected. Please check your information and try again.";
+                    }
+                } else {
+                    $isDev = (function_exists('isDevelopmentEnvironment') && isDevelopmentEnvironment()) ||
+                             (isset($_SERVER['HTTP_HOST']) &&
+                              (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false ||
+                               strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false));
+                    $errors['database'] = "Registration failed: " . ($isDev ? $error_message : "Please try again or contact support.");
+                }
+
+                $_SESSION['form_errors'] = $errors;
+                header("Location: registration.php?step=confirm&error=database");
+                exit();
+            } catch (Exception $e) {
+                $conn->rollBack();
+                error_log("Registration exception: " . $e->getMessage());
+                $errors['database'] = "Registration failed: " . $e->getMessage();
+                $_SESSION['form_errors'] = $errors;
+                header("Location: registration.php?step=confirm&error=database");
                 exit();
             }
         }
@@ -651,6 +765,8 @@ if (!isset($_SESSION['reg_data'])) {
     $step = 'location';
 } elseif ($step == 'credentials' && !isset($_SESSION['reg_data']['device_number'])) {
     $step = 'device';
+} elseif ($step == 'confirm' && !isset($_SESSION['reg_data']['username'])) {
+    $step = 'credentials';
 }
 
 // Check if geo-fences are available before allowing location step
@@ -662,18 +778,20 @@ if ($step == 'location') {
     }
 }
 
-$step_sequence = ['personal', 'location', 'device', 'credentials'];
+$step_sequence = ['personal', 'location', 'device', 'credentials', 'confirm'];
 $step_labels = [
     'personal' => 'Personal',
     'location' => 'Location',
     'device' => 'Device',
-    'credentials' => 'Credentials'
+    'credentials' => 'Credentials',
+    'confirm' => 'Confirm'
 ];
 $step_descriptions = [
-    'personal' => 'Tell us about yourself to get started with FireGuard.',
+    'personal' => '',
     'location' => 'Pin your exact location so responders know where to go.',
     'device' => 'Link your approved FireGuard device to your account.',
-    'credentials' => 'Secure your account with unique login credentials.'
+    'credentials' => 'Secure your account with unique login credentials.',
+    'confirm' => 'Review your information and complete your registration.'
 ];
 $current_step_index = array_search($step, $step_sequence, true);
 if ($current_step_index === false) {
@@ -694,9 +812,9 @@ if ($current_step_index === false) {
     <link rel="apple-touch-icon" href="fireguard.png?v=1">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.css" />
-    <?php 
+    <?php
     // Load reCAPTCHA script if credentials step
-    if ($step == 'credentials'): 
+    if ($step == 'credentials'):
         $recaptcha_config_file = dirname(__DIR__) . '/login/functions/recaptcha_config.php';
         if (file_exists($recaptcha_config_file)) {
             $config = require $recaptcha_config_file;
@@ -705,14 +823,15 @@ if ($current_step_index === false) {
             if (!empty($site_key)):
     ?>
     <script>
-        // Store site key for reCAPTCHA
+        // Store site key for reCAPTCHA v2
         window.recaptchaSiteKey = '<?php echo htmlspecialchars($site_key); ?>';
+        window.recaptchaVersion = 'v2'; // Using v2 (checkbox)
     </script>
-    <script src="https://www.google.com/recaptcha/api.js?render=<?php echo htmlspecialchars($site_key); ?>"></script>
-    <?php 
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <?php
             endif;
         }
-    endif; 
+    endif;
     ?>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;500;600;700&display=swap');
@@ -743,7 +862,6 @@ if ($current_step_index === false) {
             min-height: 100vh;
             position: relative;
         }
-
         /* Background video */
         .bg-video-container {
             position: fixed;
@@ -768,7 +886,6 @@ if ($current_step_index === false) {
             filter: brightness(0.5) contrast(1.05) saturate(1.05);
             opacity: 1;
         }
-
         /* Subtle overlay to keep text readable */
         .bg-overlay {
             position: fixed;
@@ -785,7 +902,6 @@ if ($current_step_index === false) {
             z-index: -2;
             pointer-events: none;
         }
-
         /* Animated background particles */
         .particles {
             position: fixed;
@@ -998,6 +1114,17 @@ if ($current_step_index === false) {
             position: relative;
             z-index: 1;
             background: rgba(255, 255, 255, 0.05);
+        }
+        .leaflet-control-layers-base label,
+        .leaflet-control-layers-overlays label {
+            color: #000000 !important;
+        }
+        .leaflet-control-layers-base span,
+        .leaflet-control-layers-overlays span {
+            color: #000000 !important;
+        }
+        .leaflet-control-zoom {
+            margin-top: 50px !important;
         }
         #get-location-btn {
             border-radius: 10px;
@@ -1221,8 +1348,21 @@ if ($current_step_index === false) {
             color: var(--light-text) !important;
         }
         .flatpickr-monthDropdown-months {
-            background: rgba(255, 255, 255, 0.1) !important;
+            background: rgba(30, 30, 40, 0.95) !important;
             color: var(--light-text) !important;
+            border: 1px solid rgba(255, 140, 0, 0.3) !important;
+            border-radius: 8px !important;
+            padding: 5px !important;
+            font-weight: 600 !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+        }
+        .flatpickr-monthDropdown-months option {
+            background: rgba(30, 30, 40, 0.98) !important;
+            color: var(--light-text) !important;
+            padding: 8px !important;
+        }
+        .flatpickr-monthDropdown-months option:hover {
+            background: rgba(255, 140, 0, 0.2) !important;
         }
         .flatpickr-weekday {
             color: var(--gray-text) !important;
@@ -1239,30 +1379,27 @@ if ($current_step_index === false) {
             text-decoration: none;
             transition: color 0.2s ease;
         }
-        
+
         .position-relative .btn-link:hover {
             color: #ff8c00;
         }
-        
+
         .position-relative .btn-link:focus {
             box-shadow: none;
             outline: none;
         }
-        
+
         .position-relative .btn-link i {
             font-size: 1.1rem;
         }
-        
         /* Ensure the button doesn't interfere with input focus */
         .position-relative .form-control:focus + .btn-link {
             color: #ff8c00;
         }
-        
         /* Red asterisk for required fields */
         .form-label span[style*="color"] {
             color: var(--primary-color) !important;
         }
-        
         /* Sliding line animation */
         @keyframes slideLine {
             0% {
@@ -1272,7 +1409,6 @@ if ($current_step_index === false) {
                 left: 100%;
             }
         }
-        
         /* Button Styles */
         .btn, button[type="submit"], button[type="button"] {
             background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
@@ -1286,40 +1422,40 @@ if ($current_step_index === false) {
             transition: all 0.3s ease;
             box-shadow: 0 5px 20px rgba(255, 68, 68, 0.28);
         }
-        
+
         .btn:hover, button[type="submit"]:hover, button[type="button"]:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 30px rgba(255, 68, 68, 0.38);
         }
-        
+
         .btn-primary {
             background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
         }
-        
+
         .btn-secondary {
             background: transparent;
             border: 1px solid var(--primary-color);
             color: var(--primary-color);
         }
-        
+
         .btn-secondary:hover {
             background: rgba(255, 68, 68, 0.1);
         }
-        
+
         .btn-success {
             background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
         }
-        
+
         .btn-outline-primary {
             background: transparent;
             border: 1px solid var(--primary-color);
             color: var(--primary-color);
         }
-        
+
         .btn-outline-primary:hover {
             background: rgba(255, 68, 68, 0.1);
         }
-        
+
         .btn-link {
             background: none;
             border: none;
@@ -1328,39 +1464,36 @@ if ($current_step_index === false) {
             padding: 0;
             box-shadow: none;
         }
-        
+
         .btn-link:hover {
             color: var(--secondary-color);
             text-decoration: underline;
             transform: none;
         }
-        
         /* Text-to-Speech Button Styles */
         #welcome-speech-btn {
             backdrop-filter: blur(10px);
             transition: all 0.3s ease !important;
         }
-        
+
         #welcome-speech-btn:hover {
             background: rgba(255,255,255,0.3) !important;
             border-color: rgba(255,255,255,0.5) !important;
             transform: scale(1.1) !important;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
         }
-        
+
         #welcome-speech-btn:active {
             transform: scale(0.95) !important;
         }
-        
+
         #welcome-speech-btn i {
             transition: all 0.3s ease;
         }
-        
         /* Show email verification button */
         #verify-email-btn {
             display: inline-block !important;
         }
-        
         /* Alert Styles */
         .alert {
             background: rgba(255, 255, 255, 0.1);
@@ -1390,7 +1523,6 @@ if ($current_step_index === false) {
             border-color: rgba(76, 175, 80, 0.3);
             color: #4caf50;
         }
-
         /* Remove old Bootstrap-specific styles that conflict */
         .mb-3, .mb-4 {
             margin-bottom: 1.5rem;
@@ -1453,7 +1585,6 @@ if ($current_step_index === false) {
                 max-width: 100%;
             }
         }
-
         /* Landing page inspired register layout */
         .register-page {
             width: 100%;
@@ -1662,27 +1793,31 @@ if ($current_step_index === false) {
             transition: all 0.2s ease;
             color: rgba(255, 255, 255, 0.7);
         }
-
         /* Hide label when input has content */
         .auth-input:not(:placeholder-shown) + label,
         .auth-input[value]:not([value=""]) + label,
         textarea.auth-input:not(:placeholder-shown) + label,
+        textarea.auth-input:not(:empty) + label,
         select.auth-input:not([value=""]) + label {
             opacity: 0;
             visibility: hidden;
         }
-        
         /* Hide label when input is focused and has content */
         .auth-input:focus:not(:placeholder-shown) + label {
             opacity: 0;
             visibility: hidden;
         }
-        
         /* Show label when input is empty or only has placeholder */
         .auth-input:placeholder-shown + label,
         .auth-input:focus:placeholder-shown + label {
             opacity: 1;
             visibility: visible;
+        }
+        /* Ensure address textarea label is hidden when it has content */
+        textarea.address-textarea:not(:placeholder-shown) + label,
+        textarea.address-textarea:focus + label {
+            opacity: 0 !important;
+            visibility: hidden !important;
         }
 
         .inline-login-submit {
@@ -1839,25 +1974,43 @@ if ($current_step_index === false) {
 
         .current-location-btn {
             position: absolute;
-            bottom: 15px;
-            left: 15px;
-            z-index: 10;
-            border-radius: 12px;
-            padding: 0.75rem 1.25rem;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            border-radius: 8px;
+            padding: 0.5rem 0.85rem;
             font-weight: 600;
+            font-size: 0.8rem;
             border: none;
             color: #fff;
             background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            display: inline-flex;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+            display: flex;
             align-items: center;
-            gap: 0.5rem;
+            justify-content: center;
+            gap: 0.35rem;
             cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .current-location-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+        }
+        
+        .current-location-btn svg {
+            width: 16px;
+            height: 16px;
         }
 
         .address-textarea {
-            min-height: 120px;
+            min-height: 70px;
+            max-height: 150px;
             resize: none;
+            overflow: hidden;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            white-space: pre-wrap;
         }
 
         .validated-field .field-checkmark {
@@ -1909,14 +2062,6 @@ if ($current_step_index === false) {
             color: var(--accent-color);
         }
 
-        .device-registration-banner {
-            padding: 1rem 1.2rem;
-            border-radius: 14px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            font-size: 0.9rem;
-            color: var(--gray-text);
-        }
 
         .device-registration-actions {
             display: flex;
@@ -1996,7 +2141,6 @@ if ($current_step_index === false) {
                 font-size: 1.35rem;
             }
         }
-
         /* Mobile-first refinements */
         @media (max-width: 1024px) {
             .register-page {
@@ -2075,7 +2219,7 @@ if ($current_step_index === false) {
                 padding: 1.25rem 1rem 1.5rem;
             }
             .inline-register-title {
-                font-size: 1.3rem;
+                font-size: 20px;
             }
             .inline-register-subtitle {
                 font-size: 0.9rem;
@@ -2100,11 +2244,463 @@ if ($current_step_index === false) {
                 width: 100%;
                 margin-top: 1rem;
                 justify-content: center;
+                font-size: 0.75rem;
+                padding: 0.45rem 0.75rem;
+            }
+            
+            .current-location-btn svg {
+                width: 14px;
+                height: 14px;
+            }
+        }
+        /* Confirmation Step Styles */
+        .confirmation-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .review-sections {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 12px 0;
+        }
+
+        .review-section {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 0;
+            position: relative;
+        }
+
+        .review-section h5 {
+            color: var(--accent-color);
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px 0 12px;
+        }
+
+        .review-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
+            margin-bottom: 8px;
+            padding: 0 12px 10px 12px;
+        }
+
+        .review-item {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .review-item label {
+            font-size: 0.8em;
+            color: rgba(255, 255, 255, 0.6);
+            font-weight: 500;
+        }
+
+        .review-item span {
+            color: var(--light-text);
+            font-size: 0.95em;
+            word-break: break-word;
+        }
+
+        .btn-edit {
+            position: absolute;
+            top: 10px;
+            right: 12px;
+            background: rgba(255, 129, 79, 0.2);
+            border: 1px solid var(--secondary-color);
+            color: var(--secondary-color);
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75em;
+            transition: all 0.3s ease;
+        }
+
+        .btn-edit:hover {
+            background: var(--secondary-color);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .review-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-edit {
+                position: static;
+                width: 100%;
+                margin-top: 10px;
+                padding: 6px 12px;
+                font-size: 0.8em;
+            }
+        }
+        /* Burger Menu Styles */
+        .burger-menu-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            width: 45px;
+            height: 45px;
+            background: rgba(255, 90, 77, 0.9);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            padding: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 90, 77, 0.3);
+        }
+
+        .burger-menu-btn:hover {
+            background: rgba(255, 129, 79, 0.9);
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(255, 90, 77, 0.5);
+        }
+
+        .burger-menu-btn span {
+            display: block;
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+
+        .burger-menu-btn.active span:nth-child(1) {
+            transform: rotate(45deg) translate(7px, 7px);
+        }
+
+        .burger-menu-btn.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .burger-menu-btn.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(7px, -7px);
+        }
+
+        /* Sidebar Menu */
+        .sidebar-menu {
+            position: fixed;
+            top: 0;
+            left: -400px;
+            width: 400px;
+            height: 100vh;
+            background: linear-gradient(135deg, rgba(18, 23, 53, 0.98) 0%, rgba(11, 16, 48, 0.98) 100%);
+            backdrop-filter: blur(10px);
+            z-index: 999;
+            transition: left 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.5);
+            overflow-y: auto;
+            padding: 80px 20px 25px 20px;
+        }
+        
+        .sidebar-menu::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .sidebar-menu::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+        
+        .sidebar-menu::-webkit-scrollbar-thumb {
+            background: rgba(255, 129, 79, 0.5);
+            border-radius: 4px;
+        }
+        
+        .sidebar-menu::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 129, 79, 0.7);
+        }
+
+        .sidebar-menu.active {
+            left: 0;
+        }
+
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 998;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .sidebar-content {
+            color: var(--light-text);
+        }
+
+        .sidebar-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--accent-color);
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid rgba(255, 191, 64, 0.3);
+        }
+
+        .sidebar-title i {
+            color: var(--primary-color);
+            font-size: 1.3rem;
+        }
+
+        .requirement-item {
+            background: rgba(255, 255, 255, 0.08);
+            border-left: 4px solid var(--secondary-color);
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .requirement-item:hover {
+            background: rgba(255, 255, 255, 0.12);
+            transform: translateX(5px);
+        }
+
+        .requirement-item strong {
+            color: var(--accent-color);
+            display: block;
+            margin-bottom: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .requirement-item p {
+            margin: 3px 0;
+            line-height: 1.7;
+            font-size: 0.88rem;
+            color: rgba(255, 255, 255, 0.85);
+            padding-left: 5px;
+        }
+
+        .requirement-item strong i {
+            color: var(--primary-color);
+            margin-right: 8px;
+        }
+        
+        .requirement-item p:last-child {
+            margin-bottom: 0;
+        }
+
+        #allowed-areas-sidebar {
+            color: var(--light-text);
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar-menu {
+                width: 90vw;
+                left: -90vw;
+                padding: 70px 15px 20px 15px;
+            }
+            
+            .sidebar-title {
+                font-size: 1.2rem;
+            }
+            
+            .requirement-item {
+                padding: 12px;
+            }
+            
+            .requirement-item strong {
+                font-size: 0.95rem;
+            }
+            
+            .requirement-item p {
+                font-size: 0.85rem;
+                line-height: 1.6;
             }
         }
     </style>
 </head>
 <body>
+    <!-- Burger Menu Button -->
+    <button class="burger-menu-btn" id="burgerMenuBtn" aria-label="Toggle Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <!-- Sidebar Menu -->
+    <div class="sidebar-menu" id="sidebarMenu">
+        <div class="sidebar-content">
+            <?php if ($step == 'personal'): ?>
+                <div class="sidebar-title">
+                    <i class="fas fa-user"></i>
+                    Personal Information Requirements
+                </div>
+                <div class="requirement-item">
+                    <strong><i class="fas fa-id-card"></i>Full Name:</strong>
+                    <p>• Must contain only letters, spaces, periods, apostrophes, and hyphens</p>
+                    <p>• Minimum 2 characters, maximum 100 characters</p>
+                </div>
+                <div class="requirement-item">
+                    <strong><i class="fas fa-calendar-alt"></i>Birthdate:</strong>
+                    <p>• You must be at least 18 years old to register</p>
+                    <p>• Valid date format required</p>
+                </div>
+                <div class="requirement-item">
+                    <strong><i class="fas fa-envelope"></i>Email Address:</strong>
+                    <p>• Valid email format required</p>
+                    <p>• Email verification code will be sent</p>
+                    <p>• Must not be already registered in the system</p>
+                </div>
+                <div class="requirement-item">
+                    <strong><i class="fas fa-phone"></i>Contact Number:</strong>
+                    <p>• Format: 09XXXXXXXXX (11 digits)</p>
+                    <p>• Must start with 09</p>
+                    <p>• Must not be already registered in the system</p>
+                </div>
+            <?php elseif ($step == 'location'): ?>
+                <div class="sidebar-title">
+                    <i class="fas fa-map-marker-alt"></i>
+                    Location Requirements
+                </div>
+                <div class="requirement-item">
+                    <strong><i class="fas fa-city"></i>Allowed Areas:</strong>
+                    <p id="allowed-areas-sidebar">Loading allowed areas...</p>
+                </div>
+                <div class="requirement-item">
+                    <strong><i class="fas fa-building"></i>Building Requirement:</strong>
+                    <p>• You must be physically inside the building where the device will be deployed</p>
+                    <p>• Click on the map or use "Get Location" to set your coordinates</p>
+                </div>
+                <div class="requirement-item">
+                    <strong><i class="fas fa-map"></i>Address Validation:</strong>
+                    <p>• Full address must be within allowed areas</p>
+                    <p>• Address will be auto-filled from map selection</p>
+                    <p>• Coordinates must be within geo-fenced boundaries</p>
+                </div>
+                <div class="requirement-item">
+                    <strong><i class="fas fa-map-signs"></i>Barangay:</strong>
+                    <p>• Must match the barangay in your full address</p>
+                    <p>• Will be auto-selected from map if available</p>
+                </div>
+                <div class="requirement-item">
+                    <strong><i class="fas fa-home"></i>Building Information:</strong>
+                    <p>• Building Name is required</p>
+                    <p>• Building Type: Residential, Commercial, Institutional, or Industrial</p>
+                </div>
+            <?php elseif ($step == 'device'): ?>
+                <div class="sidebar-title">
+                    <i class="fas fa-microchip"></i>
+                    Device Requirements
+                </div>
+                <div class="requirement-item">
+                    <strong><i class="fas fa-barcode"></i>Device Number:</strong>
+                    <p>• Must be a valid FireGuard device number</p>
+                    <p>• Device must be approved by the administrator</p>
+                    <p>• Device must not be already registered in the system</p>
+                    <p>• Device must not be linked to another user</p>
+                </div>
+                <div class="requirement-item">
+                    <strong><i class="fas fa-fingerprint"></i>Serial Number:</strong>
+                    <p>• Must match the device number</p>
+                    <p>• Both device number and serial number must correspond to an approved device</p>
+                    <p>• Serial number must be unique</p>
+                </div>
+                <div class="requirement-item">
+                    <strong><i class="fas fa-map-marker"></i>Device Location:</strong>
+                    <p>• Device must be linked to a barangay</p>
+                    <p>• Barangay is auto-filled from your location step</p>
+                    <p>• Ensures proper emergency response routing</p>
+                </div>
+            <?php elseif ($step == 'credentials'): ?>
+                <div class="sidebar-title">
+                    <i class="fas fa-key"></i>
+                    Login Credentials Requirements
+                </div>
+                <div class="requirement-item">
+                    <strong><i class="fas fa-user-circle"></i>Username:</strong>
+                    <p>• Minimum 5 characters, maximum 50 characters</p>
+                    <p>• Can contain letters, numbers, and underscores only</p>
+                    <p>• No spaces or special characters allowed</p>
+                    <p>• Must be unique (not already taken)</p>
+                </div>
+                <div class="requirement-item">
+                    <strong><i class="fas fa-lock"></i>Password:</strong>
+                    <p>• Minimum 8 characters required</p>
+                    <p>• Maximum 255 characters</p>
+                    <p>• Use a strong, unique password</p>
+                </div>
+                <div class="requirement-item">
+                    <strong><i class="fas fa-check-double"></i>Confirm Password:</strong>
+                    <p>• Must exactly match the password field</p>
+                    <p>• Both passwords will be compared before submission</p>
+                </div>
+                <div class="requirement-item">
+                    <strong><i class="fas fa-shield-alt"></i>Security Verification:</strong>
+                    <p>• Complete the reCAPTCHA challenge</p>
+                    <p>• Check "I'm not a robot" before submitting</p>
+                    <p>• Helps protect the system from automated bots</p>
+                </div>
+            <?php elseif ($step == 'confirm'): ?>
+                <div class="sidebar-title">
+                    <i class="fas fa-check-circle"></i>
+                    Review & Confirm
+                </div>
+                <div class="requirement-item">
+                    <strong><i class="fas fa-eye"></i>Review Your Information:</strong>
+                    <p>• Carefully review all information displayed</p>
+                    <p>• Use "Edit" buttons to go back to any step</p>
+                    <p>• Ensure all details are accurate before submitting</p>
+                </div>
+                <div class="requirement-item">
+                    <strong><i class="fas fa-user-check"></i>Account Activation:</strong>
+                    <p>• Your account will be activated immediately upon submission</p>
+                    <p>• You can login right away after registration</p>
+                    <p>• No email verification needed for activation</p>
+                </div>
+                <div class="requirement-item">
+                    <strong><i class="fas fa-exclamation-triangle"></i>Important:</strong>
+                    <p>• All information must be accurate and truthful</p>
+                    <p>• Your device will be linked to your account permanently</p>
+                    <p>• Emergency services will use this information for response</p>
+                </div>
+            <?php else: ?>
+                <div class="sidebar-title">
+                    <i class="fas fa-clipboard-list"></i>
+                    Registration Requirements
+                </div>
+                <div class="requirement-item">
+                    <strong><i class="fas fa-info-circle"></i>Getting Started:</strong>
+                    <p>• Complete all registration steps</p>
+                    <p>• All fields marked with * are required</p>
+                    <p>• Follow the step-by-step process</p>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
     <!-- Background Video -->
     <div class="bg-video-container" aria-hidden="true">
         <video autoplay muted loop playsinline preload="auto">
@@ -2129,26 +2725,24 @@ if ($current_step_index === false) {
                                 speech.rate = 0.9; // Slightly slower for better clarity
                                 speech.pitch = 1.0;
                                 speech.volume = 0.8;
-                                
                                 // Get available voices and set a preferred voice
                                 speechSynthesis.onvoiceschanged = function() {
                                     const voices = speechSynthesis.getVoices();
                                     // Try to find an English voice
-                                    const englishVoice = voices.find(voice => 
+                                    const englishVoice = voices.find(voice =>
                                         voice.lang.startsWith('en') && voice.name.includes('Google')
-                                    ) || voices.find(voice => 
+                                    ) || voices.find(voice =>
                                         voice.lang.startsWith('en')
                                     ) || voices[0];
-                                    
+
                                     if (englishVoice) {
                                         speech.voice = englishVoice;
                                     }
                                 };
-                                
                                 // Speak the message
                                 speechSynthesis.speak(speech);
                             }
-                            
+
                             Swal.fire({
                                 icon: 'success',
                                 title: 'Registration Successful!',
@@ -2161,27 +2755,39 @@ if ($current_step_index === false) {
                         });
                     </script>
                 <?php endif; ?>
-                
+
                 <?php if (isset($errors['system'])): ?>
                     <div class="alert alert-danger"><?php echo $errors['system']; ?></div>
                 <?php endif; ?>
-                
+
+                <?php if (isset($errors['database'])): ?>
+                    <div class="alert alert-danger">
+                        <strong>Registration Error:</strong> <?php echo htmlspecialchars($errors['database']); ?>
+                    </div>
+                <?php endif; ?>
+
                 <?php if (isset($_SESSION['reg_error'])): ?>
                     <div class="alert alert-danger"><?php echo $_SESSION['reg_error']; unset($_SESSION['reg_error']); ?></div>
                 <?php endif; ?>
-                
+
                 <?php if (isset($_GET['error']) && $_GET['error'] === 'session'): ?>
                     <div class="alert alert-warning">
                         <strong>Session Expired:</strong> Your registration session has expired. Please start the registration process again.
                     </div>
                 <?php endif; ?>
-                
+
                 <?php if (isset($_GET['error']) && $_GET['error'] === 'validation'): ?>
                     <div class="alert alert-danger">
                         <strong>Validation Error:</strong> Please check the form fields and fix any errors before proceeding.
                     </div>
                 <?php endif; ?>
-                
+
+                <?php if (isset($_GET['error']) && $_GET['error'] === 'database'): ?>
+                    <div class="alert alert-danger">
+                        <strong>Database Error:</strong> There was a problem saving your registration. Please check your information and try again.
+                    </div>
+                <?php endif; ?>
+
                 <div class="inline-register-header">
                     <div class="register-header-left">
                         <div>
@@ -2216,7 +2822,7 @@ if ($current_step_index === false) {
                         <a href="../index.php" class="inline-register-close-link">← Back</a>
                     </div>
                 </div>
-                
+
                 <?php if ($step == 'personal'): ?>
                     <div class="register-columns">
                         <div class="register-info-card">
@@ -2235,7 +2841,7 @@ if ($current_step_index === false) {
                         </div>
                         <div class="register-form-fields">
                             <form method="POST" action="" id="personal-form" class="inline-login-form" onsubmit="return validateFormSubmission('personal')">
-                                <?php 
+                                <?php
                                 $csrf_token = generate_csrf_token();
                                 $honeypot_field = add_honeypot_field();
                                 ?>
@@ -2307,7 +2913,7 @@ if ($current_step_index === false) {
                     </div>
                 <?php elseif ($step == 'location'): ?>
                     <form method="POST" action="" id="location-form" class="inline-login-form" onsubmit="return validateFormSubmission('location')">
-                        <?php 
+                        <?php
                         $csrf_token = generate_csrf_token();
                         $honeypot_field = add_honeypot_field();
                         ?>
@@ -2316,25 +2922,16 @@ if ($current_step_index === false) {
                         <?php if (isset($errors['location'])): ?>
                             <div class="alert alert-danger"><?php echo $errors['location']; ?></div>
                         <?php endif; ?>
-                        <div class="inline-alert warning" id="location-requirements">
-                            <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
-                                <i class="fas fa-exclamation-triangle"></i>
-                                <div>
-                                    <strong>Location Requirements:</strong><br>
-                                    <span id="allowed-areas">Loading allowed areas...</span><br>
-                                    •You must be inside the building where the device will be deployed.
-                                </div>
-                            </div>
-                        </div>
+                        <!-- Location requirements moved to burger menu sidebar -->
                         <div class="location-step">
                             <div class="location-map-container">
                                 <div id="map"></div>
                                 <button type="button" class="current-location-btn" id="get-location-btn">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                         <circle cx="12" cy="12" r="10"></circle>
                                         <path d="M12 2v4m0 12v4M2 12h4m12 0h4"></path>
                                     </svg>
-                                    Get Current Location
+                                    Get Location
                                 </button>
                             </div>
                             <div class="location-form-container">
@@ -2342,7 +2939,7 @@ if ($current_step_index === false) {
                                 <input type="hidden" id="longitude" name="longitude" value="<?php echo isset($_SESSION['reg_data']['longitude']) ? htmlspecialchars($_SESSION['reg_data']['longitude']) : ''; ?>">
                                 <input type="hidden" id="barangay_id" name="barangay_id" value="<?php echo isset($_SESSION['reg_data']['barangay_id']) ? htmlspecialchars($_SESSION['reg_data']['barangay_id']) : ''; ?>">
                                 <div class="inline-login-form-group">
-                                    <textarea class="auth-input address-textarea <?php echo isset($errors['address']) ? 'is-invalid' : ''; ?>" id="address" name="address" rows="3" required readonly placeholder=" "><?php echo isset($_SESSION['reg_data']['address']) ? htmlspecialchars($_SESSION['reg_data']['address']) : ''; ?></textarea>
+                                    <textarea class="auth-input address-textarea <?php echo isset($errors['address']) ? 'is-invalid' : ''; ?>" id="address" name="address" rows="2" required readonly placeholder=" "><?php echo isset($_SESSION['reg_data']['address']) ? htmlspecialchars($_SESSION['reg_data']['address']) : ''; ?></textarea>
                                     <label for="address">Full Address *</label>
                                     <?php if (isset($errors['address'])): ?>
                                         <div class="invalid-feedback"><?php echo $errors['address']; ?></div>
@@ -2354,7 +2951,7 @@ if ($current_step_index === false) {
                                 <div class="inline-login-form-group">
                                     <select class="auth-input <?php echo isset($errors['barangay']) ? 'is-invalid' : ''; ?>" id="barangay" name="barangay" required>
                                         <option value="">Select barangay</option>
-                                        <?php foreach ($barangays_list as $b): 
+                                        <?php foreach ($barangays_list as $b):
                                             $cleanName = cleanBarangayName($b['barangay_name']);
                                             $originalName = $b['barangay_name'];
                                         ?>
@@ -2395,7 +2992,7 @@ if ($current_step_index === false) {
                     </form>
                 <?php elseif ($step == 'device'): ?>
                     <form method="POST" action="" id="device-form" class="inline-login-form" onsubmit="return validateFormSubmission('device')">
-                        <?php 
+                        <?php
                         $csrf_token = generate_csrf_token();
                         $honeypot_field = add_honeypot_field();
                         ?>
@@ -2404,9 +3001,6 @@ if ($current_step_index === false) {
                         <?php if (isset($errors['device'])): ?>
                             <div class="alert alert-danger"><?php echo $errors['device']; ?></div>
                         <?php endif; ?>
-                        <div class="device-registration-banner">
-                            Please register your device. Enter a valid device number and serial number.
-                        </div>
                         <div class="inline-login-form-group">
                             <input type="text" class="auth-input <?php echo isset($errors['device_number']) ? 'is-invalid' : ''; ?>" id="device_number" name="device_number" value="<?php echo isset($_SESSION['reg_data']['device_number']) ? htmlspecialchars($_SESSION['reg_data']['device_number']) : ''; ?>" placeholder=" " required>
                             <label for="device_number">Device Number *</label>
@@ -2424,10 +3018,10 @@ if ($current_step_index === false) {
                         <div class="inline-login-form-group">
                             <select class="auth-input <?php echo isset($errors['device_barangay_id']) ? 'is-invalid' : ''; ?>" id="device_barangay_id" name="device_barangay_id" required>
                                 <option value="">Select a barangay</option>
-                                <?php 
+                                <?php
                                 // Auto-select barangay from location step if available
                                 $selected_barangay_id = isset($_SESSION['reg_data']['device_barangay_id']) ? $_SESSION['reg_data']['device_barangay_id'] : (isset($_SESSION['reg_data']['barangay_id']) ? $_SESSION['reg_data']['barangay_id'] : '');
-                                foreach ($barangays_list as $barangay): 
+                                foreach ($barangays_list as $barangay):
                                     $cleanName = cleanBarangayName($barangay['barangay_name']);
                                 ?>
                                     <option value="<?php echo htmlspecialchars($barangay['id']); ?>" <?php echo ($selected_barangay_id && $selected_barangay_id == $barangay['id']) ? 'selected' : ''; ?>>
@@ -2455,7 +3049,7 @@ if ($current_step_index === false) {
                     </form>
                 <?php elseif ($step == 'credentials'): ?>
                     <form method="POST" action="" id="credentials-form" class="inline-login-form" onsubmit="return validateFormSubmission('credentials')">
-                        <?php 
+                        <?php
                         $csrf_token = generate_csrf_token();
                         $honeypot_field = add_honeypot_field();
                         ?>
@@ -2486,18 +3080,185 @@ if ($current_step_index === false) {
                             <div id="confirm-password-feedback"></div>
                         </div>
                         <?php if (isset($errors['recaptcha'])): ?>
-                            <div class="alert alert-danger"><?php echo $errors['recaptcha']; ?></div>
+                            <div class="alert alert-danger" style="margin-bottom: 12px; padding: 10px 12px; font-size: 0.85em;">
+                                <strong style="font-size: 0.95em; color: #000000;"><i class="fas fa-shield-alt"></i> Security Verification Required</strong>
+                                <hr style="margin: 6px 0;">
+                                <p style="margin-bottom: 6px;"><strong>What is this?</strong></p>
+                                <p style="margin-bottom: 6px; font-size: 0.95em; line-height: 1.3;">This is Google reCAPTCHA - a security feature that verifies you're a real person, not a bot. It helps protect our system from spam and automated attacks.</p>
+                                <p style="margin-bottom: 6px;"><strong>What do I need to do?</strong></p>
+                                <ul style="margin-left: 18px; margin-bottom: 6px; font-size: 0.95em; line-height: 1.3;">
+                                    <li>Make sure you're not using an ad blocker that blocks reCAPTCHA</li>
+                                    <li>Check your internet connection</li>
+                                    <li>Wait a few seconds after clicking "Complete Registration" - the verification happens automatically in the background</li>
+                                    <li>If you see this error, try refreshing the page and submitting again</li>
+                                </ul>
+                                <p style="margin-bottom: 0; font-size: 0.95em;"><strong>Note:</strong> <strong>Check the "I'm not a robot" checkbox below</strong> before submitting the form.</p>
+                            </div>
                         <?php endif; ?>
-                        <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response">
+
+                        <?php
+                        // Check if reCAPTCHA is configured
+                        $recaptcha_config_file = dirname(__DIR__) . '/login/functions/recaptcha_config.php';
+                        $recaptcha_configured = false;
+                        $site_key = '';
+
+                        if (file_exists($recaptcha_config_file)) {
+                            $config = require $recaptcha_config_file;
+                            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                            $site_key = $config['domains'][$host]['site_key'] ?? $config['default']['site_key'] ?? '';
+                            $recaptcha_configured = !empty($site_key);
+                        }
+
+                        if ($recaptcha_configured):
+                        ?>
+                        <!-- reCAPTCHA v2 Checkbox Widget -->
+                        <div style="margin-bottom: 10px; display: flex; justify-content: center; transform: scale(1.1); transform-origin: center;">
+                            <div class="g-recaptcha" data-sitekey="<?php echo htmlspecialchars($site_key); ?>"></div>
+                        </div>
+                        <div style="background: #e7f3ff; border-left: 3px solid #2196F3; padding: 8px 10px; margin-bottom: 12px; border-radius: 4px; font-size: 0.8em;">
+                            <strong style="font-size: 0.9em; color: #000000;"><i class="fas fa-info-circle" style="color: #2196F3;"></i> Security Verification Required</strong>
+                            <p style="margin: 5px 0 0 0; color: #555; font-size: 0.95em; line-height: 1.3;">
+                                <strong>Please check the "I'm not a robot" box above</strong> before clicking "Complete Registration".
+                                This verifies you're human and helps protect our system from spam and bots.
+                            </p>
+                        </div>
+                        <?php else: ?>
+                        <div style="background: #fff3cd; border-left: 3px solid #ffc107; padding: 8px 10px; margin-bottom: 12px; border-radius: 4px; font-size: 0.8em;">
+                            <strong style="font-size: 0.9em;"><i class="fas fa-exclamation-triangle" style="color: #ffc107;"></i> Security Verification Not Configured</strong>
+                            <p style="margin: 5px 0 0 0; color: #555; font-size: 0.95em; line-height: 1.3;">
+                                reCAPTCHA security verification is not configured. Registration will proceed without bot protection.
+                                <br><a href="check_recaptcha_config.php" target="_blank">Click here to configure reCAPTCHA</a>
+                            </p>
+                        </div>
+                        <?php endif; ?>
                         <div class="device-registration-actions">
                             <button type="button" class="inline-login-submit ghost" onclick="window.location.href='registration.php?step=device'">← Back</button>
                             <button type="submit" name="credentials_submit" class="inline-login-submit" id="credentials-submit-btn">
-                                Complete Registration
+                                <i class="fas fa-arrow-right"></i> Continue to Review
                             </button>
                         </div>
                     </form>
+
+                <?php elseif ($step == 'confirm'): ?>
+                    <!-- Step 5: Confirmation -->
+                    <div class="confirmation-container">
+                        <div class="alert alert-info" style="margin-bottom: 12px; padding: 10px 12px;">
+                            <h4 style="margin-bottom: 6px; font-size: 1.1em;"><i class="fas fa-check-circle"></i> Almost Done!</h4>
+                            <p style="margin-bottom: 0; font-size: 0.95em;">Please review your information below. Once you click "Complete Registration", your account will be created and activated immediately. You can login right away!</p>
+                        </div>
+
+                        <?php if (isset($errors['database'])): ?>
+                            <div class="alert alert-danger" style="margin-bottom: 12px; padding: 10px 12px; font-size: 0.9em;">
+                                <strong>Error:</strong> <?php echo htmlspecialchars($errors['database']); ?>
+                            </div>
+                        <?php endif; ?>
+
+                        <div class="review-sections">
+                            <!-- Personal Information -->
+                            <div class="review-section">
+                                <h5><i class="fas fa-user"></i> Personal Information</h5>
+                                <div class="review-grid">
+                                    <div class="review-item">
+                                        <label>Full Name:</label>
+                                        <span><?php echo htmlspecialchars($_SESSION['reg_data']['fullname'] ?? ''); ?></span>
+                                    </div>
+                                    <div class="review-item">
+                                        <label>Birthdate:</label>
+                                        <span><?php echo htmlspecialchars($_SESSION['reg_data']['birthdate'] ?? ''); ?> (Age: <?php echo htmlspecialchars($_SESSION['reg_data']['age'] ?? ''); ?>)</span>
+                                    </div>
+                                    <div class="review-item">
+                                        <label>Email:</label>
+                                        <span><?php echo htmlspecialchars($_SESSION['reg_data']['email'] ?? ''); ?></span>
+                                    </div>
+                                    <div class="review-item">
+                                        <label>Contact Number:</label>
+                                        <span><?php echo htmlspecialchars($_SESSION['reg_data']['contact'] ?? ''); ?></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Location & Building -->
+                            <div class="review-section">
+                                <h5><i class="fas fa-map-marker-alt"></i> Location & Building</h5>
+                                <div class="review-grid">
+                                    <div class="review-item">
+                                        <label>Address:</label>
+                                        <span><?php echo htmlspecialchars($_SESSION['reg_data']['address'] ?? ''); ?></span>
+                                    </div>
+                                    <div class="review-item">
+                                        <label>Building Name:</label>
+                                        <span><?php echo htmlspecialchars($_SESSION['reg_data']['building_name'] ?? ''); ?></span>
+                                    </div>
+                                    <div class="review-item">
+                                        <label>Building Type:</label>
+                                        <span><?php echo htmlspecialchars($_SESSION['reg_data']['building_type'] ?? ''); ?></span>
+                                    </div>
+                                    <div class="review-item">
+                                        <label>Coordinates:</label>
+                                        <span><?php echo htmlspecialchars($_SESSION['reg_data']['latitude'] ?? ''); ?>, <?php echo htmlspecialchars($_SESSION['reg_data']['longitude'] ?? ''); ?></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Device Information -->
+                            <div class="review-section">
+                                <h5><i class="fas fa-microchip"></i> Device Information</h5>
+                                <div class="review-grid">
+                                    <div class="review-item">
+                                        <label>Device Number:</label>
+                                        <span><?php echo htmlspecialchars($_SESSION['reg_data']['device_number'] ?? ''); ?></span>
+                                    </div>
+                                    <div class="review-item">
+                                        <label>Serial Number:</label>
+                                        <span><?php echo htmlspecialchars($_SESSION['reg_data']['serial_number'] ?? ''); ?></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Credentials -->
+                            <div class="review-section">
+                                <h5><i class="fas fa-key"></i> Login Credentials</h5>
+                                <div class="review-grid">
+                                    <div class="review-item">
+                                        <label>Username:</label>
+                                        <span><?php echo htmlspecialchars($_SESSION['reg_data']['username'] ?? ''); ?></span>
+                                    </div>
+                                    <div class="review-item">
+                                        <label>Password:</label>
+                                        <span>••••••••</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <form method="POST" action="" id="confirm-form">
+                            <?php
+                            $csrf_token = generate_csrf_token();
+                            $honeypot_field = add_honeypot_field();
+                            ?>
+                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                            <input type="text" name="<?php echo htmlspecialchars($honeypot_field); ?>" style="display:none;visibility:hidden;" tabindex="-1" autocomplete="off">
+
+                            <div style="background: #fff3cd; border-left: 3px solid #ffc107; padding: 10px 12px; margin: 12px 0; border-radius: 4px;">
+                                <strong style="font-size: 0.95em; color: #000;"><i class="fas fa-exclamation-triangle" style="color: #ffc107;"></i> Important:</strong>
+                                <p style="margin: 5px 0 0 0; font-size: 0.9em; line-height: 1.3; color: #000;">
+                                    By clicking "Complete Registration", you agree that all the information provided is accurate.
+                                    Your account will be created and activated immediately.
+                                </p>
+                            </div>
+
+                            <div class="device-registration-actions">
+                                <button type="button" class="inline-login-submit ghost" onclick="window.location.href='registration.php?step=credentials'">
+                                    ← Back
+                                </button>
+                                <button type="submit" name="confirm_submit" class="inline-login-submit" style="background: #28a745;">
+                                    <i class="fas fa-check-circle"></i> Complete Registration
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 <?php endif; ?>
-                
+
                 <div class="inline-register-actions">
                     Already have an account?
                     <a href="../index.php">Go to Login</a>
@@ -2515,29 +3276,92 @@ if ($current_step_index === false) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
-        // reCAPTCHA v3 handling for credentials form
+        // Burger Menu Toggle Functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const burgerBtn = document.getElementById('burgerMenuBtn');
+            const sidebar = document.getElementById('sidebarMenu');
+            const overlay = document.getElementById('sidebarOverlay');
+
+            function toggleMenu() {
+                burgerBtn.classList.toggle('active');
+                sidebar.classList.toggle('active');
+                overlay.classList.toggle('active');
+                
+                // Prevent body scroll when menu is open
+                if (sidebar.classList.contains('active')) {
+                    document.body.style.overflow = 'hidden';
+                } else {
+                    document.body.style.overflow = '';
+                }
+            }
+
+            // Toggle menu on button click
+            if (burgerBtn) {
+                burgerBtn.addEventListener('click', toggleMenu);
+            }
+
+            // Close menu when clicking overlay
+            if (overlay) {
+                overlay.addEventListener('click', toggleMenu);
+            }
+
+            // Close menu on ESC key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && sidebar.classList.contains('active')) {
+                    toggleMenu();
+                }
+            });
+        });
+
+        // reCAPTCHA v2 handling for credentials form
         document.addEventListener('DOMContentLoaded', function() {
             const credentialsForm = document.getElementById('credentials-form');
-            if (credentialsForm && window.recaptchaSiteKey && typeof grecaptcha !== 'undefined') {
+            // Check if reCAPTCHA is configured
+            if (!window.recaptchaSiteKey || window.recaptchaSiteKey === '') {
+                console.warn('reCAPTCHA site key not configured');
+                return;
+            }
+            // Setup form submission validation for v2
+            if (credentialsForm) {
                 credentialsForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    
-                    // Execute reCAPTCHA v3
-                    grecaptcha.ready(function() {
-                        grecaptcha.execute(window.recaptchaSiteKey, {action: 'register'}).then(function(token) {
-                            // Set the token in the hidden field
-                            document.getElementById('g-recaptcha-response').value = token;
-                            // Submit the form
-                            credentialsForm.submit();
-                        }).catch(function(error) {
-                            console.error('reCAPTCHA error:', error);
-                            alert('Security verification failed. Please try again.');
-                        });
-                    });
+                    // Check if grecaptcha is loaded
+                    if (typeof grecaptcha === 'undefined') {
+                        e.preventDefault();
+                        alert('Security verification system not loaded. Please refresh the page and try again.\n\nIf the problem persists, check:\n1. Your internet connection\n2. Ad blockers (disable for this site)\n3. Browser console for errors');
+                        return false;
+                    }
+                    // Get reCAPTCHA v2 response
+                    const recaptchaResponse = grecaptcha.getResponse();
+
+                    if (!recaptchaResponse || recaptchaResponse.length === 0) {
+                        e.preventDefault();
+                        alert('Please complete the reCAPTCHA verification by checking the "I\'m not a robot" box before submitting.');
+                        // Scroll to reCAPTCHA if not visible
+                        const recaptchaElement = document.querySelector('.g-recaptcha');
+                        if (recaptchaElement) {
+                            recaptchaElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            // Add a highlight effect
+                            recaptchaElement.style.boxShadow = '0 0 10px 2px rgba(255, 0, 0, 0.5)';
+                            setTimeout(function() {
+                                recaptchaElement.style.boxShadow = '';
+                            }, 2000);
+                        }
+                        return false;
+                    }
+                    // reCAPTCHA is complete, allow form submission
+                    return true;
                 });
             }
         });
-        
+        // Optional: Callback when reCAPTCHA is successfully completed
+        function onRecaptchaSuccess(token) {
+            console.log('reCAPTCHA verification successful');
+        }
+        // Optional: Callback when reCAPTCHA expires
+        function onRecaptchaExpired() {
+            console.warn('reCAPTCHA expired, please verify again');
+            alert('Your security verification has expired. Please check the box again.');
+        }
         // Create animated particles
         const particlesContainer = document.getElementById('particles');
         if (particlesContainer) {
@@ -2555,21 +3379,24 @@ if ($current_step_index === false) {
     </script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Hide/show labels based on input content
+        // Hide/show labels based on input content - Enhanced version
         function toggleLabelVisibility(input) {
             const label = input.nextElementSibling;
             if (label && label.tagName === 'LABEL') {
                 let hasValue = false;
-                
                 // Handle different input types
                 if (input.tagName === 'SELECT') {
                     hasValue = input.value && input.value !== '';
                 } else if (input.tagName === 'TEXTAREA') {
-                    hasValue = input.value && input.value.trim() !== '';
+                    // For textarea, check both value and textContent
+                    hasValue = (input.value && input.value.trim() !== '') || 
+                               (input.textContent && input.textContent.trim() !== '');
+                } else if (input.type === 'date') {
+                    hasValue = input.value && input.value !== '';
                 } else {
                     hasValue = input.value && input.value.trim() !== '';
                 }
-                
+
                 if (hasValue) {
                     label.style.opacity = '0';
                     label.style.visibility = 'hidden';
@@ -2580,10 +3407,18 @@ if ($current_step_index === false) {
             }
         }
         
+        // Function to check all auth-input fields
+        function checkAllFields() {
+            const authInputs = document.querySelectorAll('.auth-input');
+            authInputs.forEach(function(input) {
+                toggleLabelVisibility(input);
+            });
+        }
+        
         // Apply to all auth-input fields
         const authInputs = document.querySelectorAll('.auth-input');
         authInputs.forEach(function(input) {
-            // Check on page load
+            // Check on page load (initial check)
             toggleLabelVisibility(input);
             
             // Check on input/change
@@ -2602,58 +3437,88 @@ if ($current_step_index === false) {
             input.addEventListener('blur', function() {
                 toggleLabelVisibility(input);
             });
+            
+            // For readonly fields, check on focus as well
+            if (input.hasAttribute('readonly')) {
+                input.addEventListener('focus', function() {
+                    toggleLabelVisibility(input);
+                });
+            }
         });
+        
+        // Use MutationObserver to handle dynamically updated content
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'childList' || mutation.type === 'characterData') {
+                    // Re-check all fields when content changes
+                    checkAllFields();
+                }
+            });
+        });
+        
+        // Observe all auth-input elements for changes
+        authInputs.forEach(function(input) {
+            observer.observe(input, {
+                childList: true,
+                characterData: true,
+                subtree: true
+            });
+        });
+        
+        // Re-check all fields after a short delay to catch any delayed updates
+        setTimeout(checkAllFields, 100);
+        setTimeout(checkAllFields, 500);
+        setTimeout(checkAllFields, 1000);
         
         // Auto-fill device barangay from location barangay
         const currentStep = '<?php echo $step; ?>';
         if (currentStep === 'device') {
             const deviceBarangaySelect = document.getElementById('device_barangay_id');
             const locationBarangayId = <?php echo isset($_SESSION['reg_data']['barangay_id']) ? json_encode($_SESSION['reg_data']['barangay_id']) : 'null'; ?>;
-            
+
             if (deviceBarangaySelect && locationBarangayId) {
                 // Check if the select already has a value (from PHP)
                 if (!deviceBarangaySelect.value || deviceBarangaySelect.value === '') {
                     // Auto-select the barangay from location step
                     deviceBarangaySelect.value = locationBarangayId;
-                    
                     // Trigger change event to update label visibility
                     const changeEvent = new Event('change', { bubbles: true });
                     deviceBarangaySelect.dispatchEvent(changeEvent);
-                    
                     // Also trigger input event for label visibility
                     const inputEvent = new Event('input', { bubbles: true });
                     deviceBarangaySelect.dispatchEvent(inputEvent);
                 }
+                // Ensure label is hidden after auto-select
+                setTimeout(function() {
+                    toggleLabelVisibility(deviceBarangaySelect);
+                }, 100);
             }
         }
     });
-
     // Email Verification Functions
     function sendEmailVerification() {
         const emailInput = document.getElementById('email');
         const email = emailInput.value.trim();
-        
+
         if (!email) {
             showErrorAlert('Please enter an email address first.');
             return;
         }
-        
+
         if (!isValidEmail(email)) {
             showErrorAlert('Please enter a valid email address.');
             return;
         }
-        
         // Show loading state
         const verifyBtn = document.getElementById('verify-email-btn');
         const btnText = document.getElementById('verify-btn-text');
-        
+
         verifyBtn.disabled = true;
         btnText.textContent = 'Sending...';
-        
         // Send verification request
         const formData = new FormData();
         formData.append('email', email);
-        
+
         fetch('send_verification_code.php', {
             method: 'POST',
             body: formData
@@ -2677,33 +3542,31 @@ if ($current_step_index === false) {
             btnText.textContent = 'Send Verification';
         });
     }
-    
+
     function verifyEmailCode() {
         const emailInput = document.getElementById('email');
         const codeInput = document.getElementById('verification-code');
         const email = emailInput.value.trim();
         const code = codeInput.value.trim();
-        
+
         if (!code) {
             showErrorAlert('Please enter the verification code.');
             return;
         }
-        
+
         if (!/^[0-9]{6}$/.test(code)) {
             showErrorAlert('Please enter a valid 6-digit verification code.');
             return;
         }
-        
         // Show loading state
         const verifyCodeBtn = document.getElementById('verify-code-btn-text');
-        
+
         verifyCodeBtn.textContent = 'Verifying...';
-        
         // Send verification request
         const formData = new FormData();
         formData.append('email', email);
         formData.append('verification_code', code);
-        
+
         fetch('verify_email_code.php', {
             method: 'POST',
             body: formData
@@ -2715,7 +3578,6 @@ if ($current_step_index === false) {
                 updateVerificationStatus('Email verified successfully! ✓', 'success');
                 markEmailAsVerified();
                 hideVerificationCodeSection();
-                
                 // Trigger validation update for email field
                 if (window.formValidator) {
                     setTimeout(() => {
@@ -2735,24 +3597,23 @@ if ($current_step_index === false) {
             verifyCodeBtn.textContent = 'Verify Code';
         });
     }
-    
+
     function showVerificationCodeSection() {
         const statusDiv = document.getElementById('email-verification-status');
         const codeSection = document.getElementById('verification-code-section');
-        
+
         statusDiv.style.display = 'block';
         codeSection.style.display = 'block';
-        
         // Focus on verification code input
         setTimeout(() => {
             document.getElementById('verification-code').focus();
         }, 500);
     }
-    
+
     function showVerificationCodeModal() {
         // Reset attempts counter when modal opens
         verificationAttempts = 0;
-        
+
         Swal.fire({
             title: 'Email Verification',
             html: `
@@ -2760,11 +3621,11 @@ if ($current_step_index === false) {
                     <i class="fas fa-envelope fa-3x mb-3" style="color: var(--primary-color);"></i>
                     <p class="mb-3">We've sent a 6-digit verification code to your email address.</p>
                     <p style="color: rgba(255, 255, 255, 0.7); margin-bottom: 1.5rem;">Please check your inbox and enter the code below:</p>
-                    <input type="text" 
-                           id="modal-verification-code" 
-                           class="form-control form-control-lg text-center" 
-                           placeholder="Enter 6-digit code" 
-                           maxlength="6" 
+                    <input type="text"
+                           id="modal-verification-code"
+                           class="form-control form-control-lg text-center"
+                           placeholder="Enter 6-digit code"
+                           maxlength="6"
                            pattern="[0-9]{6}"
                            style="font-size: 1.5rem; letter-spacing: 0.4rem; font-weight: 700; color: #ff5a4d; text-shadow: 0 0 3px rgba(255, 90, 77, 0.35); caret-color: #ff5a4d; background: rgba(255,255,255,0.92);">
                 </div>
@@ -2797,7 +3658,6 @@ if ($current_step_index === false) {
                 verificationAttempts = 0;
             }
         });
-        
         // Focus on the input field after modal opens
         setTimeout(() => {
             const input = document.getElementById('modal-verification-code');
@@ -2806,16 +3666,15 @@ if ($current_step_index === false) {
             }
         }, 300);
     }
-    
+
     function resendVerificationCode() {
         const emailInput = document.getElementById('email');
         const email = emailInput.value.trim();
-        
+
         if (!email) {
             showErrorAlert('Email address not found.');
             return;
         }
-        
         // Show loading state
         Swal.fire({
             title: 'Resending Code...',
@@ -2824,11 +3683,10 @@ if ($current_step_index === false) {
             showConfirmButton: false,
             willOpen: () => Swal.showLoading()
         });
-        
         // Send verification request
         const formData = new FormData();
         formData.append('email', email);
-        
+
         fetch('send_verification_code.php', {
             method: 'POST',
             body: formData
@@ -2862,7 +3720,6 @@ if ($current_step_index === false) {
             });
         });
     }
-    
     // Track verification attempts
     let verificationAttempts = 0;
     const maxAttempts = 3;
@@ -2870,7 +3727,6 @@ if ($current_step_index === false) {
     function verifyEmailCodeFromModal(code) {
         const emailInput = document.getElementById('email');
         const email = emailInput.value.trim();
-        
         // Show loading state
         Swal.fire({
             title: 'Verifying Code...',
@@ -2879,12 +3735,11 @@ if ($current_step_index === false) {
             showConfirmButton: false,
             willOpen: () => Swal.showLoading()
         });
-        
         // Send verification request
         const formData = new FormData();
         formData.append('email', email);
         formData.append('verification_code', code);
-        
+
         fetch('verify_email_code.php', {
             method: 'POST',
             body: formData
@@ -2902,7 +3757,6 @@ if ($current_step_index === false) {
                 }).then(() => {
                     markEmailAsVerified();
                     hideVerificationCodeSection();
-                    
                     // Trigger validation update for email field
                     if (window.formValidator) {
                         setTimeout(() => {
@@ -2917,7 +3771,7 @@ if ($current_step_index === false) {
                     data.message.includes('verification session expired') ||
                     data.message.includes('session not found')
                 );
-                
+
                 if (isSessionError) {
                     // Automatically close modal for session errors without showing additional message
                     Swal.close();
@@ -2926,7 +3780,7 @@ if ($current_step_index === false) {
                 } else {
                     verificationAttempts++;
                     const remainingAttempts = maxAttempts - verificationAttempts;
-                    
+
                     if (verificationAttempts >= maxAttempts) {
                         // Show error with close button after 3 failed attempts
                         Swal.fire({
@@ -2969,7 +3823,7 @@ if ($current_step_index === false) {
             console.error('Error:', error);
             verificationAttempts++;
             const remainingAttempts = maxAttempts - verificationAttempts;
-            
+
             if (verificationAttempts >= maxAttempts) {
                 // Show error with close button after 3 failed attempts
                 Swal.fire({
@@ -3003,33 +3857,31 @@ if ($current_step_index === false) {
             }
         });
     }
-    
+
     function hideVerificationCodeSection() {
         const codeSection = document.getElementById('verification-code-section');
         codeSection.style.display = 'none';
     }
-    
+
     function updateVerificationStatus(message, type) {
         const messageDiv = document.getElementById('verification-message');
         messageDiv.textContent = message;
         messageDiv.className = `alert alert-${type === 'success' ? 'success' : 'info'} mt-2`;
-        
         // Show verification status section when there's a message
         const statusDiv = document.getElementById('email-verification-status');
         if (statusDiv) {
             statusDiv.style.display = 'block';
         }
     }
-    
+
     function markEmailAsVerified() {
         const emailInput = document.getElementById('email');
         const verifyBtn = document.getElementById('verify-email-btn');
-        
+
         emailInput.setAttribute('data-verified', 'true');
         verifyBtn.disabled = true;
                     verifyBtn.innerHTML = '<span style="color: #fff;">✓ Verified</span>';
         verifyBtn.className = 'send-verification-btn verified';
-        
         // Update validation state for the email field
         if (window.formValidator) {
             window.formValidator.updateFieldValidationState('email', {
@@ -3038,29 +3890,26 @@ if ($current_step_index === false) {
             });
         }
     }
-    
+
     function isValidEmail(email) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
     }
-    
         // Check if email is already verified on page load
         document.addEventListener('DOMContentLoaded', function() {
             const emailInput = document.getElementById('email');
             if (emailInput && emailInput.getAttribute('data-verified') === 'true') {
                 markEmailAsVerified();
             }
-            
             // Auto-verify email when user enters a valid email (debounced)
             if (emailInput) {
                 let emailVerificationTimeout;
-                
+
                 emailInput.addEventListener('input', function() {
                     const email = this.value.trim();
-                    
                     // Clear previous timeout
                     clearTimeout(emailVerificationTimeout);
-                    
+
                     if (this.getAttribute('data-verified') === 'true') {
                         // Reset verification status when email changes
                         this.removeAttribute('data-verified');
@@ -3068,13 +3917,11 @@ if ($current_step_index === false) {
                         verifyBtn.disabled = false;
                         verifyBtn.innerHTML = '<i class="fas fa-paper-plane" style="margin-right: 0.5rem;"></i><span id="verify-btn-text">Send Verification</span>';
                         verifyBtn.className = 'send-verification-btn';
-                        
                         // Hide verification status
                         const statusDiv = document.getElementById('email-verification-status');
                         if (statusDiv) {
                             statusDiv.style.display = 'none';
                         }
-                        
                         // Update validation state to require verification again
                         if (window.formValidator) {
                             window.formValidator.updateFieldValidationState('email', {
@@ -3083,12 +3930,10 @@ if ($current_step_index === false) {
                             });
                         }
                     }
-                    
                     // Auto-verification disabled - user must click "Send Verification" button
                 });
             }
         });
-    
     // Hide validation report button on page load
     document.addEventListener('DOMContentLoaded', function() {
         // Hide any button that contains "Validation Report" or "📊" text
@@ -3099,13 +3944,11 @@ if ($current_step_index === false) {
                 button.style.display = 'none';
             }
         });
-        
         // Hide password strength indicators
         const passwordStrengthDiv = document.getElementById('password-strength');
         if (passwordStrengthDiv) {
             passwordStrengthDiv.style.display = 'none';
         }
-        
         // Hide password requirement text
         const passwordField = document.getElementById('password');
         if (passwordField) {
@@ -3115,18 +3958,15 @@ if ($current_step_index === false) {
             }
         }
     });
-
     // Text-to-Speech functionality for welcome card
     function speakWelcomeText() {
         const speechBtn = document.getElementById('welcome-speech-btn');
         const speechIcon = document.getElementById('speech-icon');
-        
         // Check if speech synthesis is supported
         if (!('speechSynthesis' in window)) {
             showErrorAlert('Text-to-speech is not supported by your browser.');
             return;
         }
-        
         // Stop any current speech
         if (speechSynthesis.speaking) {
             speechSynthesis.cancel();
@@ -3134,45 +3974,39 @@ if ($current_step_index === false) {
             speechBtn.style.background = 'rgba(255,255,255,0.2)';
             return;
         }
-        
         // Welcome text to be spoken
         const welcomeText = `Welcome to Fire Guard. Your trusted partner in fire safety and detection. Join our community of safety-conscious individuals and help protect what matters most. Our features include Advanced Fire Detection, Real-time Alerts, and Community Safety.`;
-        
         // Create speech utterance
         const speech = new SpeechSynthesisUtterance(welcomeText);
         speech.rate = 0.8; // Slightly slower for better clarity
         speech.pitch = 1.0;
         speech.volume = 0.9;
-        
         // Get available voices and set a preferred voice
         speechSynthesis.onvoiceschanged = function() {
             const voices = speechSynthesis.getVoices();
             // Try to find an English voice
-            const englishVoice = voices.find(voice => 
+            const englishVoice = voices.find(voice =>
                 voice.lang.startsWith('en') && voice.name.includes('Google')
-            ) || voices.find(voice => 
+            ) || voices.find(voice =>
                 voice.lang.startsWith('en')
             ) || voices[0];
-            
+
             if (englishVoice) {
                 speech.voice = englishVoice;
             }
         };
-        
         // Update button appearance when speaking starts
         speech.onstart = function() {
             speechIcon.className = 'fas fa-stop';
             speechBtn.style.background = 'rgba(255,255,255,0.4)';
             speechBtn.title = 'Stop speaking';
         };
-        
         // Update button appearance when speaking ends
         speech.onend = function() {
             speechIcon.className = 'fas fa-volume-up';
             speechBtn.style.background = 'rgba(255,255,255,0.2)';
             speechBtn.title = 'Listen to welcome message';
         };
-        
         // Handle speech errors
         speech.onerror = function(event) {
             console.error('Speech synthesis error:', event.error);
@@ -3181,7 +4015,6 @@ if ($current_step_index === false) {
             speechBtn.title = 'Listen to welcome message';
             showErrorAlert('Unable to play audio. Please check your browser settings.');
         };
-        
         // Start speaking
         speechSynthesis.speak(speech);
     }
@@ -3191,34 +4024,29 @@ if ($current_step_index === false) {
     document.addEventListener('DOMContentLoaded', function() {
         const currentStep = '<?php echo $step; ?>';
         const mapContainer = document.getElementById('map');
-        
+
         console.log('Current step:', currentStep);
         console.log('Map container:', mapContainer);
-        
+
         if (currentStep === 'location' && mapContainer) {
             console.log('Initializing map for location step...');
-            
             // Check if Leaflet is loaded
             if (typeof L === 'undefined') {
                 console.error('Leaflet library not loaded');
                 mapContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">Map library not loaded. Please refresh the page.</div>';
                 return;
             }
-            
             // Ensure map container is visible
             mapContainer.style.display = 'block';
             mapContainer.style.height = '500px';
             mapContainer.style.width = '100%';
-            
             // Default coordinates (Bago City center)
             let defaultLat = <?php echo isset($_SESSION['reg_data']['latitude']) ? $_SESSION['reg_data']['latitude'] : '10.538287286291448'; ?>;
             let defaultLng = <?php echo isset($_SESSION['reg_data']['longitude']) ? $_SESSION['reg_data']['longitude'] : '122.83583164244666'; ?>;
             let userLocated = false;
-
             // Dynamic geo-fences will be loaded from database
             let geoFences = [];
             let cityLayers = [];
-
             // Lightweight point-in-polygon check (ray casting)
             function pointInPolygon(lat, lng, polygonCoords) {
                 if (!Array.isArray(polygonCoords) || polygonCoords.length < 3) {
@@ -3240,17 +4068,15 @@ if ($current_step_index === false) {
                 }
                 return inside;
             }
-
             // Function to load geo-fences from database
             async function loadGeoFences() {
                 try {
                     const response = await fetch('get_geo_fences.php');
                     const data = await response.json();
-                    
+
                     if (data.success && data.fences.length > 0) {
                         geoFences = data.fences;
                         console.log('Loaded geo-fences:', geoFences);
-                        
                         // Create GeoJSON layers for each fence
                         geoFences.forEach((fence, index) => {
                             const geoJson = {
@@ -3265,7 +4091,7 @@ if ($current_step_index === false) {
                                     country_code: fence.country_code
                                 }
                             };
-                            
+
                             const layer = L.geoJSON(geoJson, {
                                 style: {
                                     color: 'transparent',
@@ -3275,25 +4101,24 @@ if ($current_step_index === false) {
                                     opacity: 0
                                 }
                             }).addTo(map);
-                            
+
                             cityLayers.push(layer);
                         });
-                        
                         // Update location requirements alert
-                        const allowedAreasElement = document.getElementById('allowed-areas');
-                        if (allowedAreasElement) {
+                        // Update sidebar with allowed areas
+                        const allowedAreasSidebar = document.getElementById('allowed-areas-sidebar');
+                        if (allowedAreasSidebar) {
                             const cityNames = geoFences.map(fence => fence.city_name).join(', ');
-                            allowedAreasElement.textContent = `•You must be within: ${cityNames}`;
+                            allowedAreasSidebar.textContent = cityNames;
                         }
-                        
+
                         return true;
                     } else {
                         console.error('Failed to load geo-fences:', data.message);
-                        const allowedAreasElement = document.getElementById('allowed-areas');
-                        if (allowedAreasElement) {
-                            allowedAreasElement.textContent = 'No active geo-fences configured. Registration is currently disabled.';
+                        const allowedAreasSidebar = document.getElementById('allowed-areas-sidebar');
+                        if (allowedAreasSidebar) {
+                            allowedAreasSidebar.textContent = 'No active geo-fences configured. Registration is currently disabled.';
                         }
-                        
                         // Disable the location form
                         const locationFormWrapper = document.getElementById('location-form');
                         if (locationFormWrapper) {
@@ -3313,7 +4138,7 @@ if ($current_step_index === false) {
                                 </div>
                             `;
                         }
-                        
+
                         showErrorAlert('No active geo-fences configured. Registration is currently disabled. Please contact support.');
                         return false;
                     }
@@ -3323,7 +4148,6 @@ if ($current_step_index === false) {
                     if (allowedAreasElement) {
                         allowedAreasElement.textContent = 'Error loading geo-fence data. Registration is currently disabled.';
                     }
-                    
                     // Disable the location form
                     const locationFormWrapper = document.getElementById('location-form');
                     if (locationFormWrapper) {
@@ -3343,12 +4167,11 @@ if ($current_step_index === false) {
                             </div>
                         `;
                     }
-                    
+
                     showErrorAlert('Error loading geo-fence data. Registration is currently disabled. Please contact support.');
                     return false;
                 }
             }
-
             // Create map with error handling
             let map;
             try {
@@ -3367,7 +4190,6 @@ if ($current_step_index === false) {
                 mapContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">Map loading failed. Please refresh the page.</div>';
                 return;
             }
-
             // Load geo-fences and initialize map
             loadGeoFences().then(loaded => {
                 if (!loaded) {
@@ -3392,18 +4214,17 @@ if ($current_step_index === false) {
                     .bindPopup("Your selected location").openPopup();
             }
             <?php endif; ?>
-
             // Point-in-polygon check using dynamic geo-fences
             function isPointInAnyFence(lat, lng) {
                 console.log('Testing point:', lat, lng);
                 console.log('Available geo-fences:', geoFences.length);
-                
+
                 if (geoFences.length === 0) {
                     console.warn('No geo-fences loaded - registration not allowed');
                     // No fallback: registration not allowed if no geo-fences are loaded
                     return { inFence: false, fence: null };
                 }
-                
+
                 for (let i = 0; i < geoFences.length; i++) {
                     const fence = geoFences[i];
                     if (pointInPolygon(lat, lng, fence.polygon)) {
@@ -3411,11 +4232,10 @@ if ($current_step_index === false) {
                         return { inFence: true, fence: fence };
                     }
                 }
-                
+
                 console.log('Point is not in any fence');
                 return { inFence: false, fence: null };
             }
-
             // Add this helper to enable/disable the Next button
             function setNextButtonEnabled(enabled) {
                 const nextBtn = document.querySelector('form[action=""] button[name="location_submit"]');
@@ -3423,24 +4243,20 @@ if ($current_step_index === false) {
                     nextBtn.disabled = !enabled;
                 }
             }
-
             // Initially disable Next button
             setNextButtonEnabled(false);
-
             // Add a loading spinner for reverse geocoding
             function showAddressLoading() {
                 document.getElementById('current-location-info').innerHTML = '<span style="color: #4dabf7;">Getting address...</span>';
             }
-
             // Function to validate address automatically
             function validateAddressFromInput() {
                 const addressField = document.getElementById('address');
                 const address = addressField.value.trim();
-                
+
                 if (address.length === 0) {
                     document.getElementById('current-location-info').innerHTML = '';
                     setNextButtonEnabled(false);
-                    
                     // Update form validator state for address field
                     if (window.formValidator) {
                         window.formValidator.updateFieldValidationState('address', {
@@ -3450,15 +4266,12 @@ if ($current_step_index === false) {
                     }
                     return;
                 }
-
                 // Show loading message with spinner
                 document.getElementById('current-location-info').innerHTML = '<span style="color: #4dabf7;"><i class="fas fa-spinner fa-spin"></i> Validating address...</span>';
                 setNextButtonEnabled(false);
-
                 // Create AbortController for timeout
                 const searchController = new AbortController();
                 const searchTimeoutId = setTimeout(() => searchController.abort(), 25000); // 25 second timeout
-
                 // Geocode the address to get coordinates
                 fetch(`address/nominatim_proxy.php?type=search&q=${encodeURIComponent(address)}&limit=1`, {
                     signal: searchController.signal
@@ -3477,14 +4290,12 @@ if ($current_step_index === false) {
                             const result = payload.data[0];
                             const lat = parseFloat(result.lat);
                             const lng = parseFloat(result.lon);
-                            
                             // Check if the location is within any allowed geo-fence
                             const fenceCheck = isPointInAnyFence(lat, lng);
                             if (fenceCheck.inFence) {
                                 // Update hidden fields
                                 document.getElementById('latitude').value = lat;
                                 document.getElementById('longitude').value = lng;
-                                
                                 // Update map marker
                                 if (marker) {
                                     marker.setLatLng([lat, lng]);
@@ -3492,19 +4303,16 @@ if ($current_step_index === false) {
                                     marker = L.marker([lat, lng]).addTo(map)
                                         .bindPopup("Validated address location").openPopup();
                                 }
-                                
                                 // Center map on the location
                                 map.setView([lat, lng], 17);
-                                
                                 // Show success message
-                                document.getElementById('current-location-info').innerHTML = 
+                                document.getElementById('current-location-info').innerHTML =
                                     `<span style="color: #51cf66;"><i class="fas fa-check-circle"></i> Address validated successfully!</span><br>
                                      <b>Location:</b> ${lat.toFixed(6)}, ${lng.toFixed(6)}<br>
                                      <b>Address:</b> ${result.display_name}<br>
                                      <small style="color: rgba(255, 255, 255, 0.7);">You can now proceed to the next step.</small>`;
-                                
+
                                 setNextButtonEnabled(true);
-                                
                                 // Update form validator state for address field
                                 if (window.formValidator) {
                                     window.formValidator.updateFieldValidationState('address', {
@@ -3512,10 +4320,8 @@ if ($current_step_index === false) {
                                         message: 'Address validated successfully'
                                     });
                                 }
-                                
                                 // Update all field validation states
                                 updateAllFieldValidationStates();
-                                
                                 // Show success toast
                                 Swal.fire({
                                     icon: 'success',
@@ -3526,14 +4332,12 @@ if ($current_step_index === false) {
                                 });
                             } else {
                                 // Location is outside allowed area
-                                document.getElementById('current-location-info').innerHTML = 
+                                document.getElementById('current-location-info').innerHTML =
                                     '<span style="color: #ff6b6b;"><i class="fas fa-times-circle"></i> Address is outside the allowed area. Registration is not allowed.</span>';
                                 setNextButtonEnabled(false);
-                                
                                 // Clear coordinates
                                 document.getElementById('latitude').value = '';
                                 document.getElementById('longitude').value = '';
-                                
                                 // Update form validator state for address field
                                 if (window.formValidator) {
                                     window.formValidator.updateFieldValidationState('address', {
@@ -3541,7 +4345,6 @@ if ($current_step_index === false) {
                                         message: 'Address is outside the allowed area'
                                     });
                                 }
-                                
                                 // Show error toast
                                 Swal.fire({
                                     icon: 'error',
@@ -3552,14 +4355,12 @@ if ($current_step_index === false) {
                             }
                         } else {
                             const message = payload.message || 'Address not found. Please check your address or select a location on the map.';
-                            document.getElementById('current-location-info').innerHTML = 
+                            document.getElementById('current-location-info').innerHTML =
                                 `<span style="color: #ffd43b;"><i class="fas fa-exclamation-triangle"></i> ${message}</span>`;
                             setNextButtonEnabled(false);
-                            
                             // Clear coordinates
                             document.getElementById('latitude').value = '';
                             document.getElementById('longitude').value = '';
-                            
                             // Update form validator state for address field
                             if (window.formValidator) {
                                 window.formValidator.updateFieldValidationState('address', {
@@ -3573,18 +4374,16 @@ if ($current_step_index === false) {
                         clearTimeout(searchTimeoutId);
                         console.error('Error validating address:', error);
                         let errorMessage = 'Error validating address. Please try again or select a location on the map.';
-                        
                         // Check for timeout
                         if (error.name === 'AbortError' || error.message.includes('timeout') || error.message.includes('timed out')) {
                             errorMessage = 'Address validation timed out. Please try again or select a location on the map.';
                         } else if (error.message && (error.message.includes('503') || error.message.includes('rate limit') || error.message.includes('unavailable'))) {
                             errorMessage = 'Geocoding service is temporarily unavailable. Please wait a moment and try again, or select a location on the map.';
                         }
-                        
-                        document.getElementById('current-location-info').innerHTML = 
+
+                        document.getElementById('current-location-info').innerHTML =
                             `<span style="color: #ff6b6b;"><i class="fas fa-times-circle"></i> ${errorMessage}</span>`;
                         setNextButtonEnabled(false);
-                        
                         // Update form validator state for address field
                         if (window.formValidator) {
                             window.formValidator.updateFieldValidationState('address', {
@@ -3592,13 +4391,11 @@ if ($current_step_index === false) {
                                 message: errorMessage
                             });
                         }
-                        
                         // Clear coordinates
                         document.getElementById('latitude').value = '';
                         document.getElementById('longitude').value = '';
                     });
             }
-
             // GEO-FENCING: Check location using dynamic geo-fences
             function checkCityAndSetFields(lat, lng, showToast = true) {
                 const fenceCheck = isPointInAnyFence(lat, lng);
@@ -3615,10 +4412,23 @@ if ($current_step_index === false) {
                     document.getElementById('latitude').value = '';
                     document.getElementById('longitude').value = '';
                     document.getElementById('address').value = '';
+                    
+                    // Show the label when address is cleared
+                    const addressField = document.getElementById('address');
+                    if (addressField) {
+                        const addressLabel = addressField.nextElementSibling;
+                        if (addressLabel && addressLabel.tagName === 'LABEL') {
+                            addressLabel.style.opacity = '1';
+                            addressLabel.style.visibility = 'visible';
+                        }
+                        // Reset textarea height
+                        addressField.style.height = 'auto';
+                        addressField.style.height = '70px';
+                    }
+                    
                     const allowedCities = geoFences.map(fence => fence.city_name).join(', ');
                     document.getElementById('current-location-info').innerHTML = `<span style="color: #ff6b6b;">Location is outside the allowed areas. Registration is only allowed within: ${allowedCities}</span>`;
                     setNextButtonEnabled(false);
-                    
                     // Update form validator state for address field
                     if (window.formValidator) {
                         window.formValidator.updateFieldValidationState('address', {
@@ -3630,11 +4440,9 @@ if ($current_step_index === false) {
                 }
                 // Show loading spinner
                 showAddressLoading();
-                
                 // Create AbortController for timeout
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second timeout
-                
                 // Always reverse geocode and display full address
                 fetch(`address/nominatim_proxy.php?type=reverse&lat=${lat}&lon=${lng}`, {
                     signal: controller.signal
@@ -3672,10 +4480,26 @@ if ($current_step_index === false) {
                         }
                         address = address.replace(/, $/, ''); // Remove trailing comma
                         document.getElementById('address').value = address || 'Address not found';
+                        
+                        // Immediately hide the label for the address field
+                        const addressField = document.getElementById('address');
+                        if (addressField) {
+                            const addressLabel = addressField.nextElementSibling;
+                            if (addressLabel && addressLabel.tagName === 'LABEL') {
+                                addressLabel.style.opacity = '0';
+                                addressLabel.style.visibility = 'hidden';
+                            }
+                            // Auto-resize textarea to fit content
+                            addressField.style.height = 'auto';
+                            addressField.style.height = Math.min(addressField.scrollHeight, 150) + 'px';
+                            // Trigger input event to ensure other handlers are notified
+                            const inputEvent = new Event('input', { bubbles: true });
+                            addressField.dispatchEvent(inputEvent);
+                        }
+                        
                         // Try to extract barangay-like value
                         if (data && data.address) {
                             extractedBarangay = data.address.barangay || data.address.suburb || data.address.neighbourhood || data.address.village || '';
-                            
                             // Clean the barangay name: remove redundant prefixes and suffixes
                             function cleanBarangayName(name) {
                                 if (!name) return '';
@@ -3687,7 +4511,7 @@ if ($current_step_index === false) {
                                 name = name.trim();
                                 return name;
                             }
-                            
+
                             const cleanedBarangay = cleanBarangayName(extractedBarangay);
                             const brgySelect = document.getElementById('barangay');
                             if (brgySelect && cleanedBarangay) {
@@ -3707,7 +4531,6 @@ if ($current_step_index === false) {
                                     opt.textContent = cleanedBarangay; // Display only clean name
                                     brgySelect.appendChild(opt);
                                     brgySelect.value = cleanedBarangay;
-                                    
                                     // Get barangay_id for the newly created barangay
                                     getBarangayId(cleanedBarangay);
                                 } else {
@@ -3719,7 +4542,6 @@ if ($current_step_index === false) {
                                         console.log('Barangay ID set to:', barangayId);
                                     }
                                 }
-                                
                                 // Validate barangay after auto-select with a small delay to ensure DOM is updated
                                 setTimeout(() => {
                                     if (typeof validateBarangaySelection === 'function') {
@@ -3731,7 +4553,6 @@ if ($current_step_index === false) {
                         document.getElementById('current-location-info').innerHTML =
                             `<b>Selected Location:</b> ${lat.toFixed(6)}, ${lng.toFixed(6)}<br><b>Full Address:</b> ${address}<br><small style="color: rgba(255, 255, 255, 0.7);">Address validation will be checked automatically...</small>`;
                         setNextButtonEnabled(!!address && address !== 'Address not found');
-                        
                         // Update form validator state for address field
                         if (window.formValidator && address && address !== 'Address not found') {
                             window.formValidator.updateFieldValidationState('address', {
@@ -3739,7 +4560,6 @@ if ($current_step_index === false) {
                                 message: 'Address validated successfully'
                             });
                         }
-                        
                         // Update all field validation states
                         updateAllFieldValidationStates();
                         if (showToast) {
@@ -3756,29 +4576,25 @@ if ($current_step_index === false) {
                     .catch(error => {
                         clearTimeout(timeoutId);
                         console.error('Error reverse geocoding:', error);
-                        
                         // Determine error message
                         let errorMessage = 'Unable to automatically get address from coordinates.';
                         let isTimeout = false;
-                        
+
                         if (error.name === 'AbortError' || error.message.includes('timeout') || error.message.includes('timed out')) {
                             errorMessage = 'Address lookup timed out. You can manually enter your address below.';
                             isTimeout = true;
                         } else if (error.message && (error.message.includes('503') || error.message.includes('rate limit') || error.message.includes('unavailable'))) {
                             errorMessage = 'Geocoding service is temporarily unavailable. You can manually enter your address below.';
                         }
-                        
                         // Show warning but allow user to proceed with manual address entry
                         const cityName = fenceCheck.fence ? fenceCheck.fence.city_name : 'allowed area';
-                        document.getElementById('current-location-info').innerHTML = 
+                        document.getElementById('current-location-info').innerHTML =
                             `<b>Selected Location:</b> ${lat.toFixed(6)}, ${lng.toFixed(6)}<br>` +
                             `<b>Status:</b> <span style="color: #ffa500;"><i class="fas fa-exclamation-triangle"></i> ${errorMessage}</span><br>` +
                             `<small style="color: rgba(255, 255, 255, 0.7);">You are inside ${cityName}. Please enter your address manually below.</small>`;
-                        
                         // Don't disable the next button - allow user to proceed with manual address entry
                         // The address field will be validated separately
                         setNextButtonEnabled(true);
-                        
                         // Update form validator state - mark as requiring manual entry
                         if (window.formValidator) {
                             window.formValidator.updateFieldValidationState('address', {
@@ -3786,7 +4602,6 @@ if ($current_step_index === false) {
                                 message: 'Please enter your address manually'
                             });
                         }
-                        
                         // Show a less intrusive notification
                         if (showToast && !isTimeout) {
                             Swal.fire({
@@ -3799,7 +4614,6 @@ if ($current_step_index === false) {
                         }
                     });
             }
-
             // On map click, place or move marker
             map.on('click', function(e) {
                 if (marker) {
@@ -3813,7 +4627,6 @@ if ($current_step_index === false) {
                 document.getElementById('longitude').value = e.latlng.lng;
                 checkCityAndSetFields(e.latlng.lat, e.latlng.lng, true);
             });
-
             // Geolocation logic as a function
             function locateUser(auto = false) {
                 if (navigator.geolocation) {
@@ -3852,20 +4665,31 @@ if ($current_step_index === false) {
                     setNextButtonEnabled(false);
                 }
             }
-            
             // Attach to button
             document.getElementById('get-location-btn').addEventListener('click', function() { locateUser(false); });
             // Automatically locate user on page load
             locateUser(true);
-            
             // Add event listener for automatic address validation
             const addressField = document.getElementById('address');
             if (addressField) {
+                // Auto-resize textarea to fit content without scrolling
+                function autoResizeTextarea() {
+                    addressField.style.height = 'auto';
+                    addressField.style.height = Math.min(addressField.scrollHeight, 150) + 'px';
+                }
+                
+                // Initial resize on page load
+                autoResizeTextarea();
+                
+                // Resize on input
+                addressField.addEventListener('input', function() {
+                    autoResizeTextarea();
+                });
+                
                 let validationTimeout;
                 addressField.addEventListener('input', function() {
                     // Clear previous timeout
                     clearTimeout(validationTimeout);
-                    
                     // Clear validation state when user starts typing
                     if (window.formValidator) {
                         window.formValidator.updateFieldValidationState('address', {
@@ -3873,19 +4697,16 @@ if ($current_step_index === false) {
                             message: 'Validating address...'
                         });
                     }
-                    
                     // Set a new timeout to validate after user stops typing for 1.5 seconds
                     validationTimeout = setTimeout(function() {
                         validateAddressFromInput();
                     }, 1500);
                 });
-                
                 // Also validate on blur (when user leaves the field)
                 addressField.addEventListener('blur', function() {
                     clearTimeout(validationTimeout);
                     validateAddressFromInput();
                 });
-                
                 // Add change event listener to trigger barangay validation when address changes
                 addressField.addEventListener('change', function() {
                     // Trigger barangay validation when address changes
@@ -3898,7 +4719,6 @@ if ($current_step_index === false) {
             }
         }
     });
-
     // SweetAlert for PHP feedback
     document.addEventListener('DOMContentLoaded', function() {
         <?php if ($success): ?>
@@ -3920,7 +4740,6 @@ if ($current_step_index === false) {
             <?php endforeach; ?>
         <?php endif; ?>
     });
-
     // Alert functions
     function showLoadingAlert(title = 'Processing...') {
         return Swal.fire({
@@ -3939,26 +4758,24 @@ if ($current_step_index === false) {
             speech.rate = 0.9; // Slightly slower for better clarity
             speech.pitch = 1.0;
             speech.volume = 0.8;
-            
             // Get available voices and set a preferred voice
             speechSynthesis.onvoiceschanged = function() {
                 const voices = speechSynthesis.getVoices();
                 // Try to find an English voice
-                const englishVoice = voices.find(voice => 
+                const englishVoice = voices.find(voice =>
                     voice.lang.startsWith('en') && voice.name.includes('Google')
-                ) || voices.find(voice => 
+                ) || voices.find(voice =>
                     voice.lang.startsWith('en')
                 ) || voices[0];
-                
+
                 if (englishVoice) {
                     speech.voice = englishVoice;
                 }
             };
-            
             // Speak the message
             speechSynthesis.speak(speech);
         }
-        
+
         return Swal.fire({
             title: title,
             text: message,
@@ -4001,45 +4818,38 @@ if ($current_step_index === false) {
             confirmButtonText: 'OK'
         });
     }
-
         // Function to update validation state for all fields
         function updateAllFieldValidationStates() {
             // Update address field validation state
             var addressField = $('#address');
             var latitudeField = $('#latitude');
             var longitudeField = $('#longitude');
-            
-            if (addressField.length && addressField.val().trim().length > 0 && 
+
+            if (addressField.length && addressField.val().trim().length > 0 &&
                 latitudeField.val() && longitudeField.val()) {
                 addressField.addClass('is-valid').removeClass('is-invalid');
-            } else if (addressField.length && addressField.val().trim().length > 0) {
-                addressField.addClass('is-invalid').removeClass('is-valid');
             }
-            
+            // Don't mark address as invalid on page load - let validation happen on submit
             // Update barangay field validation state
             var barangayField = $('#barangay');
             if (barangayField.length && barangayField.val().trim().length > 0) {
                 barangayField.addClass('is-valid').removeClass('is-invalid');
             }
-            
             // Update building type field validation state
             var buildingTypeField = $('#building_type');
             if (buildingTypeField.length && buildingTypeField.val().trim().length > 0) {
                 buildingTypeField.addClass('is-valid').removeClass('is-invalid');
             }
-            
             // Update building name field validation state
             var buildingNameField = $('#building_name');
             if (buildingNameField.length && buildingNameField.val().trim().length > 0) {
                 buildingNameField.addClass('is-valid').removeClass('is-invalid');
             }
         }
-
         // Real-time AJAX validation for registration fields
         $(document).ready(function() {
             // Update validation states on page load
             updateAllFieldValidationStates();
-            
             // Initialize date picker for birthdate field
             flatpickr("#birthdate", {
                 dateFormat: "Y-m-d",
@@ -4054,7 +4864,6 @@ if ($current_step_index === false) {
                     validateBirthdate();
                 }
             });
-        
         // Debounce function to limit API calls
         function debounce(func, wait) {
             let timeout;
@@ -4067,7 +4876,6 @@ if ($current_step_index === false) {
                 timeout = setTimeout(later, wait);
             };
         }
-        
         // Building name validation
         const validateBuildingName = debounce(function() {
             const building_name = $('#building_name').val().trim();
@@ -4076,9 +4884,8 @@ if ($current_step_index === false) {
                 showFeedback($('#building_name'), data.valid, data.message);
             }, 'json');
         }, 500);
-        
+
         $('#building_name').on('blur input', validateBuildingName);
-        
         // Device validation functions
         const validateDeviceNumber = debounce(function() {
             const device_number = $('#device_number').val().trim();
@@ -4093,16 +4900,16 @@ if ($current_step_index === false) {
                 }
             }, 'json');
         }, 500);
-        
+
         const validateSerialNumber = debounce(function() {
             const serial_number = $('#serial_number').val().trim();
             const device_number = $('#device_number').val().trim();
             const admin_device_id = $('#device_number').attr('data-admin-device-id');
-            
+
             if (serial_number.length === 0) return;
-            
+
             $.post('ajax_validate.php', {
-                type: 'serial_number', 
+                type: 'serial_number',
                 serial_number: serial_number,
                 device_number: device_number,
                 admin_device_id: admin_device_id
@@ -4110,15 +4917,13 @@ if ($current_step_index === false) {
                 showFeedback($('#serial_number'), data.valid, data.message);
             }, 'json');
         }, 500);
-        
         // Attach device validation to input events
         $('#device_number').on('blur input', validateDeviceNumber);
         $('#serial_number').on('blur input', validateSerialNumber);
-
         // Function to get barangay_id from barangay name
         function getBarangayId(barangayName) {
             if (!barangayName) return;
-            
+
             fetch('get_barangay_id.php', {
                 method: 'POST',
                 headers: {
@@ -4139,7 +4944,6 @@ if ($current_step_index === false) {
                 console.error('Error getting barangay_id:', error);
             });
         }
-
         // Barangay validation: must not be empty and must match full address
         window.validateBarangaySelection = debounce(function() {
             const brgyEl = $('#barangay');
@@ -4162,7 +4966,6 @@ if ($current_step_index === false) {
             showFeedback(brgyEl, valid, message);
             return valid;
         }, 300);
-
         // Clean existing barangay option text on page load (in case page was cached)
         function cleanExistingBarangayOptions() {
             const brgySelect = document.getElementById('barangay');
@@ -4174,7 +4977,7 @@ if ($current_step_index === false) {
                     name = name.trim();
                     return name;
                 }
-                
+
                 for (let i = 0; i < brgySelect.options.length; i++) {
                     const option = brgySelect.options[i];
                     if (option.value && option.value !== '') {
@@ -4186,14 +4989,13 @@ if ($current_step_index === false) {
                 }
             }
         }
-        
         // Clean options on page load
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', cleanExistingBarangayOptions);
         } else {
             cleanExistingBarangayOptions();
         }
-        
+
         $('#barangay').on('change blur', function(){
             // Get barangay_id when user manually selects a barangay
             const selectedOption = $(this).find('option:selected');
@@ -4202,7 +5004,6 @@ if ($current_step_index === false) {
                 document.getElementById('barangay_id').value = barangayId;
                 console.log('Barangay ID set to:', barangayId);
             }
-            
             // Validate barangay selection after a small delay to ensure DOM is updated
             setTimeout(() => {
                 if (typeof window.validateBarangaySelection === 'function') {
@@ -4212,49 +5013,40 @@ if ($current_step_index === false) {
                 updateAllFieldValidationStates();
             }, 50);
         });
-        
         // Add event listeners for building type and building name fields
         $('#building_type').on('change blur', function(){
             updateAllFieldValidationStates();
         });
-        
+
         $('#building_name').on('input blur', function(){
             updateAllFieldValidationStates();
         });
-        
         // Add event listener for address field changes
         $('#address').on('input blur', function(){
             updateAllFieldValidationStates();
         });
-        
         // Feedback function for validation
         function showFeedback(element, isValid, message) {
             element.removeClass('is-valid is-invalid');
             element.addClass(isValid ? 'is-valid' : 'is-invalid');
-            
             // Remove existing feedback
             element.siblings('.valid-feedback, .invalid-feedback').remove();
-            
             // Add new feedback
             const feedbackClass = isValid ? 'valid-feedback' : 'invalid-feedback';
             element.after(`<div class="${feedbackClass}">${message}</div>`);
         }
-        
         // Show/hide password toggle
         $('#showPasswordCheck').on('change', function() {
             var type = $(this).is(':checked') ? 'text' : 'password';
             $('#password, #confirm_password').attr('type', type);
         });
-        
         // Auto-format contact number
         $('#contact').on('input', function() {
             var value = $(this).val().replace(/\D/g, '');
-            
             // Remove any existing formatting
             if (value.startsWith('63')) {
                 value = value.substring(2);
             }
-            
             // Ensure it starts with 09
             if (value.length > 0) {
                 if (value.startsWith('09')) {
@@ -4276,17 +5068,13 @@ if ($current_step_index === false) {
                     }
                 }
             }
-            
+
             $(this).val(value);
         });
-        
-
-        
         // Form validation function
         function validateFormSubmission(step) {
             let isValid = true;
             let errorMessages = [];
-            
             // Get the form for the current step
             let form;
             switch(step) {
@@ -4305,16 +5093,6 @@ if ($current_step_index === false) {
                 default:
                     form = $('form');
             }
-            
-            // Check for validation errors
-            form.find('.is-invalid').each(function() {
-                isValid = false;
-                var errorText = $(this).next('.invalid-feedback').text();
-                if (errorText) {
-                    errorMessages.push(errorText);
-                }
-            });
-            
             // Special validation for location step
             if (step === 'location') {
                 var addressField = $('#address');
@@ -4323,7 +5101,6 @@ if ($current_step_index === false) {
                 var buildingNameField = $('#building_name');
                 var latitudeField = $('#latitude');
                 var longitudeField = $('#longitude');
-                
                 // Validate address field
                 if (addressField.length && addressField.val().trim().length === 0) {
                     isValid = false;
@@ -4332,7 +5109,6 @@ if ($current_step_index === false) {
                 } else if (addressField.length && addressField.val().trim().length > 0) {
                     addressField.addClass('is-valid').removeClass('is-invalid');
                 }
-                
                 // Validate barangay field
                 if (barangayField.length && barangayField.val().trim().length === 0) {
                     isValid = false;
@@ -4341,9 +5117,8 @@ if ($current_step_index === false) {
                 } else if (barangayField.length && barangayField.val().trim().length > 0) {
                     barangayField.addClass('is-valid').removeClass('is-invalid');
                 }
-                
                 // Barangay must appear in full address (whole-word, case-insensitive)
-                if (addressField.length && barangayField.length && 
+                if (addressField.length && barangayField.length &&
                     addressField.val().trim().length > 0 && barangayField.val().trim().length > 0) {
                     var addr = (addressField.val() || '').toLowerCase().replace(/[\s,]+/g, ' ');
                     var brgy = (barangayField.val() || '').toLowerCase().trim();
@@ -4356,7 +5131,6 @@ if ($current_step_index === false) {
                         barangayField.addClass('is-valid').removeClass('is-invalid');
                     }
                 }
-                
                 // Validate building type field
                 if (buildingTypeField.length && buildingTypeField.val().trim().length === 0) {
                     isValid = false;
@@ -4365,7 +5139,6 @@ if ($current_step_index === false) {
                 } else if (buildingTypeField.length && buildingTypeField.val().trim().length > 0) {
                     buildingTypeField.addClass('is-valid').removeClass('is-invalid');
                 }
-                
                 // Validate building name field
                 if (buildingNameField.length && buildingNameField.val().trim().length === 0) {
                     isValid = false;
@@ -4374,30 +5147,27 @@ if ($current_step_index === false) {
                 } else if (buildingNameField.length && buildingNameField.val().trim().length > 0) {
                     buildingNameField.addClass('is-valid').removeClass('is-invalid');
                 }
-                
                 // Check if address has been automatically validated (coordinates are set)
-                if (addressField.length && addressField.val().trim().length > 0 && 
+                if (addressField.length && addressField.val().trim().length > 0 &&
                     (!latitudeField.val() || !longitudeField.val())) {
                     // Address is entered but coordinates are not set (not validated)
                     isValid = false;
                     errorMessages.push('Please wait for address validation to complete or select a location on the map.');
                     addressField.addClass('is-invalid').removeClass('is-valid');
-                } else if (addressField.length && addressField.val().trim().length > 0 && 
+                } else if (addressField.length && addressField.val().trim().length > 0 &&
                           latitudeField.val() && longitudeField.val()) {
                     addressField.addClass('is-valid').removeClass('is-invalid');
                 }
-                
                 // Ensure barangay field shows feedback now
                 if (typeof window.validateBarangaySelection === 'function') {
                     window.validateBarangaySelection();
                 }
             }
-            
             // Special validation for device step
             if (step === 'device') {
                 var deviceNumberField = $('#device_number');
                 var serialNumberField = $('#serial_number');
-                
+
                 if (deviceNumberField.length && deviceNumberField.val().trim().length === 0) {
                     isValid = false;
                     errorMessages.push('Device number is required.');
@@ -4405,7 +5175,7 @@ if ($current_step_index === false) {
                     isValid = false;
                     errorMessages.push('Please enter a valid device number.');
                 }
-                
+
                 if (serialNumberField.length && serialNumberField.val().trim().length === 0) {
                     isValid = false;
                     errorMessages.push('Serial number is required.');
@@ -4413,45 +5183,40 @@ if ($current_step_index === false) {
                     isValid = false;
                     errorMessages.push('Please enter a valid serial number.');
                 }
-                
                 // Check if both fields are valid
-                if (deviceNumberField.length && serialNumberField.length && 
+                if (deviceNumberField.length && serialNumberField.length &&
                     deviceNumberField.hasClass('is-valid') && serialNumberField.hasClass('is-valid')) {
                     // Both fields are valid, allow submission
-                } else if (deviceNumberField.length && serialNumberField.length && 
+                } else if (deviceNumberField.length && serialNumberField.length &&
                           deviceNumberField.val().trim().length > 0 && serialNumberField.val().trim().length > 0) {
                     isValid = false;
                     errorMessages.push('Please ensure both device number and serial number are valid before proceeding.');
                 }
             }
-            
+            // After all validation updates, check for any remaining invalid fields
+            form.find('.is-invalid').each(function() {
+                isValid = false;
+                var errorText = $(this).next('.invalid-feedback').text();
+                if (errorText && errorMessages.indexOf(errorText) === -1) {
+                    errorMessages.push(errorText);
+                }
+            });
+
             if (!isValid && errorMessages.length > 0) {
                 showFormValidationError(errorMessages);
                 return false;
             }
-            
+
             return true;
         }
-        
         // Form submission with proper error handling
         $('form').on('submit', function(e) {
             var form = $(this);
             var submitButton = form.find('button[type="submit"]');
             var buttonName = submitButton.attr('name');
-            
-            // Check for validation errors before submitting
+            // Initialize validation tracking
             var hasErrors = false;
             var errorMessages = [];
-            
-            form.find('.is-invalid').each(function() {
-                hasErrors = true;
-                var fieldName = $(this).attr('name');
-                var errorText = $(this).next('.invalid-feedback').text();
-                if (errorText) {
-                    errorMessages.push(errorText);
-                }
-            });
-            
             // Special check for address field - only on location step
             if (buttonName === 'location_submit') {
                 var addressField = $('#address');
@@ -4460,7 +5225,6 @@ if ($current_step_index === false) {
                 var buildingNameField = $('#building_name');
                 var latitudeField = $('#latitude');
                 var longitudeField = $('#longitude');
-                
                 // Check address field
                 if (addressField.length && addressField.val().trim().length === 0) {
                     hasErrors = true;
@@ -4469,7 +5233,6 @@ if ($current_step_index === false) {
                 } else if (addressField.length && addressField.val().trim().length > 0) {
                     addressField.addClass('is-valid').removeClass('is-invalid');
                 }
-                
                 // Check barangay field
                 if (barangayField.length && barangayField.val().trim().length === 0) {
                     hasErrors = true;
@@ -4478,7 +5241,6 @@ if ($current_step_index === false) {
                 } else if (barangayField.length && barangayField.val().trim().length > 0) {
                     barangayField.addClass('is-valid').removeClass('is-invalid');
                 }
-                
                 // Check building type field
                 if (buildingTypeField.length && buildingTypeField.val().trim().length === 0) {
                     hasErrors = true;
@@ -4487,29 +5249,26 @@ if ($current_step_index === false) {
                 } else if (buildingTypeField.length && buildingTypeField.val().trim().length > 0) {
                     buildingTypeField.addClass('is-valid').removeClass('is-invalid');
                 }
-                
                 // Check building name field
                 if (buildingNameField.length && buildingNameField.val().trim().length === 0) {
                     hasErrors = true;
                     errorMessages.push('Building name is required.');
                     buildingNameField.addClass('is-invalid').removeClass('is-valid');
                 } else if (buildingNameField.length && buildingNameField.val().trim().length > 0) {
-                    buildingNameField.addClass('is-valid').removeClass('is-valid');
+                    buildingNameField.addClass('is-valid').removeClass('is-invalid');
                 }
-                
                 // Check if address has been validated (coordinates are set)
-                if (addressField.length && addressField.val().trim().length > 0 && 
+                if (addressField.length && addressField.val().trim().length > 0 &&
                     (!latitudeField.val() || !longitudeField.val())) {
                     hasErrors = true;
                     errorMessages.push('Please wait for address validation to complete or select a location on the map.');
                     addressField.addClass('is-invalid').removeClass('is-valid');
-                } else if (addressField.length && addressField.val().trim().length > 0 && 
+                } else if (addressField.length && addressField.val().trim().length > 0 &&
                           latitudeField.val() && longitudeField.val()) {
                     addressField.addClass('is-valid').removeClass('is-invalid');
                 }
-                
                 // Validate barangay matches address
-                if (addressField.length && barangayField.length && 
+                if (addressField.length && barangayField.length &&
                     addressField.val().trim().length > 0 && barangayField.val().trim().length > 0) {
                     var addr = (addressField.val() || '').toLowerCase().replace(/[\s,]+/g, ' ');
                     var brgy = (barangayField.val() || '').toLowerCase().trim();
@@ -4523,7 +5282,16 @@ if ($current_step_index === false) {
                     }
                 }
             }
-            
+            // After all validation updates, check for any remaining invalid fields
+            form.find('.is-invalid').each(function() {
+                hasErrors = true;
+                var fieldName = $(this).attr('name');
+                var errorText = $(this).next('.invalid-feedback').text();
+                if (errorText && errorMessages.indexOf(errorText) === -1) {
+                    errorMessages.push(errorText);
+                }
+            });
+
             if (hasErrors) {
                 e.preventDefault();
                 if (errorMessages.length > 0) {
@@ -4533,7 +5301,6 @@ if ($current_step_index === false) {
                 }
                 return false;
             }
-            
             // Show appropriate loading message based on the step
             var loadingMessage = 'Processing...';
             if (buttonName === 'personal_info_submit') {
@@ -4545,16 +5312,13 @@ if ($current_step_index === false) {
             } else if (buttonName === 'credentials_submit') {
                 loadingMessage = 'Processing Registration...';
             }
-            
             // Show loading alert
             var loadingAlert = showLoadingAlert(loadingMessage);
-            
             // Set a timeout to handle cases where the form submission takes too long
             var timeoutId = setTimeout(function() {
                 loadingAlert.close();
                 showTimeoutError('Request timed out. Please try again.');
             }, 30000); // 30 seconds timeout
-            
             // For regular form submissions (non-AJAX), the page will reload
             // The loading alert will be closed when the page reloads
             // If there's an error, the page will reload with error parameters

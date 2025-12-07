@@ -942,8 +942,9 @@ if (!$headerLoaded) {
         <i class="fas fa-volume-mute"></i>
         <span>Audio: Disabled</span>
                     </div>
-    
-    <!-- Debug Panel (only visible in development) -->
+
+    <?php if (!$isProduction): ?>
+    <!-- Debug Panel (development only) -->
     <div id="debugPanel" style="position: fixed; top: 8px; left: 8px; background: rgba(0,0,0,0.8); color: white; padding: 8px; border-radius: 4px; font-size: 11px; z-index: 9999; display: none;">
         <h4 style="margin: 0 0 6px 0; font-size: 12px;">Debug Info</h4>
         <div style="margin: 2px 0;">Connection: <span id="wsStatus">Polling</span></div>
@@ -965,15 +966,19 @@ if (!$headerLoaded) {
         <button onclick="document.getElementById('debugPanel').style.display='none'" style="margin: 3px; padding: 3px; font-size: 10px;">Hide</button>
     </div>
 
-    <!-- Show debug panel with Ctrl+Shift+D -->
+    <!-- Show debug panel with Ctrl+Shift+D (development only) -->
     <script>
         document.addEventListener('keydown', function(e) {
             if (e.ctrlKey && e.shiftKey && e.key === 'D') {
-                document.getElementById('debugPanel').style.display = 'block';
+                var panel = document.getElementById('debugPanel');
+                if (panel) {
+                    panel.style.display = 'block';
+                }
             }
         });
     </script>
-    
+    <?php endif; ?>
+
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         // Constants

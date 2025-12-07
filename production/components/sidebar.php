@@ -30,13 +30,12 @@
         <ul class="nav child_menu">
           <li><a href="../../barangay_reports/php/reports.php">Barangay Reports Dashboard</a></li>
           <li><a href="../../spot/php/index.php">Create Reports</a></li>
-          <li><a href="../../spot/php/final_reports.php">Final Reports</a></li>
         </ul>
       </li>
       <li><a><i class="fa fa-table"></i> Tables <span class="fa fa-chevron-down"></span></a>
         <ul class="nav child_menu">
           <li><a href="../../buildingtable/php/main.php">Buildings</a></li>
-          <li><a href="../../alarmtable/php/index.php">Alarms</a></li>
+          <li><a href="../../alarmtables/php/main.php">Alarms</a></li>
           <li><a href="../../response/php/index.php">Responses</a></li>
           <li><a href="../../usertable/php/index.php">Users</a></li>
           <li><a href="../../firefightertable/php/index.php">Firefighters</a></li>

@@ -23,8 +23,11 @@ if (!function_exists('getDatabaseConnection')) {
     }
 }
 
-// Get the requested action
-$action = $_REQUEST['action'] ?? '';
+// Load input sanitizer
+require_once __DIR__ . '/../../../core/security/input_sanitizer.php';
+
+// Get the requested action - sanitized
+$action = sanitizeString($_REQUEST['action'] ?? '');
 
 try {
     $conn = getDatabaseConnection();
@@ -56,9 +59,9 @@ try {
             break;
             
         case 'saveFence':
-            $cityName = isset($_POST['city_name']) ? trim($_POST['city_name']) : '';
-            $countryCode = isset($_POST['country_code']) ? strtoupper(trim($_POST['country_code'])) : '';
-            $isActiveRaw = $_POST['is_active'] ?? 1;
+            $cityName = sanitizeString($_POST['city_name'] ?? '');
+            $countryCode = strtoupper(sanitizeString($_POST['country_code'] ?? ''));
+            $isActiveRaw = sanitizeInt($_POST['is_active'] ?? 1);
             $polygon = isset($_POST['polygon']) ? json_decode($_POST['polygon'], true) : null;
 
             // Basic validation
@@ -137,10 +140,10 @@ try {
             break;
         
         case 'updateFence':
-            $id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
-            $cityName = isset($_POST['city_name']) ? trim($_POST['city_name']) : '';
-            $countryCode = isset($_POST['country_code']) ? strtoupper(trim($_POST['country_code'])) : '';
-            $isActiveRaw = $_POST['is_active'] ?? 1;
+            $id = sanitizeInt($_POST['id'] ?? 0);
+            $cityName = sanitizeString($_POST['city_name'] ?? '');
+            $countryCode = strtoupper(sanitizeString($_POST['country_code'] ?? ''));
+            $isActiveRaw = sanitizeInt($_POST['is_active'] ?? 1);
             $polygon = isset($_POST['polygon']) ? json_decode($_POST['polygon'], true) : null;
 
             if ($id <= 0) { echo json_encode(['success' => false, 'message' => 'Invalid ID']); break; }
@@ -196,7 +199,7 @@ try {
             break;
             
         case 'deleteFence':
-            $id = $_POST['id'];
+            $id = sanitizeInt($_POST['id'] ?? 0);
             
             $stmt = $conn->prepare("DELETE FROM geo_fences WHERE id = ?");
             $success = $stmt->execute([$id]);

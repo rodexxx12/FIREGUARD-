@@ -1,7 +1,4 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
 include('../../../db/db.php');
 
 define('BASE_URL', 'http://localhost/FireDetectionSystem'); // Adjust to your base URL

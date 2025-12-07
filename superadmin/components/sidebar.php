@@ -20,7 +20,6 @@
     <ul class="nav side-menu">
       <li><a><i class="fa fa-home"></i> Home <span class="fa fa-chevron-down"></span></a>
         <ul class="nav child_menu">
-          <li><a href="../../statistics/php/index.php">Statistics Dashboard</a></li>
           <li><a href="../../device/php/device.php">Add New Device</a></li>
           <li><a href="../../admintable/php/main.php">Admin Table</a></li>
           <li><a href="../../fence/php/main.php">Add New Area</a></li>

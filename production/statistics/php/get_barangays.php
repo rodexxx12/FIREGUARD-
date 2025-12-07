@@ -1,8 +1,10 @@
 <?php
-// Suppress error output for JSON responses
-ini_set('display_errors', 0);
+// Environment-aware error handling for JSON responses
+$isProduction = (getenv('APP_ENV') === 'production');
+$debugMode = filter_var(getenv('APP_DEBUG') ?? '0', FILTER_VALIDATE_BOOLEAN);
 error_reporting(E_ALL);
-ini_set('log_errors', 1);
+ini_set('display_errors', ($isProduction && !$debugMode) ? '0' : '1');
+ini_set('log_errors', '1');
 
 // Start output buffering to catch any accidental output
 if (!ob_get_level()) {
@@ -42,22 +44,25 @@ try {
                 id, 
                 barangay_name,
                 latitude,
-                longitude,
-                ir_number
+                longitude
             FROM barangay 
             ORDER BY barangay_name ASC";
     
     $barangays = DatabaseUtils::executeQuery($sql, []);
     
+    // Ensure results is an array
+    if (!is_array($barangays)) {
+        $barangays = [];
+    }
+    
     // Format the response to match expected structure
     $formattedBarangays = [];
     foreach ($barangays as $barangay) {
         $formattedBarangays[] = [
-            'id' => $barangay['id'],
-            'barangay_name' => $barangay['barangay_name'],
+            'id' => (int)($barangay['id'] ?? 0),
+            'barangay_name' => $barangay['barangay_name'] ?? 'Unknown',
             'latitude' => $barangay['latitude'] ?? null,
-            'longitude' => $barangay['longitude'] ?? null,
-            'ir_number' => $barangay['ir_number'] ?? null
+            'longitude' => $barangay['longitude'] ?? null
         ];
     }
     

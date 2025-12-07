@@ -7,7 +7,8 @@ try {
     $pdo = getDatabaseConnection();
     
     // Get total logs
-    $stmt = $pdo->query("SELECT COUNT(*) as total FROM system_logs");
+    $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM system_logs");
+    $stmt->execute();
     $totalLogs = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
 
     // Get logs by level
@@ -21,30 +22,33 @@ try {
     $recentLogs = $stmt->fetch(PDO::FETCH_ASSOC)['recent'];
 
     // Get fire detection count
-    $stmt = $pdo->query("SELECT COUNT(*) as fire_count FROM system_logs WHERE fire_detected = 1");
+    $stmt = $pdo->prepare("SELECT COUNT(*) as fire_count FROM system_logs WHERE fire_detected = 1");
+    $stmt->execute();
     $fireDetections = $stmt->fetch(PDO::FETCH_ASSOC)['fire_count'];
 
     // Get log level distribution
-    $stmt = $pdo->query("
+    $stmt = $pdo->prepare("
         SELECT log_level, COUNT(*) as count 
         FROM system_logs 
         GROUP BY log_level
         ORDER BY log_level
     ");
+    $stmt->execute();
     $logLevelDistribution = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Get event type distribution
-    $stmt = $pdo->query("
+    $stmt = $pdo->prepare("
         SELECT event_type, COUNT(*) as count 
         FROM system_logs 
         GROUP BY event_type
         ORDER BY count DESC
         LIMIT 10
     ");
+    $stmt->execute();
     $eventTypeDistribution = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Get log trend (last 6 months)
-    $stmt = $pdo->query("
+    $stmt = $pdo->prepare("
         SELECT 
             DATE_FORMAT(created_at, '%Y-%m') as month,
             COUNT(*) as count
@@ -53,10 +57,12 @@ try {
         GROUP BY month
         ORDER BY month
     ");
+    $stmt->execute();
     $logTrend = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Get unique locations
-    $stmt = $pdo->query("SELECT COUNT(DISTINCT location) as unique_locations FROM system_logs WHERE location IS NOT NULL");
+    $stmt = $pdo->prepare("SELECT COUNT(DISTINCT location) as unique_locations FROM system_logs WHERE location IS NOT NULL");
+    $stmt->execute();
     $uniqueLocations = $stmt->fetch(PDO::FETCH_ASSOC)['unique_locations'];
 
     echo json_encode([

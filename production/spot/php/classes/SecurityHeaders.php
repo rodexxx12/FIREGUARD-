@@ -41,3 +41,19 @@ class SecurityHeaders {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

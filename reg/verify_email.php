@@ -15,10 +15,66 @@ if ($email && $token) {
         } elseif (strtotime($user['verification_expiry']) < time()) {
             $message = 'Verification link has expired.';
         } else {
-            $update = $conn->prepare("UPDATE users SET email_verified=1, status='Active', email_verification_token=NULL, verification_expiry=NULL WHERE user_id=?");
-            $update->execute([$user['user_id']]);
-            $message = 'Your account has been verified! You can now log in.';
-            $verified = true;
+            // Begin transaction to update user and insert pending data
+            $conn->beginTransaction();
+            try {
+                // Update user verification status
+                $update = $conn->prepare("UPDATE users SET email_verified=1, status='Active', email_verification_token=NULL, verification_expiry=NULL WHERE user_id=?");
+                $update->execute([$user['user_id']]);
+                
+                // Check for pending device and building data
+                $pendingStmt = $conn->prepare("SELECT pending_data FROM pending_registrations WHERE user_id = ?");
+                $pendingStmt->execute([$user['user_id']]);
+                $pendingRow = $pendingStmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($pendingRow && !empty($pendingRow['pending_data'])) {
+                    $pendingData = json_decode($pendingRow['pending_data'], true);
+                    
+                    // Insert device if data exists
+                    if (!empty($pendingData['device'])) {
+                        $deviceData = $pendingData['device'];
+                        $deviceStmt = $conn->prepare("INSERT INTO devices (user_id, device_name, device_number, serial_number, barangay_id, is_active, status) VALUES (?, ?, ?, ?, ?, 1, 'offline')");
+                        $deviceStmt->execute([
+                            $user['user_id'],
+                            $deviceData['device_name'] ?? 'User Device',
+                            $deviceData['device_number'] ?? null,
+                            $deviceData['serial_number'] ?? null,
+                            $deviceData['barangay_id'] ?? null
+                        ]);
+                        error_log("Device inserted for user_id: " . $user['user_id']);
+                    }
+                    
+                    // Insert building if data exists
+                    if (!empty($pendingData['building'])) {
+                        $buildingData = $pendingData['building'];
+                        $buildingStmt = $conn->prepare("INSERT INTO buildings (user_id, barangay_id, building_name, building_type, address, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                        $buildingStmt->execute([
+                            $user['user_id'],
+                            $buildingData['barangay_id'] ?? null,
+                            $buildingData['building_name'] ?? null,
+                            $buildingData['building_type'] ?? null,
+                            $buildingData['address'] ?? null,
+                            $buildingData['latitude'] ?? null,
+                            $buildingData['longitude'] ?? null
+                        ]);
+                        error_log("Building inserted for user_id: " . $user['user_id']);
+                    }
+                    
+                    // Delete pending registration data
+                    $deleteStmt = $conn->prepare("DELETE FROM pending_registrations WHERE user_id = ?");
+                    $deleteStmt->execute([$user['user_id']]);
+                }
+                
+                $conn->commit();
+                $message = 'Your account has been verified! You can now log in.';
+                $verified = true;
+                
+            } catch (Exception $e) {
+                $conn->rollBack();
+                error_log("Verification error: " . $e->getMessage());
+                $message = 'Verification completed but there was an issue setting up your account. Please contact support.';
+                $verified = false;
+            }
         }
     } else {
         $message = 'Invalid verification link.';

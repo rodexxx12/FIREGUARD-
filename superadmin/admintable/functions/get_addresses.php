@@ -6,7 +6,8 @@ header('Content-Type: application/json');
 
 try {
     // Fetch unique addresses from the database
-    $stmt = $pdo->query("SELECT DISTINCT address FROM users WHERE address IS NOT NULL AND address != '' ORDER BY address ASC");
+    $stmt = $pdo->prepare("SELECT DISTINCT address FROM users WHERE address IS NOT NULL AND address != '' ORDER BY address ASC");
+    $stmt->execute();
     $addresses = $stmt->fetchAll(PDO::FETCH_COLUMN);
     
     // Format addresses for better display

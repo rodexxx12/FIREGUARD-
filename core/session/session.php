@@ -13,8 +13,11 @@
  */
 
 // Load configuration
-if (!defined('SESSION_LIFETIME')) {
+if (!function_exists('config')) {
     require_once __DIR__ . '/../config/config.php';
+}
+if (!defined('SESSION_LIFETIME')) {
+    require_once __DIR__ . '/../config/constants.php';
 }
 
 /**
@@ -194,6 +197,22 @@ if (!function_exists('validateSessionIntegrity')) {
 // Auto-initialize session when this file is included
 initSecureSession();
 ?>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

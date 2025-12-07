@@ -5,7 +5,8 @@
  */
 
 // Include security utilities
-require_once __DIR__ . '/../../../components/security.php';
+// Path: production/profile/functions/ -> production/components/security.php (up 2 levels)
+require_once __DIR__ . '/../../components/security.php';
 
 function handleProfilePictureUpload($conn, $currentAdmin) {
     global $errors;

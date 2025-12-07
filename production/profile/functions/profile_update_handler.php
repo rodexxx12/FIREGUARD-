@@ -4,7 +4,7 @@ function handleProfileUpdate($conn, $currentAdmin) {
     
     $updates = [];
     // Include security utilities
-    require_once __DIR__ . '/../../../components/security.php';
+    require_once __DIR__ . '/../../components/security.php';
     
     $validationRules = [
         'full_name' => [

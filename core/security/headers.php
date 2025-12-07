@@ -121,6 +121,12 @@ if (!function_exists('forceHttps')) {
         if (!isProductionEnvironment()) {
             return; // Only force HTTPS in production
         }
+
+        // Do NOT force HTTPS for device and FireML endpoints (per user requirement)
+        $requestUri = $_SERVER['REQUEST_URI'] ?? '';
+        if (preg_match('#/(device|FireML)(/|$)#i', $requestUri)) {
+            return;
+        }
         
         // Check if already using HTTPS
         $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
@@ -134,6 +140,8 @@ if (!function_exists('forceHttps')) {
     }
 }
 ?>
+
+
 
 
 

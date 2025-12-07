@@ -5,14 +5,16 @@ require_once __DIR__ . '/../../db/db.php';
 $pdo = getDatabaseConnection();
 
 // Check if there's any data
-$stmt = $pdo->query("SELECT COUNT(*) as count FROM fire_data");
+$stmt = $pdo->prepare("SELECT COUNT(*) as count FROM fire_data");
+$stmt->execute();
 $count = $stmt->fetch()['count'];
 
 if ($count == 0) {
     echo "No data found. Adding sample data...<br>";
     
     // Get a user_id to use (first user in the system)
-    $stmt = $pdo->query("SELECT user_id FROM users LIMIT 1");
+    $stmt = $pdo->prepare("SELECT user_id FROM users LIMIT 1");
+    $stmt->execute();
     $user = $stmt->fetch();
     
     if ($user) {
@@ -81,7 +83,8 @@ if ($count == 0) {
 }
 
 // Show current data
-$stmt = $pdo->query("SELECT id, status, smoke, temp, heat, flame_detected, timestamp FROM fire_data ORDER BY timestamp DESC LIMIT 3");
+$stmt = $pdo->prepare("SELECT id, status, smoke, temp, heat, flame_detected, timestamp FROM fire_data ORDER BY timestamp DESC LIMIT 3");
+$stmt->execute();
 $records = $stmt->fetchAll();
 
 echo "<h3>Latest 3 records:</h3>";

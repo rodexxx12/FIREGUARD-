@@ -1,8 +1,4 @@
 <?php
-// Enable error reporting
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
 // Set Philippine timezone
 date_default_timezone_set('Asia/Manila');
 
@@ -11,35 +7,36 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST');
 header('Access-Control-Allow-Headers: Content-Type');
 
-class Database {
-    private static $host = "localhost";
-    private static $dbname = "u520834156_DBBagofire";
-    private static $username = "u520834156_userBagofire";
-    private static $password = "i[#[GQ!+=C9";
+// Load core configuration and database connection
+require_once __DIR__ . '/../core/config/config.php';
+require_once __DIR__ . '/../core/database/database.php';
+require_once __DIR__ . '/../core/security/input_sanitizer.php';
+
+// Helper function to get mysqli connection from PDO
+function getMysqliConnection() {
+    static $conn = null;
     
-    public static function getConnection() {
-        static $conn = null;
+    if ($conn === null) {
+        $host = config('db.host', 'localhost');
+        $dbname = config('db.name', '');
+        $username = config('db.user', '');
+        $password = config('db.pass', '');
         
-        if ($conn === null) {
-            try {
-                $conn = new mysqli(
-                    self::$host, 
-                    self::$username, 
-                    self::$password, 
-                    self::$dbname
-                );
-                
-                if ($conn->connect_error) {
-                    throw new Exception("Database connection failed: " . $conn->connect_error);
-                }
-            } catch (Exception $e) {
-                error_log($e->getMessage());
-                return null;
+        try {
+            $conn = new mysqli($host, $username, $password, $dbname);
+            
+            if ($conn->connect_error) {
+                throw new Exception("Database connection failed: " . $conn->connect_error);
             }
+            
+            $conn->set_charset('utf8mb4');
+        } catch (Exception $e) {
+            error_log($e->getMessage());
+            return null;
         }
-        
-        return $conn;
     }
+    
+    return $conn;
 }
 
 class DeviceRegistration {
@@ -48,9 +45,9 @@ class DeviceRegistration {
     private $device_type;
     
     public function __construct() {
-        $this->mac_address = isset($_GET['mac_address']) ? trim($_GET['mac_address']) : '';
-        $this->device_name = isset($_GET['device_name']) ? trim($_GET['device_name']) : '';
-        $this->device_type = isset($_GET['device_type']) ? trim($_GET['device_type']) : 'ESP32_Fire_Detector';
+        $this->mac_address = sanitizeString($_GET['mac_address'] ?? '');
+        $this->device_name = sanitizeString($_GET['device_name'] ?? '');
+        $this->device_type = sanitizeString($_GET['device_type'] ?? 'ESP32_Fire_Detector');
     }
     
     public function processRequest() {
@@ -87,7 +84,7 @@ class DeviceRegistration {
     }
     
     private function registerOrGetDevice() {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) {
             throw new Exception('Database connection failed');
         }
@@ -116,7 +113,7 @@ class DeviceRegistration {
     }
     
     private function createNewDevice() {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) {
             throw new Exception('Database connection failed');
         }
@@ -157,7 +154,7 @@ class DeviceRegistration {
     }
     
     private function ensureDefaultUser() {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return;
         
         $conn->query("INSERT INTO users (user_id, username, email, password, first_name, last_name, phone) 
@@ -166,7 +163,7 @@ class DeviceRegistration {
     }
     
     private function ensureDefaultBuilding() {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return;
         
         $conn->query("INSERT INTO buildings (building_id, building_name, building_type, address, user_id) 
@@ -175,7 +172,7 @@ class DeviceRegistration {
     }
     
     private function updateDeviceStatus($device_id, $status) {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return false;
         
         $stmt = $conn->prepare("UPDATE devices SET status = ?, last_activity = NOW() WHERE device_id = ?");

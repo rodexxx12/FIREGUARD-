@@ -11,6 +11,11 @@
  * That's it! Everything is loaded and configured.
  */
 
+// Track request start time for basic profiling (does not change app logic)
+if (!isset($GLOBALS['APP_REQUEST_START'])) {
+    $GLOBALS['APP_REQUEST_START'] = microtime(true);
+}
+
 // Prevent direct access
 if (!defined('BOOTSTRAP_LOADED')) {
     define('BOOTSTRAP_LOADED', true);
@@ -67,5 +72,33 @@ if (!defined('BOOTSTRAP_LOADED')) {
             'max_execution_time' => ini_get('max_execution_time')
         ]);
     }
+    
+    // Register a shutdown profiler to log total request time and memory (debug/development only)
+    if (!function_exists('profileRequest')) {
+        function profileRequest() {
+            if (!function_exists('isDebugMode') || !isDebugMode()) {
+                return;
+            }
+            
+            $start = $GLOBALS['APP_REQUEST_START'] ?? ($_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true));
+            $durationMs = (microtime(true) - $start) * 1000;
+            $memory = memory_get_peak_usage(true);
+            $uri = $_SERVER['REQUEST_URI'] ?? '';
+            
+            $data = [
+                'uri' => $uri,
+                'duration_ms' => round($durationMs, 2),
+                'memory_bytes' => $memory,
+            ];
+            
+            if (function_exists('logDebug')) {
+                logDebug('Request profiling', $data);
+            } else {
+                error_log('Request profiling: ' . json_encode($data));
+            }
+        }
+    }
+    
+    register_shutdown_function('profileRequest');
 }
 

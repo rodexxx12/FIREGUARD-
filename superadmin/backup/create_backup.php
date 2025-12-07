@@ -22,7 +22,7 @@ try {
     date_default_timezone_set('Asia/Manila');
     
     // Security: Don't log sensitive POST data in production
-    $backup_type = isset($_POST['backup_type']) ? $_POST['backup_type'] : 'manual';
+    $backup_type = sanitizeString($_POST['backup_type'] ?? 'manual');
     
     // Validate backup type
     $allowedTypes = ['manual', 'weekly', 'monthly', 'yearly', 'all'];

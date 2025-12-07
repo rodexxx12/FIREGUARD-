@@ -231,7 +231,8 @@ function get_all_admins() {
     global $pdo;
     
     try {
-        $stmt = $pdo->query("SELECT admin_id, username, full_name, email, contact_number, role, status, created_at, updated_at FROM admin ORDER BY created_at DESC");
+        $stmt = $pdo->prepare("SELECT admin_id, username, full_name, email, contact_number, role, status, created_at, updated_at FROM admin ORDER BY created_at DESC");
+        $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
         return [];

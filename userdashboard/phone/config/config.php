@@ -45,8 +45,75 @@ if (!function_exists('getEnvVar')) {
     }
 }
 
+// Get environment variables and ensure they're properly trimmed
+$apiKey = trim(getEnvVar('SMS_API_KEY', ''));
+$deviceId = trim(getEnvVar('SMS_DEVICE_ID', ''));
+$apiUrl = trim(getEnvVar('SMS_API_URL', 'https://sms.pagenet.info/api/v1/sms/send'));
+
+// Remove any quotes that might have been left
+if ((substr($apiKey, 0, 1) === '"' && substr($apiKey, -1) === '"') ||
+    (substr($apiKey, 0, 1) === "'" && substr($apiKey, -1) === "'")) {
+    $apiKey = substr($apiKey, 1, -1);
+    $apiKey = trim($apiKey);
+}
+if ((substr($deviceId, 0, 1) === '"' && substr($deviceId, -1) === '"') ||
+    (substr($deviceId, 0, 1) === "'" && substr($deviceId, -1) === "'")) {
+    $deviceId = substr($deviceId, 1, -1);
+    $deviceId = trim($deviceId);
+}
+if ((substr($apiUrl, 0, 1) === '"' && substr($apiUrl, -1) === '"') ||
+    (substr($apiUrl, 0, 1) === "'" && substr($apiUrl, -1) === "'")) {
+    $apiUrl = substr($apiUrl, 1, -1);
+    $apiUrl = trim($apiUrl);
+}
+
+// Fallback to device/config.php if .env values are not set
+if (empty($apiKey) || empty($deviceId)) {
+    $deviceConfigPath = __DIR__ . '/../../../device/config.php';
+    if (file_exists($deviceConfigPath)) {
+        $deviceConfig = require $deviceConfigPath;
+        if (empty($apiKey) && !empty($deviceConfig['api_key'])) {
+            $apiKey = trim($deviceConfig['api_key']);
+            error_log('SMS: Using API key from device/config.php as fallback');
+        }
+        if (empty($deviceId) && !empty($deviceConfig['device'])) {
+            $deviceId = trim($deviceConfig['device']);
+            error_log('SMS: Using device ID from device/config.php as fallback');
+        }
+        if (empty($apiUrl) && !empty($deviceConfig['url'])) {
+            $apiUrl = trim($deviceConfig['url']);
+        }
+    }
+}
+
+// Check for configuration errors
+$configErrors = [];
+$isConfigured = true;
+
+if (empty($apiKey)) {
+    $configErrors[] = 'SMS_API_KEY is not configured in .env file or device/config.php';
+    $isConfigured = false;
+}
+
+if (empty($deviceId)) {
+    $configErrors[] = 'SMS_DEVICE_ID is not configured in .env file or device/config.php';
+    $isConfigured = false;
+}
+
+if (empty($apiUrl)) {
+    $configErrors[] = 'SMS_API_URL is not configured in .env file';
+    $isConfigured = false;
+}
+
+// Log configuration errors for debugging
+if (!$isConfigured) {
+    error_log('SMS Configuration Error: ' . implode(', ', $configErrors));
+}
+
 return [
-    'api_key' => getEnvVar('SMS_API_KEY', ''),
-    'device'  => getEnvVar('SMS_DEVICE_ID', ''),
-    'url'     => getEnvVar('SMS_API_URL', 'https://sms.pagenet.info/api/v1/sms/send')
+    'api_key' => $apiKey,
+    'device'  => $deviceId,
+    'url'     => $apiUrl,
+    'is_configured' => $isConfigured,
+    'errors' => $configErrors
 ];

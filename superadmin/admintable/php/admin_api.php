@@ -15,14 +15,13 @@ if (!isset($_SESSION['superadmin_id'])) {
 
 // Security: CSRF protection for state-changing operations
 $safeActions = ['get_admins', 'get_admin', 'get_counts', 'check_duplicate'];
-$action = $_POST['action'] ?? '';
-if (!in_array($action, $safeActions)) {
+$action = sanitizeString($_POST['action'] ?? '');
+if (!in_array($action, $safeActions, true)) {
     validateCSRFRequest(true);
 }
 
 try {
     $conn = getDatabaseConnection();
-    $action = $_POST['action'] ?? '';
 
     switch ($action) {
         case 'get_admins':
@@ -56,12 +55,12 @@ try {
 }
 
 function getAdmins($conn) {
-    $draw = intval($_POST['draw']);
-    $start = intval($_POST['start']);
-    $length = intval($_POST['length']);
-    $searchValue = $_POST['search']['value'] ?? '';
-    $orderColumn = $_POST['order'][0]['column'] ?? 0;
-    $orderDir = $_POST['order'][0]['dir'] ?? 'desc';
+    $draw = sanitizeInt($_POST['draw'] ?? 0);
+    $start = sanitizeInt($_POST['start'] ?? 0);
+    $length = sanitizeInt($_POST['length'] ?? 10);
+    $searchValue = sanitizeString($_POST['search']['value'] ?? '');
+    $orderColumn = sanitizeInt($_POST['order'][0]['column'] ?? 0);
+    $orderDir = in_array($_POST['order'][0]['dir'] ?? 'desc', ['asc', 'desc'], true) ? $_POST['order'][0]['dir'] : 'desc';
     
     // Custom filters
     $statusFilter = $_POST['status_filter'] ?? '';

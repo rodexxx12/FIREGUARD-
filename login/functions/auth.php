@@ -452,7 +452,7 @@ function handleSuccessfulLogin($user, $userType, $remember, $ip) {
         $_SESSION['user_type'] = 'superadmin';
         $_SESSION['last_activity'] = time();
         updateSuperadminLastLogin($user['superadmin_id']);
-        $redirect = 'superadmin/statistics/php/index.php'; // Change this path to your actual superadmin page
+        $redirect = 'superadmin/device/php/device.php'; // Change this path to your actual superadmin page
     }    
     if ($userType === 'admin') {
         $_SESSION['admin_id'] = $user['admin_id'];

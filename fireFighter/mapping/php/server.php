@@ -9,9 +9,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-
 // Include the database connection function
 require_once '../functions/database_connection.php';
 

@@ -55,7 +55,11 @@ const ChartUtils = {
     showError(chartId, message) {
         const element = document.getElementById(chartId);
         if (!element) {
-            console.error(`Element with ID "${chartId}" not found`);
+            // Silently return if element doesn't exist - this is expected for non-chart operations
+            // Only log if it's actually a chart element (contains 'Chart' in the ID)
+            if (chartId && chartId.toLowerCase().includes('chart')) {
+                console.warn(`Chart element with ID "${chartId}" not found`);
+            }
             return;
         }
         const container = element.parentElement;
@@ -308,43 +312,186 @@ const FilterManager = {
 // Data Loading Functions
 const DataLoader = {
     loadBarangayOptions() {
-        ChartUtils.loadChart('get_barangays.php', 'barangayOptions', (data) => {
+        // Ensure the dropdown element exists before proceeding
+        const checkElementAndLoad = (retryCount = 0) => {
             const barangaySelect = document.getElementById('barangayFilter');
             if (!barangaySelect) {
-                console.error('Barangay filter select element not found');
-                return;
+                if (retryCount < 10) {
+                    // Retry after a short delay if element not found
+                    setTimeout(() => checkElementAndLoad(retryCount + 1), 100);
+                    return;
+                } else {
+                    console.error('Barangay filter select element not found after multiple retries');
+                    return;
+                }
             }
             
-            // Clear existing options except the first "All Barangays" option
-            while (barangaySelect.options.length > 1) {
-                barangaySelect.remove(1);
-            }
+            // Element found, proceed with loading data
+            const apiPaths = [
+                'get_barangays.php',
+                './get_barangays.php',
+                'php/get_barangays.php',
+                '../php/get_barangays.php'
+            ];
             
-            // Add barangay options
-            if (data && data.barangays && Array.isArray(data.barangays)) {
-                data.barangays.forEach(barangay => {
+            let currentPathIndex = 0;
+            
+            const tryApiPath = () => {
+                if (currentPathIndex >= apiPaths.length) {
+                    console.error('All API paths failed for barangays');
+                    // Show error in dropdown
                     const option = document.createElement('option');
-                    option.value = barangay.id;
-                    option.textContent = barangay.barangay_name;
+                    option.value = '';
+                    option.textContent = 'Failed to load barangays';
+                    option.disabled = true;
                     barangaySelect.appendChild(option);
-                });
-                console.log(`Loaded ${data.barangays.length} barangays into filter`);
-            } else {
-                console.warn('No barangays data received or invalid format:', data);
-            }
-        });
+                    return;
+                }
+                
+                const apiPath = apiPaths[currentPathIndex];
+                console.log(`Loading barangays from: ${apiPath}`);
+                
+                fetch(apiPath)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const contentType = response.headers.get('content-type');
+                        if (!contentType || !contentType.includes('application/json')) {
+                            return response.text().then(text => {
+                                console.error('Non-JSON response received:', text.substring(0, 200));
+                                throw new Error('Server returned non-JSON response');
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Barangays API response:', data);
+                        
+                        // Clear existing options except the first "All Barangays" option
+                        while (barangaySelect.options.length > 1) {
+                            barangaySelect.remove(1);
+                        }
+                        
+                        // Add barangay options - handle both response formats
+                        let barangays = null;
+                        if (data.success && data.data && data.data.barangays && Array.isArray(data.data.barangays)) {
+                            barangays = data.data.barangays;
+                        } else if (data.barangays && Array.isArray(data.barangays)) {
+                            // Handle legacy response format
+                            barangays = data.barangays;
+                        } else if (data.success && data.data && Array.isArray(data.data)) {
+                            // Handle if data is directly an array
+                            barangays = data.data;
+                        }
+                        
+                        if (barangays && barangays.length > 0) {
+                            barangays.forEach(barangay => {
+                                const option = document.createElement('option');
+                                option.value = barangay.id || barangay.barangay_id || '';
+                                option.textContent = barangay.barangay_name || barangay.name || 'Unknown';
+                                barangaySelect.appendChild(option);
+                            });
+                            console.log(`Successfully loaded ${barangays.length} barangays into filter`);
+                        } else {
+                            console.warn('No barangays data received or invalid format:', data);
+                            // Add a placeholder option if no data
+                            const option = document.createElement('option');
+                            option.value = '';
+                            option.textContent = 'No barangays available';
+                            option.disabled = true;
+                            barangaySelect.appendChild(option);
+                        }
+                    })
+                    .catch(error => {
+                        console.error(`Error with path ${apiPath}:`, error);
+                        currentPathIndex++;
+                        tryApiPath();
+                    });
+            };
+            
+            tryApiPath();
+        };
+        
+        checkElementAndLoad();
     },
 
     loadFirefighterOptions() {
-        ChartUtils.loadChart('get_firefighters.php', 'firefighterOptions', (data) => {
-            const firefighterSelect = document.getElementById('responseFirefighterFilter');
-            data.firefighters.forEach(firefighter => {
-                const option = document.createElement('option');
-                option.value = firefighter.id;
-                option.textContent = `${firefighter.name} (${firefighter.badge_number || 'No Badge'})`;
-                firefighterSelect.appendChild(option);
-            });
-        });
+        // Try different possible paths for the API
+        const apiPaths = [
+            'get_firefighters.php',
+            './get_firefighters.php',
+            'php/get_firefighters.php',
+            '../php/get_firefighters.php'
+        ];
+        
+        let currentPathIndex = 0;
+        
+        const tryApiPath = () => {
+            if (currentPathIndex >= apiPaths.length) {
+                console.error('All API paths failed for firefighters');
+                return;
+            }
+            
+            const apiPath = apiPaths[currentPathIndex];
+            console.log(`Loading firefighters from: ${apiPath}`);
+            
+            fetch(apiPath)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        return response.text().then(text => {
+                            console.error('Non-JSON response received:', text.substring(0, 200));
+                            throw new Error('Server returned non-JSON response');
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const firefighterSelect = document.getElementById('responseFirefighterFilter');
+                    if (!firefighterSelect) {
+                        console.error('Firefighter filter select element not found');
+                        return;
+                    }
+                    
+                    // Clear existing options except the first "All Firefighters" option
+                    while (firefighterSelect.options.length > 1) {
+                        firefighterSelect.remove(1);
+                    }
+                    
+                    // Add firefighter options
+                    if (data.success && data.data && data.data.firefighters && Array.isArray(data.data.firefighters)) {
+                        data.data.firefighters.forEach(firefighter => {
+                            const option = document.createElement('option');
+                            option.value = firefighter.id;
+                            option.textContent = `${firefighter.name} (${firefighter.badge_number || 'No Badge'})`;
+                            firefighterSelect.appendChild(option);
+                        });
+                        console.log(`Loaded ${data.data.firefighters.length} firefighters into filter`);
+                    } else if (data.firefighters && Array.isArray(data.firefighters)) {
+                        // Handle legacy response format
+                        data.firefighters.forEach(firefighter => {
+                            const option = document.createElement('option');
+                            option.value = firefighter.id;
+                            option.textContent = `${firefighter.name} (${firefighter.badge_number || 'No Badge'})`;
+                            firefighterSelect.appendChild(option);
+                        });
+                        console.log(`Loaded ${data.firefighters.length} firefighters into filter`);
+                    } else {
+                        console.warn('No firefighters data received or invalid format:', data);
+                    }
+                })
+                .catch(error => {
+                    console.error(`Error with path ${apiPath}:`, error);
+                    currentPathIndex++;
+                    tryApiPath();
+                });
+        };
+        
+        tryApiPath();
     },
 
     populateYearFilter() {

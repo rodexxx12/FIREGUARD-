@@ -643,125 +643,160 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $fireData) {
 // Include header after all PHP processing is complete
 require_once '../../components/header.php';
 ?>
-
-
-<link rel="stylesheet" href="../css/spot.css">
-    <!-- SweetAlert2 CSS -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <style>
-      
-        
-        
-        .required-field::after {
-            content: " *";
-            color: #dc3545;
-            font-weight: bold;
-        }
-        
-        .fire-data-label {
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-weight: 500;
-        }
-        
-        .fire-data-value {
-            font-weight: 500;
-        }
-        
-        .form-control {
-            font-size: 0.9rem;
-            padding: 0.5rem 0.75rem;
-        }
-        
-        .form-select {
-            font-size: 0.9rem;
-            padding: 0.5rem 0.75rem;
-        }
-        
-        .form-label {
-            font-size: 0.9rem;
-            margin-bottom: 0.5rem;
-        }
-        
-        /* Modern Button Styles */
-        .btn-gradient-danger {
-            background: linear-gradient(135deg, #007bff 0%, #0056b3 50%, #004085 100%);
-            border: none;
-            color: white;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .btn-gradient-danger:hover {
-            background: linear-gradient(135deg, #0056b3 0%, #004085 50%, #002752 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 123, 255, 0.4) !important;
-            color: white;
-        }
-        
-        .btn-gradient-danger:active {
-            transform: translateY(0);
-            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3) !important;
-        }
-        
-        .btn-gradient-secondary {
-            background: linear-gradient(135deg, #6c757d 0%, #5a6268 50%, #495057 100%);
-            border: none;
-            color: white;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .btn-gradient-secondary:hover {
-            background: linear-gradient(135deg, #5a6268 0%, #495057 50%, #343a40 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(108, 117, 125, 0.4) !important;
-            color: white;
-        }
-        
-        .btn-gradient-secondary:active {
-            transform: translateY(0);
-            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3) !important;
-        }
-        
-        /* Button ripple effect */
-        .btn-gradient-danger::before,
-        .btn-gradient-secondary::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.3);
-            transition: width 0.6s, height 0.6s;
-            transform: translate(-50%, -50%);
-            z-index: 0;
-        }
-        
-        .btn-gradient-danger:active::before,
-        .btn-gradient-secondary:active::before {
-            width: 300px;
-            height: 300px;
-        }
-        
-        .btn-gradient-danger i,
-        .btn-gradient-secondary i {
-            position: relative;
-            z-index: 1;
-        }
-        
-        /* Enhanced shadow for better visibility */
-        .shadow-lg {
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
-        }
-    </style>
+<style>
+    .required {
+        color: #dc3545;
+    }
+    
+    /* Gentelella Form Step Styling */
+    .form-step {
+        transition: opacity 0.3s ease-in-out;
+        margin-bottom: 30px;
+        clear: both;
+        overflow: visible !important;
+        height: auto !important;
+        max-height: none !important;
+    }
+    
+    .form-step.x_panel {
+        overflow: visible !important;
+        height: auto !important;
+        max-height: none !important;
+        background: #fff;
+        border: 1px solid #E6E9ED;
+        padding: 10px 17px;
+        display: inline-block;
+        width: 100%;
+        margin-bottom: 20px;
+    }
+    
+    .form-step .x_content {
+        overflow: visible !important;
+        max-height: none !important;
+        height: auto !important;
+        padding: 0 5px 6px;
+        position: relative;
+        width: 100%;
+        float: left;
+        clear: both;
+        margin-top: 5px;
+    }
+    
+    .form-step.previous-step {
+        opacity: 0.8;
+    }
+    
+    /* Gentelella Form Group Styling */
+    .form-step .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-step .form-group label {
+        font-weight: bold !important;
+        color: #758697;
+        margin-bottom: 10px;
+        display: block;
+        font-size: 15px;
+    }
+    
+    .form-step .form-group > div {
+        color: #333;
+        font-size: 15px;
+        font-weight: 500;
+        padding: 5px 0;
+        word-wrap: break-word;
+        min-height: 22px;
+    }
+    
+    .form-step .form-group .control-label {
+        font-weight: bold !important;
+        font-size: 15px;
+    }
+    
+    /* Incident Reference Data specific styling */
+    .form-step .row {
+        margin-left: -15px;
+        margin-right: -15px;
+    }
+    
+    .form-step .row > [class*="col-"] {
+        padding-left: 15px;
+        padding-right: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .form-step .data-field {
+        margin-bottom: 20px;
+    }
+    
+    .form-step .data-field label {
+        font-weight: bold !important;
+        color: #758697;
+        margin-bottom: 10px;
+        display: block;
+        font-size: 16px;
+    }
+    
+    .form-step .data-field .data-value {
+        color: #333;
+        font-size: 16px;
+        font-weight: 600;
+        padding: 5px 0;
+        word-wrap: break-word;
+        min-height: 24px;
+    }
+    
+    /* Form Navigation */
+    .form-navigation {
+        padding: 20px 0;
+        border-top: 1px solid #E6E9ED;
+        margin-top: 20px;
+        text-align: center;
+        clear: both;
+    }
+    
+    .form-navigation .btn {
+        margin: 0 5px;
+        min-width: 120px;
+        padding: 8px 20px;
+        font-size: 14px;
+    }
+    
+    /* Gentelella Input Styling */
+    .form-control {
+        border: 1px solid #D7DCE2;
+        border-radius: 0;
+        padding: 8px 12px;
+        font-size: 14px;
+        color: #555;
+        background-color: #fff;
+    }
+    
+    .form-control:focus {
+        border-color: #26B99A;
+        outline: 0;
+        box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 8px rgba(38, 185, 154, 0.3);
+    }
+    
+    /* Gentelella Panel Title - Bold Red */
+    .x_title {
+        border-bottom: 2px solid #E6E9ED;
+        padding: 1px 5px 6px;
+        margin-bottom: 10px;
+    }
+    
+    .x_title h2,
+    .form-step .x_title h2 {
+        margin: 5px 0 6px;
+        float: left;
+        display: block;
+        font-size: 18px;
+        font-weight: bold !important;
+        color: #dc3545 !important;
+    }
+</style>
 </head>
-  <body class="nav-md">
+<body class="nav-md">
     <div class="container body">
       <div class="main_container">
             <?php include('../../components/sidebar.php'); ?>
@@ -770,21 +805,26 @@ require_once '../../components/header.php';
         </div>
         <?php include('../../components/navigation.php')?>
         <div class="right_col" role="main"> 
-    <div class="container-fluid">
-        <div class="card shadow">
-            <div class="card-body p-4">
-            <div class="container-fluid py-4">   
-        <?php if ($error_message): ?>
-            <div class="alert alert-danger" id="error-alert" style="display: none;">
-                <i class="fas fa-exclamation-triangle"></i> <?php echo htmlspecialchars($error_message); ?>
-            </div>
-        <?php endif; ?>
-        
-        <?php if ($success_message): ?>
-            <div class="alert alert-success" id="success-alert" style="display: none;">
-                <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success_message); ?>
-            </div>
-        <?php endif; ?>
+            <div class="clearfix"></div>
+            <div class="row">
+                <div class="col-md-12 col-sm-12">
+              
+                        <!-- <div class="x_title">
+                            <h2>Fire Incident Report <small>Spot Investigation Report</small></h2>
+                            <div class="clearfix"></div>
+                        </div> -->
+                        <div class="x_content">
+                            <?php if ($error_message): ?>
+                                <div class="alert alert-danger" id="error-alert" style="display: none;">
+                                    <i class="fas fa-exclamation-triangle"></i> <?php echo htmlspecialchars($error_message); ?>
+                                </div>
+                            <?php endif; ?>
+                            
+                            <?php if ($success_message): ?>
+                                <div class="alert alert-success" id="success-alert" style="display: none;">
+                                    <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success_message); ?>
+                                </div>
+                            <?php endif; ?>
         
 <?php
 // Parse existing involved field to determine checkbox states
@@ -826,329 +866,551 @@ if ($fireDataId > 0) {
 }
 ?>
 
-        <?php if ($fireData): ?>
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="card-title mb-0 text-uppercase fw-semibold">
-                        <i class="fas fa-fire me-2"></i> Incident Reference Data (ID: #<?php echo str_pad($fireData['id'], 6, '0', STR_PAD_LEFT); ?>)
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-3 col-sm-6">
-                            <div class="d-flex flex-column">
-                                <span class="fire-data-label">Building Name</span>
-                                <span class="fire-data-value"><?php echo htmlspecialchars($fireData['building_name'] ?: 'Unknown'); ?></span>
-                            </div>
-                        </div>
-                        <div class="col-md-3 col-sm-6">
-                            <div class="d-flex flex-column">
-                                <span class="fire-data-label">Building Type</span>
-                                <span class="fire-data-value"><?php echo htmlspecialchars($fireData['building_type'] ?: 'Unknown'); ?></span>
-                            </div>
-                        </div>
-                        <div class="col-md-3 col-sm-6">
-                            <div class="d-flex flex-column">
-                                <span class="fire-data-label">Barangay</span>
-                                <span class="fire-data-value"><?php echo htmlspecialchars($fireData['barangay_name'] ?: 'Unknown'); ?></span>
-                            </div>
-                        </div>
-                        <div class="col-md-3 col-sm-6">
-                            <div class="d-flex flex-column">
-                                <span class="fire-data-label">Smoke Level</span>
-                                <span class="fire-data-value"><?php echo $fireData['smoke']; ?></span>
-                            </div>
-                        </div>
-                        <div class="col-md-3 col-sm-6">
-                            <div class="d-flex flex-column">
-                                <span class="fire-data-label">Temperature</span>
-                                <span class="fire-data-value"><?php echo $fireData['temp']; ?>°C</span>
-                            </div>
-                        </div>
-                        <div class="col-md-3 col-sm-6">
-                            <div class="d-flex flex-column">
-                                <span class="fire-data-label">Heat Level</span>
-                                <span class="fire-data-value"><?php echo $fireData['heat']; ?></span>
-                            </div>
-                        </div>
-                        <div class="col-md-3 col-sm-6">
-                            <div class="d-flex flex-column">
-                                <span class="fire-data-label">Flame Detection</span>
-                                <span class="fire-data-value"><?php echo $fireData['flame_detected'] ? 'Detected' : 'Not Detected'; ?></span>
-                            </div>
-                        </div>
-                        <div class="col-md-3 col-sm-6">
-                            <div class="d-flex flex-column">
-                                <span class="fire-data-label">Detection Confidence</span>
-                                <span class="fire-data-value"><?php echo number_format($fireData['ml_confidence'], 1); ?>%</span>
-                            </div>
-                        </div>
-                        <div class="col-md-3 col-sm-6">
-                            <div class="d-flex flex-column">
-                                <span class="fire-data-label">Detection Time</span>
-                                <span class="fire-data-value"><?php echo date('M d, Y H:i', strtotime($fireData['timestamp'])); ?></span>
-                            </div>
-                        </div>
-                        <div class="col-md-3 col-sm-6">
-                            <div class="d-flex flex-column">
-                                <span class="fire-data-label">Property Owner</span>
-                                <span class="fire-data-value"><?php echo htmlspecialchars($fireData['property_owner_name'] ?: 'Unknown'); ?></span>
-                            </div>
-                        </div>
-                        <div class="col-md-3 col-sm-6">
-                            <div class="d-flex flex-column">
-                                <span class="fire-data-label">Contact Person</span>
-                                <span class="fire-data-value"><?php echo htmlspecialchars($fireData['contact_person'] ?: 'Unknown'); ?></span>
-                            </div>
-                        </div>
-                        <div class="col-md-3 col-sm-6">
-                            <div class="d-flex flex-column">
-                                <span class="fire-data-label">Contact Number</span>
-                                <span class="fire-data-value"><?php echo htmlspecialchars($fireData['contact_number'] ?: 'Unknown'); ?></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        <?php endif; ?>
+                            <?php if ($fireData): ?>
+                                <div class="x_panel form-step" data-step="0">
+                                    <div class="x_title">
+                                        <h2><i class="fa fa-fire"></i> Incident Reference Data (ID: #<?php echo str_pad($fireData['id'], 6, '0', STR_PAD_LEFT); ?>)</h2>
+                                        <div class="clearfix"></div>
+                                    </div>
+                                    <div class="x_content">
+                                        <div class="row">
+                                            <div class="col-md-3 col-sm-6">
+                                                <div class="data-field">
+                                                    <label>Building Name</label>
+                                                    <div class="data-value"><?php echo htmlspecialchars($fireData['building_name'] ?: 'Unknown'); ?></div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3 col-sm-6">
+                                                <div class="data-field">
+                                                    <label>Building Type</label>
+                                                    <div class="data-value"><?php echo htmlspecialchars($fireData['building_type'] ?: 'Unknown'); ?></div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3 col-sm-6">
+                                                <div class="data-field">
+                                                    <label>Barangay</label>
+                                                    <div class="data-value"><?php echo htmlspecialchars($fireData['barangay_name'] ?: 'Unknown'); ?></div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3 col-sm-6">
+                                                <div class="data-field">
+                                                    <label>Smoke Level</label>
+                                                    <div class="data-value"><?php echo $fireData['smoke']; ?></div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3 col-sm-6">
+                                                <div class="data-field">
+                                                    <label>Temperature</label>
+                                                    <div class="data-value"><?php echo $fireData['temp']; ?>°C</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3 col-sm-6">
+                                                <div class="data-field">
+                                                    <label>Heat Level</label>
+                                                    <div class="data-value"><?php echo $fireData['heat']; ?></div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3 col-sm-6">
+                                                <div class="data-field">
+                                                    <label>Flame Detection</label>
+                                                    <div class="data-value"><?php echo $fireData['flame_detected'] ? 'Detected' : 'Not Detected'; ?></div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3 col-sm-6">
+                                                <div class="data-field">
+                                                    <label>Detection Confidence</label>
+                                                    <div class="data-value"><?php echo number_format($fireData['ml_confidence'], 1); ?>%</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3 col-sm-6">
+                                                <div class="data-field">
+                                                    <label>Detection Time</label>
+                                                    <div class="data-value"><?php echo date('M d, Y H:i', strtotime($fireData['timestamp'])); ?></div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3 col-sm-6">
+                                                <div class="data-field">
+                                                    <label>Property Owner</label>
+                                                    <div class="data-value"><?php echo htmlspecialchars($fireData['property_owner_name'] ?: 'Unknown'); ?></div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3 col-sm-6">
+                                                <div class="data-field">
+                                                    <label>Contact Person</label>
+                                                    <div class="data-value"><?php echo htmlspecialchars($fireData['contact_person'] ?: 'Unknown'); ?></div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3 col-sm-6">
+                                                <div class="data-field">
+                                                    <label>Contact Number</label>
+                                                    <div class="data-value"><?php echo htmlspecialchars($fireData['contact_number'] ?: 'Unknown'); ?></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-navigation">
+                                        <button type="button" class="btn btn-primary btn-next" onclick="nextStep()">
+                                            Next <i class="fa fa-arrow-right"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
         
-                <form method="POST" action="">
-                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
-                    <!-- Report Header Section -->
-                    <div class="card mb-4">
-                        <div class="card-header bg-light">
-                            <h5 class="card-title mb-0 text-uppercase fw-semibold">Report Header</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label for="report_for" class="form-label required-field">Fire Chief</label>
-                                    <input type="text" class="form-control" id="report_for" name="report_for" value="<?php echo htmlspecialchars($_POST['report_for'] ?? ''); ?>" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="reports_status" class="form-label">Status</label>
-                                    <select class="form-select" id="reports_status" name="reports_status">
-                                        <option value="draft" <?php echo ($_POST['reports_status'] ?? 'draft') === 'draft' ? 'selected' : ''; ?>>Draft</option>
-                                        <option value="pending_review" <?php echo ($_POST['reports_status'] ?? '') === 'pending_review' ? 'selected' : ''; ?>>Pending Review</option>
-                                        <option value="final" <?php echo ($_POST['reports_status'] ?? '') === 'final' ? 'selected' : ''; ?>>Final</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="subject" class="form-label required-field">Subject</label>
-                                    <input type="text" class="form-control" id="subject" name="subject" value="<?php echo htmlspecialchars($_POST['subject'] ?? 'Fire Incident Report'); ?>" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="date_completed" class="form-label required-field">Date Completed *</label>
-                                    <input type="date" class="form-control" id="date_completed" name="date_completed" value="<?php echo $_POST['date_completed'] ?? date('Y-m-d'); ?>" required>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                
-                    <!-- Incident Details Section -->
-                    <div class="card mb-4">
-                        <div class="card-header bg-light">
-                            <h5 class="card-title mb-0 text-uppercase fw-semibold">Incident Details</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label for="date_occurrence" class="form-label required-field">Date of Occurrence *</label>
-                                    <input type="date" class="form-control" id="date_occurrence" name="date_occurrence" value="<?php echo $_POST['date_occurrence'] ?? ($fireData ? date('Y-m-d', strtotime($fireData['timestamp'])) : ''); ?>" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="time_occurrence" class="form-label required-field">Time of Occurrence *</label>
-                                    <input type="time" class="form-control" id="time_occurrence" name="time_occurrence" value="<?php echo $_POST['time_occurrence'] ?? ($fireData ? date('H:i', strtotime($fireData['timestamp'])) : ''); ?>" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="place_occurrence" class="form-label required-field">Location *</label>
-                                    <input type="text" class="form-control" id="place_occurrence" name="place_occurrence" value="<?php echo htmlspecialchars($_POST['place_occurrence'] ?? ($fireData ? ($fireData['building_address'] ?? $fireData['barangay_name'] ?? '') : '')); ?>" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="establishment_name" class="form-label required-field">Establishment *</label>
-                                    <input type="text" class="form-control" id="establishment_name" name="establishment_name" value="<?php echo htmlspecialchars($_POST['establishment_name'] ?? ($fireData ? ($fireData['building_name'] ?? '') : '')); ?>" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="owner" class="form-label">Property Owner</label>
-                                    <input type="text" class="form-control" id="owner" name="owner" value="<?php echo htmlspecialchars($_POST['owner'] ?? ($fireData ? ($fireData['property_owner_name'] ?? '') : '')); ?>">
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="occupant" class="form-label">Occupant</label>
-                                    <input type="text" class="form-control" id="occupant" name="occupant" value="<?php echo htmlspecialchars($_POST['occupant'] ?? ($fireData ? ($fireData['contact_person'] ?? '') : '')); ?>">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                
-                    <!-- Casualties and Damage Section -->
-                    <div class="card mb-4">
-                        <div class="card-header bg-light">
-                            <h5 class="card-title mb-0 text-uppercase fw-semibold">Casualties and Damage Assessment</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label for="fatalities" class="form-label">Fatalities</label>
-                                    <input type="number" class="form-control" id="fatalities" name="fatalities" value="<?php echo $_POST['fatalities'] ?? 0; ?>" min="0">
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="injured" class="form-label">Injured</label>
-                                    <input type="number" class="form-control" id="injured" name="injured" value="<?php echo $_POST['injured'] ?? 0; ?>" min="0">
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="estimated_damage" class="form-label">Estimated Damage (P)</label>
-                                    <input type="number" class="form-control" id="estimated_damage" name="estimated_damage" value="<?php echo $_POST['estimated_damage'] ?? 0; ?>" min="0" step="0.01">
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="highest_alarm_level" class="form-label">Alarm Level</label>
-                                    <select class="form-select" id="highest_alarm_level" name="highest_alarm_level">
-                                        <option value="Level 1" <?php echo ($_POST['highest_alarm_level'] ?? 'Level 1') === 'Level 1' ? 'selected' : ''; ?>>Level 1</option>
-                                        <option value="Level 2" <?php echo ($_POST['highest_alarm_level'] ?? '') === 'Level 2' ? 'selected' : ''; ?>>Level 2</option>
-                                        <option value="Level 3" <?php echo ($_POST['highest_alarm_level'] ?? '') === 'Level 3' ? 'selected' : ''; ?>>Level 3</option>
-                                        <option value="Level 4" <?php echo ($_POST['highest_alarm_level'] ?? '') === 'Level 4' ? 'selected' : ''; ?>>Level 4</option>
-                                        <option value="Level 5" <?php echo ($_POST['highest_alarm_level'] ?? '') === 'Level 5' ? 'selected' : ''; ?>>Level 5</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="time_fire_started" class="form-label">Fire Start Time</label>
-                                    <input type="datetime-local" class="form-control" id="time_fire_started" name="time_fire_started" value="<?php echo $_POST['time_fire_started'] ?? ($fireData ? date('Y-m-d\TH:i', strtotime($fireData['timestamp'])) : ''); ?>">
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="time_fire_out" class="form-label">Fire Extinguished</label>
-                                    <input type="datetime-local" class="form-control" id="time_fire_out" name="time_fire_out" value="<?php echo $_POST['time_fire_out'] ?? ''; ?>" placeholder="mm/dd/yyyy --:--">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                
-                    <!-- Assessment Details Section -->
-                    <div class="card mb-4">
-                        <div class="card-header bg-light">
-                            <h5 class="card-title mb-0 text-uppercase fw-semibold">Assessment Details</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label for="establishments_affected" class="form-label">Properties Affected</label>
-                                    <input type="number" class="form-control" id="establishments_affected" name="establishments_affected" value="<?php echo $_POST['establishments_affected'] ?? 1; ?>" min="1">
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="estimated_area_sqm" class="form-label">Area Affected (sqm)</label>
-                                    <input type="number" class="form-control" id="estimated_area_sqm" name="estimated_area_sqm" value="<?php echo $_POST['estimated_area_sqm'] ?? 0; ?>" min="0" step="0.01">
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="damage_computation" class="form-label">Total Damage (₱)</label>
-                                    <input type="number" class="form-control" id="damage_computation" name="damage_computation" value="<?php echo $_POST['damage_computation'] ?? ($_POST['estimated_damage'] ?? 0); ?>" min="0" step="0.01">
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="weather_condition" class="form-label">Weather Conditions</label>
-                                    <select class="form-select" id="weather_condition" name="weather_condition">
-                                        <option value="Normal" <?php echo ($_POST['weather_condition'] ?? '') === 'Normal' ? 'selected' : ''; ?>>Normal</option>
-                                        <option value="Rainy" <?php echo ($_POST['weather_condition'] ?? '') === 'Rainy' ? 'selected' : ''; ?>>Rainy</option>
-                                        <option value="Sunny" <?php echo ($_POST['weather_condition'] ?? '') === 'Sunny' ? 'selected' : ''; ?>>Sunny</option>
-                                        <option value="Windy" <?php echo ($_POST['weather_condition'] ?? '') === 'Windy' ? 'selected' : ''; ?>>Windy</option>
-                                        <option value="Stormy" <?php echo ($_POST['weather_condition'] ?? '') === 'Stormy' ? 'selected' : ''; ?>>Stormy</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-12">
-                                    <label class="form-label">Personnel Involved</label>
-                                    <div class="row g-2">
-                                        <div class="col-md-3 col-sm-6">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" id="personnel_investigator" name="personnel_investigator" value="1" <?php echo (isset($_POST['personnel_investigator']) || $personnelInvestigatorChecked) ? 'checked' : ''; ?>>
-                                                <label class="form-check-label" for="personnel_investigator">
-                                                    Investigator
-                                                </label>
+                            <form method="POST" action="" class="form-horizontal form-label-left" id="reportForm">
+                                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+                                
+                                <!-- Report Header Section -->
+                                <div class="x_panel form-step" data-step="<?php echo $fireData ? '1' : '0'; ?>" style="<?php echo $fireData ? 'display: none;' : ''; ?>">
+                                    <div class="x_title">
+                                        <h2>Report Header</h2>
+                                        <div class="clearfix"></div>
+                                    </div>
+                                    <div class="x_content">
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="report_for">Fire Chief <span class="required">*</span></label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <input type="text" class="form-control" id="report_for" name="report_for" value="<?php echo htmlspecialchars($_POST['report_for'] ?? ''); ?>" required>
                                             </div>
                                         </div>
-                                        <div class="col-md-3 col-sm-6">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" id="personnel_owner" name="personnel_owner" value="1" <?php echo (isset($_POST['personnel_owner']) || $personnelOwnerChecked) ? 'checked' : ''; ?>>
-                                                <label class="form-check-label" for="personnel_owner">
-                                                    Owner
-                                                </label>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="reports_status">Status</label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <select class="form-control" id="reports_status" name="reports_status">
+                                                    <option value="draft" <?php echo ($_POST['reports_status'] ?? 'draft') === 'draft' ? 'selected' : ''; ?>>Draft</option>
+                                                    <option value="pending_review" <?php echo ($_POST['reports_status'] ?? '') === 'pending_review' ? 'selected' : ''; ?>>Pending Review</option>
+                                                    <option value="final" <?php echo ($_POST['reports_status'] ?? '') === 'final' ? 'selected' : ''; ?>>Final</option>
+                                                </select>
                                             </div>
                                         </div>
-                                        <div class="col-md-3 col-sm-6">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" id="personnel_occupant" name="personnel_occupant" value="1" <?php echo (isset($_POST['personnel_occupant']) || $personnelOccupantChecked) ? 'checked' : ''; ?>>
-                                                <label class="form-check-label" for="personnel_occupant">
-                                                    Occupant
-                                                </label>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="subject">Subject <span class="required">*</span></label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <input type="text" class="form-control" id="subject" name="subject" value="<?php echo htmlspecialchars($_POST['subject'] ?? 'Fire Incident Report'); ?>" required>
                                             </div>
                                         </div>
-                                        <div class="col-md-3 col-sm-6">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" id="personnel_other" name="personnel_other" value="1" <?php echo (isset($_POST['personnel_other']) || $personnelOtherChecked) ? 'checked' : ''; ?>>
-                                                <label class="form-check-label" for="personnel_other">
-                                                    Other Involved Persons
-                                                </label>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="date_completed">Date Completed <span class="required">*</span></label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <input type="date" class="form-control" id="date_completed" name="date_completed" value="<?php echo $_POST['date_completed'] ?? date('Y-m-d'); ?>" required>
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="mt-3">
-                                        <label for="involved" class="form-label">Additional Personnel Details</label>
-                                        <input type="text" class="form-control" id="involved" name="involved" value="<?php echo htmlspecialchars($_POST['involved'] ?? $existingInvolved ?: 'Fire Department Personnel'); ?>" placeholder="Specify other personnel involved...">
+                                    <div class="form-navigation">
+                                        <button type="button" class="btn btn-default btn-prev" onclick="prevStep()" style="<?php echo $fireData ? '' : 'display: none;'; ?>">
+                                            <i class="fa fa-arrow-left"></i> Previous
+                                        </button>
+                                        <button type="button" class="btn btn-primary btn-next" onclick="nextStep()">
+                                            Next <i class="fa fa-arrow-right"></i>
+                                        </button>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
                 
-                    <!-- Investigation Notes Section -->
-                    <div class="card mb-4">
-                        <div class="card-header bg-light">
-                            <h5 class="card-title mb-0 text-uppercase fw-semibold">Investigation Notes</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label for="location_of_fatalities" class="form-label">Fatalities Location</label>
-                                    <textarea class="form-control" id="location_of_fatalities" name="location_of_fatalities" rows="4" placeholder="Specify exact location where fatalities were found..."><?php echo htmlspecialchars($_POST['location_of_fatalities'] ?? ''); ?></textarea>
+                                <!-- Incident Details Section -->
+                                <div class="x_panel form-step" data-step="<?php echo $fireData ? '2' : '1'; ?>" style="display: none;">
+                                    <div class="x_title">
+                                        <h2>Incident Details</h2>
+                                        <div class="clearfix"></div>
+                                    </div>
+                                    <div class="x_content">
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="date_occurrence">Date of Occurrence <span class="required">*</span></label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <input type="date" class="form-control" id="date_occurrence" name="date_occurrence" value="<?php echo $_POST['date_occurrence'] ?? ($fireData ? date('Y-m-d', strtotime($fireData['timestamp'])) : ''); ?>" required>
+                                            </div>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="time_occurrence">Time of Occurrence <span class="required">*</span></label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <input type="time" class="form-control" id="time_occurrence" name="time_occurrence" value="<?php echo $_POST['time_occurrence'] ?? ($fireData ? date('H:i', strtotime($fireData['timestamp'])) : ''); ?>" required>
+                                            </div>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="place_occurrence">Location <span class="required">*</span></label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <input type="text" class="form-control" id="place_occurrence" name="place_occurrence" value="<?php echo htmlspecialchars($_POST['place_occurrence'] ?? ($fireData ? ($fireData['building_address'] ?? $fireData['barangay_name'] ?? '') : '')); ?>" required>
+                                            </div>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="establishment_name">Establishment <span class="required">*</span></label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <input type="text" class="form-control" id="establishment_name" name="establishment_name" value="<?php echo htmlspecialchars($_POST['establishment_name'] ?? ($fireData ? ($fireData['building_name'] ?? '') : '')); ?>" required>
+                                            </div>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="owner">Property Owner</label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <input type="text" class="form-control" id="owner" name="owner" value="<?php echo htmlspecialchars($_POST['owner'] ?? ($fireData ? ($fireData['property_owner_name'] ?? '') : '')); ?>">
+                                            </div>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="occupant">Occupant</label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <input type="text" class="form-control" id="occupant" name="occupant" value="<?php echo htmlspecialchars($_POST['occupant'] ?? ($fireData ? ($fireData['contact_person'] ?? '') : '')); ?>">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-navigation">
+                                        <button type="button" class="btn btn-default btn-prev" onclick="prevStep()">
+                                            <i class="fa fa-arrow-left"></i> Previous
+                                        </button>
+                                        <button type="button" class="btn btn-primary btn-next" onclick="nextStep()">
+                                            Next <i class="fa fa-arrow-right"></i>
+                                        </button>
+                                    </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <label for="other_info" class="form-label">Additional Findings</label>
-                                    <textarea class="form-control" id="other_info" name="other_info" rows="4" placeholder="Any additional information, observations, or findings..."><?php echo htmlspecialchars($_POST['other_info'] ?? ''); ?></textarea>
+                
+                                <!-- Casualties and Damage Section -->
+                                <div class="x_panel form-step" data-step="<?php echo $fireData ? '3' : '2'; ?>" style="display: none;">
+                                    <div class="x_title">
+                                        <h2>Casualties and Damage Assessment</h2>
+                                        <div class="clearfix"></div>
+                                    </div>
+                                    <div class="x_content">
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="fatalities">Fatalities</label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <input type="number" class="form-control" id="fatalities" name="fatalities" value="<?php echo $_POST['fatalities'] ?? 0; ?>" min="0">
+                                            </div>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="injured">Injured</label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <input type="number" class="form-control" id="injured" name="injured" value="<?php echo $_POST['injured'] ?? 0; ?>" min="0">
+                                            </div>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="estimated_damage">Estimated Damage (P)</label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <input type="number" class="form-control" id="estimated_damage" name="estimated_damage" value="<?php echo $_POST['estimated_damage'] ?? 0; ?>" min="0" step="0.01">
+                                            </div>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="highest_alarm_level">Alarm Level</label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <select class="form-control" id="highest_alarm_level" name="highest_alarm_level">
+                                                    <option value="Level 1" <?php echo ($_POST['highest_alarm_level'] ?? 'Level 1') === 'Level 1' ? 'selected' : ''; ?>>Level 1</option>
+                                                    <option value="Level 2" <?php echo ($_POST['highest_alarm_level'] ?? '') === 'Level 2' ? 'selected' : ''; ?>>Level 2</option>
+                                                    <option value="Level 3" <?php echo ($_POST['highest_alarm_level'] ?? '') === 'Level 3' ? 'selected' : ''; ?>>Level 3</option>
+                                                    <option value="Level 4" <?php echo ($_POST['highest_alarm_level'] ?? '') === 'Level 4' ? 'selected' : ''; ?>>Level 4</option>
+                                                    <option value="Level 5" <?php echo ($_POST['highest_alarm_level'] ?? '') === 'Level 5' ? 'selected' : ''; ?>>Level 5</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="time_fire_started">Fire Start Time</label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <input type="datetime-local" class="form-control" id="time_fire_started" name="time_fire_started" value="<?php echo $_POST['time_fire_started'] ?? ($fireData ? date('Y-m-d\TH:i', strtotime($fireData['timestamp'])) : ''); ?>">
+                                            </div>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="time_fire_out">Fire Extinguished</label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <input type="datetime-local" class="form-control" id="time_fire_out" name="time_fire_out" value="<?php echo $_POST['time_fire_out'] ?? ''; ?>" placeholder="mm/dd/yyyy --:--">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-navigation">
+                                        <button type="button" class="btn btn-default btn-prev" onclick="prevStep()">
+                                            <i class="fa fa-arrow-left"></i> Previous
+                                        </button>
+                                        <button type="button" class="btn btn-primary btn-next" onclick="nextStep()">
+                                            Next <i class="fa fa-arrow-right"></i>
+                                        </button>
+                                    </div>
                                 </div>
-                                <div class="col-md-12">
-                                    <label for="disposition" class="form-label">Investigation Disposition</label>
-                                    <textarea class="form-control" id="disposition" name="disposition" rows="4" placeholder="Final disposition and recommendations..."><?php echo htmlspecialchars($_POST['disposition'] ?? ''); ?></textarea>
+                
+                                <!-- Assessment Details Section -->
+                                <div class="x_panel form-step" data-step="<?php echo $fireData ? '4' : '3'; ?>" style="display: none;">
+                                    <div class="x_title">
+                                        <h2>Assessment Details</h2>
+                                        <div class="clearfix"></div>
+                                    </div>
+                                    <div class="x_content">
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="establishments_affected">Properties Affected</label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <input type="number" class="form-control" id="establishments_affected" name="establishments_affected" value="<?php echo $_POST['establishments_affected'] ?? 1; ?>" min="1">
+                                            </div>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="estimated_area_sqm">Area Affected (sqm)</label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <input type="number" class="form-control" id="estimated_area_sqm" name="estimated_area_sqm" value="<?php echo $_POST['estimated_area_sqm'] ?? 0; ?>" min="0" step="0.01">
+                                            </div>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="damage_computation">Total Damage (₱)</label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <input type="number" class="form-control" id="damage_computation" name="damage_computation" value="<?php echo $_POST['damage_computation'] ?? ($_POST['estimated_damage'] ?? 0); ?>" min="0" step="0.01">
+                                            </div>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="weather_condition">Weather Conditions</label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <select class="form-control" id="weather_condition" name="weather_condition">
+                                                    <option value="Normal" <?php echo ($_POST['weather_condition'] ?? '') === 'Normal' ? 'selected' : ''; ?>>Normal</option>
+                                                    <option value="Rainy" <?php echo ($_POST['weather_condition'] ?? '') === 'Rainy' ? 'selected' : ''; ?>>Rainy</option>
+                                                    <option value="Sunny" <?php echo ($_POST['weather_condition'] ?? '') === 'Sunny' ? 'selected' : ''; ?>>Sunny</option>
+                                                    <option value="Windy" <?php echo ($_POST['weather_condition'] ?? '') === 'Windy' ? 'selected' : ''; ?>>Windy</option>
+                                                    <option value="Stormy" <?php echo ($_POST['weather_condition'] ?? '') === 'Stormy' ? 'selected' : ''; ?>>Stormy</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3">Personnel Involved</label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <div class="checkbox">
+                                                    <label>
+                                                        <input type="checkbox" id="personnel_investigator" name="personnel_investigator" value="1" <?php echo (isset($_POST['personnel_investigator']) || $personnelInvestigatorChecked) ? 'checked' : ''; ?>> Investigator
+                                                    </label>
+                                                </div>
+                                                <div class="checkbox">
+                                                    <label>
+                                                        <input type="checkbox" id="personnel_owner" name="personnel_owner" value="1" <?php echo (isset($_POST['personnel_owner']) || $personnelOwnerChecked) ? 'checked' : ''; ?>> Owner
+                                                    </label>
+                                                </div>
+                                                <div class="checkbox">
+                                                    <label>
+                                                        <input type="checkbox" id="personnel_occupant" name="personnel_occupant" value="1" <?php echo (isset($_POST['personnel_occupant']) || $personnelOccupantChecked) ? 'checked' : ''; ?>> Occupant
+                                                    </label>
+                                                </div>
+                                                <div class="checkbox">
+                                                    <label>
+                                                        <input type="checkbox" id="personnel_other" name="personnel_other" value="1" <?php echo (isset($_POST['personnel_other']) || $personnelOtherChecked) ? 'checked' : ''; ?>> Other Involved Persons
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="involved">Additional Personnel Details</label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <input type="text" class="form-control" id="involved" name="involved" value="<?php echo htmlspecialchars($_POST['involved'] ?? $existingInvolved ?: 'Fire Department Personnel'); ?>" placeholder="Specify other personnel involved...">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-navigation">
+                                        <button type="button" class="btn btn-default btn-prev" onclick="prevStep()">
+                                            <i class="fa fa-arrow-left"></i> Previous
+                                        </button>
+                                        <button type="button" class="btn btn-primary btn-next" onclick="nextStep()">
+                                            Next <i class="fa fa-arrow-right"></i>
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
+                
+                                <!-- Investigation Notes Section -->
+                                <div class="x_panel form-step" data-step="<?php echo $fireData ? '5' : '4'; ?>" style="display: none;">
+                                    <div class="x_title">
+                                        <h2>Investigation Notes</h2>
+                                        <div class="clearfix"></div>
+                                    </div>
+                                    <div class="x_content">
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="location_of_fatalities">Fatalities Location</label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <textarea class="form-control" id="location_of_fatalities" name="location_of_fatalities" rows="4" placeholder="Specify exact location where fatalities were found..."><?php echo htmlspecialchars($_POST['location_of_fatalities'] ?? ''); ?></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="other_info">Additional Findings</label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <textarea class="form-control" id="other_info" name="other_info" rows="4" placeholder="Any additional information, observations, or findings..."><?php echo htmlspecialchars($_POST['other_info'] ?? ''); ?></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="disposition">Investigation Disposition</label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <textarea class="form-control" id="disposition" name="disposition" rows="4" placeholder="Final disposition and recommendations..."><?php echo htmlspecialchars($_POST['disposition'] ?? ''); ?></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-navigation">
+                                        <button type="button" class="btn btn-default btn-prev" onclick="prevStep()">
+                                            <i class="fa fa-arrow-left"></i> Previous
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="ln_solid"></div>
+                                <div class="form-group" id="submit-section" style="display: none;">
+                                    <div class="col-md-12 col-sm-12 text-center">
+                                        <?php 
+                                        try {
+                                            $existingReportStmt = $conn->prepare("SELECT id FROM spot_investigation_reports WHERE fire_data_id = ?");
+                                            if ($existingReportStmt) {
+                                                $existingReportStmt->bindParam(1, $fireDataId, PDO::PARAM_INT);
+                                                $existingReportStmt->execute();
+                                                $hasExistingReport = $existingReportStmt->fetch();
+                                            } else {
+                                                $hasExistingReport = false;
+                                            }
+                                        } catch (Exception $e) {
+                                            error_log("Database error checking existing report for button: " . $e->getMessage());
+                                            $hasExistingReport = false;
+                                        }
+                                        ?>
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="fa fa-<?php echo $hasExistingReport ? 'save' : 'file-alt'; ?>"></i> <?php echo $hasExistingReport ? 'Update Report' : 'Generate Report'; ?>
+                                        </button>
+                                        <a href="index.php" class="btn btn-primary">
+                                            <i class="fa fa-arrow-left"></i> Cancel
+                                        </a>
+                                    </div>
+                                </div>
+                            </form>
                         </div>
                     </div>
-                    
-                    <div class="d-flex justify-content-center gap-4 pt-5 border-top">
-                        <?php 
-                        try {
-                            $existingReportStmt = $conn->prepare("SELECT id FROM spot_investigation_reports WHERE fire_data_id = ?");
-                            if ($existingReportStmt) {
-                                $existingReportStmt->bindParam(1, $fireDataId, PDO::PARAM_INT);
-                                $existingReportStmt->execute();
-                                $hasExistingReport = $existingReportStmt->fetch();
-                            } else {
-                                $hasExistingReport = false;
-                            }
-                        } catch (Exception $e) {
-                            error_log("Database error checking existing report for button: " . $e->getMessage());
-                            $hasExistingReport = false;
-                        }
-                        ?>
-                        <button type="submit" class="btn btn-lg btn-gradient-danger shadow-lg px-4 py-3 fw-bold text-uppercase">
-                            <i class="fas fa-<?php echo $hasExistingReport ? 'save' : 'file-alt'; ?> me-2"></i> 
-                            <?php echo $hasExistingReport ? 'Update Report' : 'Generate Report'; ?>
-                        </button>
-                        <a href="index.php" class="btn btn-lg btn-gradient-secondary shadow-lg px-4 py-3 fw-bold text-uppercase">
-                            <i class="fas fa-arrow-left me-2"></i> Cancel
-                        </a>
-                    </div>
-                </form>
+                </div>
             </div>
         </div>
     </div>
-        </div>
-        <?php include '../../components/scripts.php'; ?>
+    <?php include '../../components/scripts.php'; ?>
     <script>
+    // Form step navigation
+    let currentStep = 0;
+    const totalSteps = document.querySelectorAll('.form-step').length;
+    
+    function showStep(step) {
+        const steps = document.querySelectorAll('.form-step');
+        steps.forEach((s, index) => {
+            // Show all steps from 0 to current step (including current)
+            if (index <= step) {
+                s.style.display = 'block';
+                // Add visual class to distinguish previous steps
+                s.classList.remove('previous-step');
+                if (index < step) {
+                    s.classList.add('previous-step');
+                }
+            } else {
+                s.style.display = 'none';
+                s.classList.remove('previous-step');
+            }
+        });
+        
+        // Scroll to current step
+        if (steps[step]) {
+            setTimeout(() => {
+                steps[step].scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        }
+        
+        // Show/hide submit section on last step
+        const submitSection = document.getElementById('submit-section');
+        if (submitSection) {
+            if (step === totalSteps - 1) {
+                submitSection.style.display = 'block';
+            } else {
+                submitSection.style.display = 'none';
+            }
+        }
+        
+        // Update previous button visibility for current step
+        const currentStepPanel = steps[step];
+        if (currentStepPanel) {
+            const prevButton = currentStepPanel.querySelector('.btn-prev');
+            if (prevButton) {
+                prevButton.style.display = step === 0 ? 'none' : 'inline-block';
+            }
+        }
+        
+        // Hide Next buttons on all previous steps, show only on current step
+        steps.forEach((s, index) => {
+            const nextButton = s.querySelector('.btn-next');
+            if (nextButton) {
+                if (index === step) {
+                    nextButton.style.display = 'inline-block';
+                } else {
+                    nextButton.style.display = 'none';
+                }
+            }
+        });
+        
+        currentStep = step;
+    }
+    
+    function nextStep() {
+        if (currentStep < totalSteps - 1) {
+            // Validate current step before proceeding
+            if (validateCurrentStep(currentStep)) {
+                showStep(currentStep + 1);
+            }
+        }
+    }
+    
+    function prevStep() {
+        if (currentStep > 0) {
+            showStep(currentStep - 1);
+        }
+    }
+    
+    function validateCurrentStep(step) {
+        const stepPanel = document.querySelectorAll('.form-step')[step];
+        if (!stepPanel) return true;
+        
+        const stepData = parseInt(stepPanel.getAttribute('data-step'));
+        
+        // Get required fields in current step
+        const requiredFields = stepPanel.querySelectorAll('[required]');
+        let isValid = true;
+        const errors = [];
+        
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                isValid = false;
+                field.classList.add('is-invalid');
+                const fieldName = field.getAttribute('name') || field.getAttribute('id');
+                errors.push(`${fieldName} is required`);
+            } else {
+                field.classList.remove('is-invalid');
+            }
+        });
+        
+        // Additional validations for specific steps based on data-step attribute
+        // Report Header step (step 1 if fireData exists, step 0 if not)
+        const reportHeaderStep = <?php echo $fireData ? '1' : '0'; ?>;
+        if (stepData === reportHeaderStep) {
+            const subject = document.getElementById('subject');
+            if (subject && subject.value.trim().length > 0 && subject.value.trim().length < 10) {
+                isValid = false;
+                subject.classList.add('is-invalid');
+                errors.push('Subject must be at least 10 characters long.');
+            }
+        }
+        
+        // Incident Details step (step 2 if fireData exists, step 1 if not)
+        const incidentDetailsStep = <?php echo $fireData ? '2' : '1'; ?>;
+        if (stepData === incidentDetailsStep) {
+            const placeOccurrence = document.getElementById('place_occurrence');
+            if (placeOccurrence && placeOccurrence.value.trim().length > 0 && placeOccurrence.value.trim().length < 5) {
+                isValid = false;
+                placeOccurrence.classList.add('is-invalid');
+                errors.push('Location must be at least 5 characters long.');
+            }
+            
+            // Validate date logic
+            if (!validateDateLogic()) {
+                isValid = false;
+            }
+        }
+        
+        if (!isValid && errors.length > 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                html: 'Please complete all required fields before proceeding:<br>' + errors.join('<br>'),
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#dc3545'
+            });
+        }
+        
+        return isValid;
+    }
+    
+    // Initialize: show first step
+    document.addEventListener('DOMContentLoaded', function() {
+        showStep(0);
+    });
+    
     // Real-time validation feedback
     document.addEventListener('DOMContentLoaded', function() {
         // Show SweetAlert2 modals for PHP messages
@@ -1270,10 +1532,31 @@ if ($fireDataId > 0) {
         });
         
         // Form submission validation
-        const form = document.querySelector('form');
+        const form = document.getElementById('reportForm');
         if (form) {
             form.addEventListener('submit', function(e) {
                 e.preventDefault();
+                
+                // Validate all steps before submission
+                let allStepsValid = true;
+                for (let i = 0; i < totalSteps; i++) {
+                    if (!validateCurrentStep(i)) {
+                        allStepsValid = false;
+                        showStep(i); // Show the step with errors
+                        break;
+                    }
+                }
+                
+                if (!allStepsValid) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Validation Failed',
+                        html: 'Please complete all required fields in all sections before submitting.',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#dc3545'
+                    });
+                    return;
+                }
                 
                 if (!validateForm()) {
                     Swal.fire({
@@ -1527,4 +1810,5 @@ if ($fireDataId > 0) {
         }
     }
     </script>
-    <?php include '../../components/scripts.php'; ?>
+</body>
+</html>

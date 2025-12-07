@@ -9,8 +9,11 @@
 
 require_once __DIR__ . '/../db/load_env.php';
 
+// Environment-aware error handling
+$isProduction = (getenv('APP_ENV') === 'production');
+$debugMode = filter_var(getenv('APP_DEBUG') ?? '0', FILTER_VALIDATE_BOOLEAN);
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', ($isProduction && !$debugMode) ? '0' : '1');
 
 // Remote database credentials
 $db_host = getenv('REMOTE_DB_HOST') ?: '';

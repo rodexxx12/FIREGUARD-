@@ -12,7 +12,7 @@ if (!headers_sent()) {
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://unpkg.com https://use.fontawesome.com https://cdnjs.cloudflare.com https://cdn.datatables.net",
         "font-src 'self' https://fonts.gstatic.com https://use.fontawesome.com https://cdn.datatables.net data:",
         "img-src 'self' data: https:",
-        "connect-src 'self' https://api.mapbox.com https://events.mapbox.com https://cdn.datatables.net",
+        "connect-src 'self' https:",
         "frame-ancestors 'none'"
     ];
     header('Content-Security-Policy: ' . implode('; ', $csp));

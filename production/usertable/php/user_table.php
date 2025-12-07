@@ -91,10 +91,10 @@ try {
                     <div class="card-header">
                         <h5><i class="fas fa-filter"></i> Advanced Filters</h5>
                     </div>
-                    <div class="card-body">
-                        <div class="row">
+                    <div class="card-body compact-filters">
+                        <div class="row g-2">
                             <div class="col-md-6">
-                                <label class="form-label">Status</label>
+                                <label class="form-label mb-1">Status</label>
                                 <select id="statusFilter" class="form-select form-select-sm">
                                     <option value="">All Status</option>
                                     <option value="Active">Active</option>
@@ -102,7 +102,7 @@ try {
                                 </select>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Device Count</label>
+                                <label class="form-label mb-1">Device Count</label>
                                 <select id="deviceCountFilter" class="form-select form-select-sm">
                                     <option value="">All</option>
                                     <option value="0">No Devices</option>
@@ -111,10 +111,10 @@ try {
                                 </select>
                             </div>
                         </div>
-                        <div class="row mt-3">
+                        <div class="row g-2 mt-2">
                             <div class="col-md-6">
-                                <label class="form-label">Registration Date Range</label>
-                                <div class="row">
+                                <label class="form-label mb-1">Registration Date Range</label>
+                                <div class="row g-1">
                                     <div class="col-6">
                                         <input type="date" id="startDate" class="form-control form-control-sm" placeholder="Start Date">
                                     </div>
@@ -122,9 +122,9 @@ try {
                                         <input type="date" id="endDate" class="form-control form-control-sm" placeholder="End Date">
                                     </div>
                                 </div>
-                            </div
+                            </div>
                         </div>
-                        <div class="row mt-3">
+                        <div class="row g-2 mt-2">
                             <div class="col-12">
                                 <div class="d-flex justify-content-end gap-2">
                                     <button type="button" class="btn btn-outline-danger btn-sm" id="resetAllFilters">
@@ -136,9 +136,9 @@ try {
                                 </div>
                             </div>
                         </div>
-                        <div class="row mt-3" style="display: none;">
+                        <div class="row mt-2" style="display: none;">
                             <div class="col-md-8">
-                                <label class="form-label">Search users:</label>
+                                <label class="form-label mb-1">Search users:</label>
                                 <input type="text" id="globalSearch" class="form-control form-control-sm" placeholder="Search users...">
                             </div>
                             <div class="col-md-4">
@@ -149,7 +149,7 @@ try {
                                 </div>
                             </div>
                         </div>
-                        <div id="filterStatus" class="mt-2"></div>
+                        <div id="filterStatus" class="mt-1"></div>
                     </div>
                 </div>
             </div>

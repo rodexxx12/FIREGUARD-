@@ -20,11 +20,9 @@ const CRITICAL_TEMPERATURE_THRESHOLD = 60;  // °C
 const HIGH_SMOKE_THRESHOLD = 2000;
 const HIGH_HEAT_INDEX_THRESHOLD = 35;  // °C
 
-// Database configuration
-$host = "localhost";
-$dbname = "u520834156_DBBagofire";
-$username = "u520834156_userBagofire";
-$password = "i[#[GQ!+=C9";
+// Load core configuration and database connection
+require_once __DIR__ . '/../core/config/config.php';
+require_once __DIR__ . '/../core/database/database.php';
 
 // WebSocket URL for clients: wss://fireguard.bccbsis.com/ws
 
@@ -33,6 +31,11 @@ $last_processed_data = [];
 $last_alert_time = [];
 
 function get_db_connection() {
+    $host = config('db.host', 'localhost');
+    $dbname = config('db.name', '');
+    $username = config('db.user', '');
+    $password = config('db.pass', '');
+    
     $conn = new mysqli($host, $username, $password, $dbname);
     if ($conn->connect_error) {
         error_log("Database connection failed: " . $conn->connect_error);

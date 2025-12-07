@@ -422,7 +422,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     <table id="firefightersTable" class="table table-striped table-hover">
                         <thead>
                             <tr>
-                                <th>ID</th>
+                                <th style="display: none;">ID</th>
                                 <th>Name</th>
                                 <th>Email</th>
                                 <th>Username</th>
@@ -718,7 +718,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     }
                 },
                 columns: [
-                    { data: 0, visible: true }, // ID
+                    { data: 0, visible: false }, // ID (hidden)
                     { data: 1 }, // Name
                     { data: 2 }, // Email
                     { data: 3 }, // Username

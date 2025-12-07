@@ -1278,14 +1278,6 @@ if (isset($_SESSION['user_id'])) {
         
                 <!-- Gentelella Form Wizard Style -->
                 <div class="x_panel">
-                    <div class="x_title d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0" id="cardTitle">
-                        <i class="bi bi-building-add"></i> Building Registration
-                    </h5>
-                        <a href="buildings-table.php" class="btn btn-primary" id="viewBuildingsBtn">
-                            <i class="bi bi-buildings"></i> My Buildings
-                        </a>
-                    </div>
                     <div class="x_content">
                         <div id="wizard" class="form_wizard wizard_horizontal">
                             <ul class="wizard_steps">
@@ -1332,8 +1324,7 @@ if (isset($_SESSION['user_id'])) {
                     <input type="hidden" name="csrf_token" id="csrf_token" value="<?php echo htmlspecialchars($csrf_token, ENT_QUOTES, 'UTF-8'); ?>">
                     <!-- Step 1: Basic Information -->
                     <div class="step-content" id="stepContent1">
-                        <h2 class="StepTitle">Step 1 Content</h2>
-                        <h5 class="mb-4 text-success"><i class="bi bi-info-circle"></i> Basic Information</h5>
+                        <h3 class="mb-4 text-success fw-bold" style="font-size: 1.75rem;"><i class="fa fa-info-circle"></i> Basic Information</h3>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="building_name" class="form-label required-field">Building Name</label>
@@ -1390,17 +1381,16 @@ if (isset($_SESSION['user_id'])) {
                         <input type="hidden" id="address" name="address" />
                         
                         <div class="d-flex justify-content-end mt-4">
-                            <button type="button" class="btn btn-primary next-step" data-next="2">Next <i class="bi bi-arrow-right"></i></button>
+                            <button type="button" class="btn btn-primary next-step" data-next="2">Next <i class="fa fa-arrow-right"></i></button>
                         </div>
                     </div>
                     
                     <!-- Step 2: Safety Features -->
                     <div class="step-content d-none" id="stepContent2">
-                        <h2 class="StepTitle">Step 2 Content</h2>
-                        <h5 class="mb-4"><i class="bi bi-shield-check"></i> Safety Features</h5>
+                        <h3 class="mb-4 fw-bold" style="font-size: 1.75rem;"><i class="fa fa-shield"></i> Safety Features</h3>
                         
                         <div class="mb-4">
-                            <h6 class="mb-3">Fire Protection Systems</h6>
+                            <h5 class="mb-4 fw-bold" style="font-size: 1.15rem; color: #212529;">Fire Protection Systems</h5>
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <div class="form-check form-switch">
@@ -1426,7 +1416,7 @@ if (isset($_SESSION['user_id'])) {
                         </div>
                         
                         <div class="mb-4">
-                            <h6 class="mb-3">Emergency Features</h6>
+                            <h5 class="mb-4 fw-bold" style="font-size: 1.15rem; color: #212529;">Emergency Features</h5>
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <div class="form-check form-switch">
@@ -1460,15 +1450,14 @@ if (isset($_SESSION['user_id'])) {
                         </div>
                         
                         <div class="d-flex justify-content-between mt-4">
-                            <button type="button" class="btn btn-success prev-step" data-prev="1"><i class="bi bi-arrow-left"></i> Previous</button>
-                            <button type="button" class="btn btn-primary next-step" data-next="3">Next <i class="bi bi-arrow-right"></i></button>
+                            <button type="button" class="btn btn-success prev-step" data-prev="1"><i class="fa fa-arrow-left"></i> Previous</button>
+                            <button type="button" class="btn btn-primary next-step" data-next="3">Next <i class="fa fa-arrow-right"></i></button>
                         </div>
                     </div>
                     
                     <!-- Step 3: Location Details -->
                     <div class="step-content d-none" id="stepContent3">
-                        <h2 class="StepTitle">Step 3 Content</h2>
-                        <h5 class="mb-4"><i class="bi bi-geo-alt"></i> Location Details</h5>       
+                        <h3 class="mb-4 fw-bold" style="font-size: 1.75rem;"><i class="fa fa-map-marker"></i> Location Details</h3>       
                         <div class="row" style="display: none;">
                             <div class="col-md-6 mb-3">
                                 <label for="latitude" class="form-label">Latitude</label>
@@ -1483,7 +1472,7 @@ if (isset($_SESSION['user_id'])) {
                         </div>
                         
                         <!-- Location-based dropdowns -->
-                        <div class="row mb-4">
+                        <div class="row mb-4" style="display: none;">
                             <div class="col-md-6 mb-3">
                                 <label for="geo_fence_id" class="form-label">Geo-Fence Area</label>
                                 <select class="form-select" name="geo_fence_id" id="geo_fence_id" disabled>
@@ -1503,7 +1492,7 @@ if (isset($_SESSION['user_id'])) {
                         <div class="row mb-3" style="display: none;">
                             <div class="col-12">
                                 <button type="button" class="btn btn-outline-info" id="getAddressFromCoordsBtn">
-                                    <i class="bi bi-geo-alt"></i> Get Address from Coordinates
+                                    <i class="fa fa-map-marker"></i> Get Address from Coordinates
                                 </button>
                                 <small class="form-text text-muted">Click this button to automatically get the address from the entered coordinates</small>
                             </div>
@@ -1512,15 +1501,15 @@ if (isset($_SESSION['user_id'])) {
                         <!-- Display retrieved address -->
                         <div class="row mb-3" id="retrievedAddressDisplay" style="display: none;">
                             <div class="col-12">
-                                <div class="alert alert-success">
+                                <div class="alert alert-success" style="background-color: white; border: 1px solid #d1ecf1;">
                                     <div class="d-flex align-items-start">
-                                        <i class="bi bi-check-circle-fill me-2 mt-1"></i>
+                                        <i class="fa fa-check-circle me-2 mt-1"></i>
                                         <div class="flex-grow-1">
                                             <div class="d-flex justify-content-between align-items-start mb-2">
-                                                <h6 class="alert-heading mb-0">Retrieved Address:</h6>
+                                                <h6 class="alert-heading mb-0 fw-bold" style="font-size: 1.1rem;">Retrieved Address:</h6>
                                                 <button type="button" class="btn-close" id="closeAddressDisplay" aria-label="Close"></button>
                                             </div>
-                                            <p class="mb-0" id="retrievedAddressText"></p>
+                                            <p class="mb-0 fw-bold" id="retrievedAddressText" style="font-size: 1.15rem; color: red;"></p>
                                             <small class="text-muted">This address has been automatically retrieved from the coordinates and will be saved with your building information.</small>
                                         </div>
                                     </div>
@@ -1533,20 +1522,20 @@ if (isset($_SESSION['user_id'])) {
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <div class="d-flex gap-2">
                             <button id="refreshMapBtn" class="btn btn-sm btn-danger" title="Refresh Map">
-                                <i class="bi bi-arrow-clockwise"></i> Refresh Map
+                                <i class="fa fa-refresh"></i> Refresh Map
                             </button>
                             <button type="button" class="btn btn-sm btn-outline-primary" id="getLocationBtnTop">
-                                <i class="bi bi-geo-alt"></i> Use My Current Location
+                                <i class="fa fa-map-marker"></i> Use My Current Location
                             </button>
                         </div>
                         <div class="text-muted small">
-                            <i class="bi bi-info-circle"></i> Click on the map to select location
+                            <i class="fa fa-info-circle"></i> Click on the map to select location
                         </div>
                     </div>
                 <div id="map" style="height: 300px; border-radius: 10px; border: 1px solid #ddd; position: relative; cursor: crosshair; background-color: #f8f9fa; min-height: 500px;">
                     <div class="map-instructions" style="position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.95); padding: 10px 15px; border-radius: 8px; font-size: 13px; z-index: 1000; box-shadow: 0 4px 8px rgba(0,0,0,0.15); pointer-events: none; border: 1px solid rgba(0,0,0,0.1);">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <i class="bi bi-info-circle text-primary" style="font-size: 16px;"></i>
+                            <i class="fa fa-info-circle text-primary" style="font-size: 16px;"></i>
                             <span style="font-weight: 500;">Click inside the green areas to select location</span>
                         </div>
                     </div>
@@ -1557,7 +1546,7 @@ if (isset($_SESSION['user_id'])) {
                         <div style="margin-top: 10px; font-size: 14px; color: #666;">Loading map...</div>
                     </div>
                     <div class="map-error" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,255,255,0.9); padding: 20px; border-radius: 10px; text-align: center; z-index: 999; display: none; color: #dc3545;">
-                        <i class="bi bi-exclamation-triangle" style="font-size: 24px;"></i>
+                        <i class="fa fa-exclamation-triangle" style="font-size: 24px;"></i>
                         <div style="margin-top: 10px; font-size: 14px;">Map failed to load. Please refresh the page.</div>
                         <button class="btn btn-sm btn-danger mt-2" onclick="location.reload()">Refresh Page</button>
                     </div>
@@ -1567,68 +1556,67 @@ if (isset($_SESSION['user_id'])) {
 
                         
                         <div class="d-flex justify-content-between mt-4">
-                            <button type="button" class="btn btn-success prev-step" data-prev="2"><i class="bi bi-arrow-left"></i> Previous</button>
-                            <button type="button" class="btn btn-primary next-step" data-next="4">Next <i class="bi bi-arrow-right"></i></button>
+                            <button type="button" class="btn btn-success prev-step" data-prev="2"><i class="fa fa-arrow-left"></i> Previous</button>
+                            <button type="button" class="btn btn-primary next-step" data-next="4">Next <i class="fa fa-arrow-right"></i></button>
                         </div>
                     </div>
                     
                     <!-- Step 4: Review & Submit -->
                     <div class="step-content d-none" id="stepContent4">
-                        <h2 class="StepTitle">Step 4 Content</h2>
-                        <h5 class="mb-4"><i class="bi bi-check-circle"></i> Review & Submit</h5>
+                        <h3 class="mb-4 fw-bold" style="font-size: 1.75rem;"><i class="fa fa-check-circle"></i> Review & Submit</h3>
                         
                         <div class="alert alert-warning mb-4">
-                            <i class="bi bi-exclamation-triangle"></i> Please review all information before submitting. You won't be able to edit after submission.
+                            <i class="fa fa-exclamation-triangle"></i> Please review all information before submitting. You won't be able to edit after submission.
                         </div>
                         
                         <div class="row">
                             <div class="col-md-6">
-                                <h6 class="mb-3">Basic Information</h6>
+                                <h5 class="mb-4 fw-bold" style="font-size: 1.25rem; color: #212529;">Basic Information</h5>
                                 <div class="row">
                                     <div class="col-12 mb-3">
-                                    <p class="mb-1 text-muted">Building Name</p>
-                                    <p id="review_building_name">-</p>
+                                    <p class="mb-2 fw-bold" style="font-size: 0.95rem; color: #495057; letter-spacing: 0.02em;">Building Name</p>
+                                    <p id="review_building_name" style="font-size: 1rem; font-weight: 500; color: #212529; line-height: 1.6;">-</p>
                                 </div>
                                     <div class="col-12 mb-3">
-                                    <p class="mb-1 text-muted">Building Type</p>
-                                    <p id="review_building_type">-</p>
+                                    <p class="mb-2 fw-bold" style="font-size: 0.95rem; color: #495057; letter-spacing: 0.02em;">Building Type</p>
+                                    <p id="review_building_type" style="font-size: 1rem; font-weight: 500; color: #212529; line-height: 1.6;">-</p>
                                 </div>
                                     <div class="col-12 mb-3">
-                                    <p class="mb-1 text-muted">Address</p>
-                                    <p id="review_address">-</p>
+                                    <p class="mb-2 fw-bold" style="font-size: 0.95rem; color: #495057; letter-spacing: 0.02em;">Address</p>
+                                    <p id="review_address" style="font-size: 1rem; font-weight: 500; color: #212529; line-height: 1.6;">-</p>
                                 </div>
                                     <div class="col-12 mb-3">
-                                    <p class="mb-1 text-muted">Contact Person</p>
-                                    <p id="review_contact_person">-</p>
+                                    <p class="mb-2 fw-bold" style="font-size: 0.95rem; color: #495057; letter-spacing: 0.02em;">Contact Person</p>
+                                    <p id="review_contact_person" style="font-size: 1rem; font-weight: 500; color: #212529; line-height: 1.6;">-</p>
                                 </div>
                                     <div class="col-12 mb-3">
-                                    <p class="mb-1 text-muted">Total Floors</p>
-                                    <p id="review_total_floors">-</p>
+                                    <p class="mb-2 fw-bold" style="font-size: 0.95rem; color: #495057; letter-spacing: 0.02em;">Total Floors</p>
+                                    <p id="review_total_floors" style="font-size: 1rem; font-weight: 500; color: #212529; line-height: 1.6;">-</p>
                                 </div>
                                     <div class="col-12 mb-3">
-                                    <p class="mb-1 text-muted">Construction Year</p>
-                                    <p id="review_construction_year">-</p>
+                                    <p class="mb-2 fw-bold" style="font-size: 0.95rem; color: #495057; letter-spacing: 0.02em;">Construction Year</p>
+                                    <p id="review_construction_year" style="font-size: 1rem; font-weight: 500; color: #212529; line-height: 1.6;">-</p>
                                 </div>
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <h6 class="mb-3">Details</h6>
+                                <h5 class="mb-4 fw-bold" style="font-size: 1.25rem; color: #212529;">Details</h5>
                                 <div class="row">
                                     <div class="col-12 mb-3">
-                                    <p class="mb-1 text-muted">Safety Features</p>
-                                    <div id="review_safety_features">
+                                    <p class="mb-2 fw-bold" style="font-size: 0.95rem; color: #495057; letter-spacing: 0.02em;">Safety Features</p>
+                                    <div id="review_safety_features" style="font-size: 1rem; font-weight: 500; color: #212529; line-height: 1.6;">
                                         <span class="badge bg-secondary">None specified</span>
                                     </div>
                                 </div>
                                     <div class="col-12 mb-3">
-                                    <p class="mb-1 text-muted">Last Inspection</p>
-                                    <p id="review_last_inspected">-</p>
+                                    <p class="mb-2 fw-bold" style="font-size: 0.95rem; color: #495057; letter-spacing: 0.02em;">Last Inspection</p>
+                                    <p id="review_last_inspected" style="font-size: 1rem; font-weight: 500; color: #212529; line-height: 1.6;">-</p>
                                 </div>
-                                    <div class="col-12 mb-3">
+                                    <div class="col-12 mb-3" style="display: none;">
                                     <p class="mb-1 text-muted">Geo-Fence Area</p>
                                     <p id="review_geo_fence">-</p>
                                 </div>
-                                    <div class="col-12 mb-3">
+                                    <div class="col-12 mb-3" style="display: none;">
                                     <p class="mb-1 text-muted">Barangay</p>
                                     <p id="review_barangay">-</p>
                                     </div>
@@ -1637,9 +1625,9 @@ if (isset($_SESSION['user_id'])) {
                         </div>
                         
                         <div class="d-flex justify-content-between mt-4">
-                            <button type="button" class="btn btn-success prev-step" data-prev="3"><i class="bi bi-arrow-left"></i> Previous</button>
+                            <button type="button" class="btn btn-success prev-step" data-prev="3"><i class="fa fa-arrow-left"></i> Previous</button>
                             <button type="submit" class="btn btn-success">
-                                <i class="bi bi-check-lg"></i> Submit Registration
+                                <i class="fa fa-check"></i> Submit Registration
                             </button>
                         </div>
                     </div>
@@ -1656,11 +1644,11 @@ if (isset($_SESSION['user_id'])) {
                 
 <?php if (empty($buildings)): ?>
     <div class="empty-state">
-        <i class="bi bi-building"></i>
+        <i class="fa fa-building"></i>
         <h5 class="mt-3">No Buildings Registered</h5>
         <p class="text-muted">You haven't registered any buildings yet. Click the button above to add your first building.</p>
         <button class="btn btn-primary" id="emptyStateAddBtn">
-            <i class="bi bi-plus-lg"></i> Add Building
+            <i class="fa fa-plus"></i> Add Building
         </button>
     </div>
 <?php endif; ?>
@@ -1672,7 +1660,7 @@ if (isset($_SESSION['user_id'])) {
             <p class="text-muted mb-0">Open the dedicated table to review, edit, or delete building records.</p>
         </div>
         <a href="buildings-table.php" class="btn btn-outline-success">
-            <i class="bi bi-buildings"></i> View Buildings Table
+            <i class="fa fa-building"></i> View Buildings Table
         </a>
     </div>
 </div>
@@ -1685,7 +1673,6 @@ if (isset($_SESSION['user_id'])) {
 </main>
 </div>
 </div>
-<?php include('../../components/footer.php'); ?>
     <!-- jQuery already included in header.php -->
     <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap4.min.js"></script>
@@ -1715,7 +1702,7 @@ if (isset($_SESSION['user_id'])) {
         $('#registrationForm').removeClass('d-none');
         $('#viewBuildingsBtn').removeClass('d-none');
         $('#addBuildingBtn').addClass('d-none');
-        $('#cardTitle').html('<i class="bi bi-building-add"></i> Building Registration');
+        $('#cardTitle').html('<i class="fa fa-building"></i> Building Registration');
         
         // Reset wizard to step 1 (Gentelella style)
         $('.wizard_steps li a').removeClass('selected done').addClass('disabled').attr('isdone', '0');
@@ -1932,15 +1919,21 @@ if (isset($_SESSION['user_id'])) {
     }
 
     // Global function to update barangay dropdown based on location
-    function updateBarangayDropdown(lat, lng) {
+    function updateBarangayDropdown(lat, lng, address = null) {
         const barangaySelect = $('#barangay_id');
         
         // Show loading state
         barangaySelect.html('<option value="">Loading nearby barangays...</option>');
         barangaySelect.prop('disabled', true);
         
+        // Build URL with optional address parameter
+        let url = `get_barangays.php?lat=${lat}&lng=${lng}`;
+        if (address) {
+            url += `&address=${encodeURIComponent(address)}`;
+        }
+        
         // Fetch nearby barangays
-        fetch(`get_barangays.php?lat=${lat}&lng=${lng}`)
+        fetch(url)
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success' && data.barangays.length > 0) {
@@ -1952,7 +1945,8 @@ if (isset($_SESSION['user_id'])) {
                     });
                     barangaySelect.html(options);
                     barangaySelect.prop('disabled', false);
-                    showLiveFeedback(barangaySelect, 'success', 'Nearby barangays loaded');
+                    const message = address && !data.barangays[0].distance ? 'Barangay matched from address' : 'Nearby barangays loaded';
+                    showLiveFeedback(barangaySelect, 'success', message);
                 } else {
                     barangaySelect.html('<option value="">No nearby barangays found</option>');
                     barangaySelect.prop('disabled', true);
@@ -2071,7 +2065,7 @@ if (isset($_SESSION['user_id'])) {
                         title: 'Invalid Location',
                         html: `
                             <div class="text-center">
-                                <i class="bi bi-exclamation-triangle text-warning" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                                <i class="fa fa-exclamation-triangle text-warning" style="font-size: 3rem; margin-bottom: 1rem;"></i>
                                 <p class="mb-3">The selected location is outside the allowed areas.</p>
                                 <p class="mb-3"><strong>Allowed areas:</strong> ${allowedCities}</p>
                                 <p class="text-muted">Please select a location within the allowed boundaries.</p>
@@ -2139,6 +2133,14 @@ if (isset($_SESSION['user_id'])) {
                             // Display the retrieved address
                             $('#retrievedAddressText').text(address);
                             $('#retrievedAddressDisplay').show();
+                            
+                            // Try to update barangay dropdown with the address if no barangay was found
+                            if (typeof updateBarangayDropdown === 'function') {
+                                const currentBarangayValue = $('#barangay_id').val();
+                                if (!currentBarangayValue || $('#barangay_id option:selected').text().includes('No nearby barangays')) {
+                                    updateBarangayDropdown(currentLat, currentLng, address);
+                                }
+                            }
                             
                             // Clear loading indicators and show success
                             if (typeof clearLiveFeedback === 'function') {
@@ -2261,7 +2263,7 @@ if (isset($_SESSION['user_id'])) {
                     <p class="mb-1">Latitude: ${latitude}</p>
                     <p class="mb-1">Longitude: ${longitude}</p>
                     <a href="https://www.google.com/maps?q=${latitude},${longitude}" target="_blank" class="btn btn-sm btn-outline-primary mt-2">
-                        <i class="bi bi-map"></i> View on Map
+                        <i class="fa fa-map"></i> View on Map
                     </a>
                 `);
             } else {
@@ -2292,7 +2294,7 @@ if (isset($_SESSION['user_id'])) {
         // Update geo-fence dropdown
         updateGeoFenceDropdown(lat, lng);
         
-        // Update barangay dropdown
+        // Update barangay dropdown (will try again with address if no nearby found)
         updateBarangayDropdown(lat, lng);
         
         getAddressFromCoordinates(lat, lng)
@@ -2303,6 +2305,12 @@ if (isset($_SESSION['user_id'])) {
                 // Display the retrieved address
                 $('#retrievedAddressText').text(address);
                 $('#retrievedAddressDisplay').show();
+                
+                // Try to update barangay dropdown again with the address if no barangay was found
+                const currentBarangayValue = $('#barangay_id').val();
+                if (!currentBarangayValue || $('#barangay_id option:selected').text().includes('No nearby barangays')) {
+                    updateBarangayDropdown(lat, lng, address);
+                }
                 
                 // Clear loading indicators and show success
                 clearLiveFeedback($('#latitude'));
@@ -2449,14 +2457,14 @@ if (isset($_SESSION['user_id'])) {
     // Refresh map button handler
     $('#refreshMapBtn').click(function() {
         $(this).prop('disabled', true);
-        $(this).html('<i class="bi bi-arrow-clockwise spin"></i> Refreshing...');
+        $(this).html('<i class="fa fa-refresh spin"></i> Refreshing...');
         
         refreshMap();
         
         // Re-enable button after refresh
         setTimeout(() => {
             $('#refreshMapBtn').prop('disabled', false);
-            $('#refreshMapBtn').html('<i class="bi bi-arrow-clockwise"></i> Refresh');
+            $('#refreshMapBtn').html('<i class="fa fa-refresh"></i> Refresh');
         }, 2000);
     });
     
@@ -2593,7 +2601,7 @@ if (isset($_SESSION['user_id'])) {
         $('#buildingsSection').removeClass('d-none').addClass('fade-in');
         $('#viewBuildingsBtn').addClass('d-none');
         $('#addBuildingBtn').removeClass('d-none');
-        $('#cardTitle').html('<i class="bi bi-buildings"></i> My Registered Buildings');
+        $('#cardTitle').html('<i class="fa fa-building"></i> My Registered Buildings');
         // Smooth scroll to top of card
         const mainCard = $('#mainCard');
         if (mainCard.length) {
@@ -2647,7 +2655,7 @@ if (isset($_SESSION['user_id'])) {
         $('#registrationForm').removeClass('d-none').addClass('fade-in');
         $('#viewBuildingsBtn').removeClass('d-none');
         $('#addBuildingBtn').addClass('d-none');
-        $('#cardTitle').html('<i class="bi bi-building-add"></i> Building Registration');
+        $('#cardTitle').html('<i class="fa fa-building"></i> Building Registration');
         
         // Reset form to step 1 (Gentelella style)
         $('.wizard_steps li a').removeClass('selected done').addClass('disabled').attr('isdone', '0');
@@ -2711,7 +2719,7 @@ if (isset($_SESSION['user_id'])) {
             // Reset instruction text
             $('.map-instructions').html(`
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <i class="bi bi-info-circle text-primary" style="font-size: 16px;"></i>
+                    <i class="fa fa-info-circle text-primary" style="font-size: 16px;"></i>
                     <span style="font-weight: 500;">Click inside the green areas to select location</span>
                 </div>
             `);
@@ -2747,7 +2755,7 @@ if (isset($_SESSION['user_id'])) {
                             map.fitBounds(group.getBounds(), { padding: [20, 20] });
                         }
                         
-                        $('.map-instructions').html('<i class="bi bi-check-circle text-success"></i> Click inside the green areas to select location');
+                        $('.map-instructions').html('<i class="fa fa-check-circle text-success"></i> Click inside the green areas to select location');
                     }
                 });
             }, 100);
@@ -2773,7 +2781,7 @@ if (isset($_SESSION['user_id'])) {
                     }
                     
                     // updateCoordinates function now handles reverse geocoding automatically
-                    $('#getLocationBtn').html('<i class="bi bi-geo-alt"></i> Use My Current Location').prop('disabled', false);
+                    $('#getLocationBtn').html('<i class="fa fa-map-marker"></i> Use My Current Location').prop('disabled', false);
                 },
                 function(error) {
                     let errorMessage = "Unable to retrieve your location: ";
@@ -2791,7 +2799,7 @@ if (isset($_SESSION['user_id'])) {
                             errorMessage += "An unknown error occurred.";
                     }
                     
-                    $('#getLocationBtn').html('<i class="bi bi-geo-alt"></i> Use My Current Location').prop('disabled', false);
+                    $('#getLocationBtn').html('<i class="fa fa-map-marker"></i> Use My Current Location').prop('disabled', false);
                     showToast('error', errorMessage);
                 },
                 {
@@ -2864,7 +2872,7 @@ if (isset($_SESSION['user_id'])) {
                         $('#buildingsSection').removeClass('d-none');
                         $('#viewBuildingsBtn').removeClass('d-none');
                         $('#addBuildingBtn').removeClass('d-none');
-                        $('#cardTitle').html('<i class="bi bi-buildings"></i> My Registered Buildings');
+                        $('#cardTitle').html('<i class="fa fa-building"></i> My Registered Buildings');
                         
                         // Reload the page to get updated data
                         location.reload();
@@ -3117,10 +3125,10 @@ $(document).on('click', '.delete-building', function() {
                         if (buildingsTable.data().count() === 0) {
                             $('#buildingsSection .table-responsive').html(`
                                 <div class="empty-state">
-                                    <i class="bi bi-building"></i>
+                                    <i class="fa fa-building"></i>
                                     <h5>No Buildings Found</h5>
                                     <button class="btn btn-primary mt-3" id="addBuildingBtn">
-                                        <i class="bi bi-plus-lg"></i> Add Building
+                                        <i class="fa fa-plus"></i> Add Building
                                     </button>
                                 </div>
                             `);
@@ -3133,10 +3141,10 @@ $(document).on('click', '.delete-building', function() {
                         if ($('tbody tr').length === 0) {
                             $('#buildingsSection .table-responsive').html(`
                                 <div class="empty-state">
-                                    <i class="bi bi-building"></i>
+                                    <i class="fa fa-building"></i>
                                     <h5>No Buildings Found</h5>
                                     <button class="btn btn-primary mt-3" id="addBuildingBtn">
-                                        <i class="bi bi-plus-lg"></i> Add Building
+                                        <i class="fa fa-plus"></i> Add Building
                                     </button>
                                 </div>
                             `);
@@ -3282,6 +3290,11 @@ $(document).on('click', '.delete-building', function() {
                         $('#retrievedAddressText').text(address);
                         $('#retrievedAddressDisplay').show();
                         
+                        // Update barangay dropdown with address if needed
+                        if (typeof updateBarangayDropdown === 'function') {
+                            updateBarangayDropdown(lat, lng, address);
+                        }
+                        
                         // Clear loading indicators and show success
                         clearLiveFeedback($('#latitude'));
                         clearLiveFeedback($('#longitude'));
@@ -3377,6 +3390,11 @@ $(document).on('click', '.delete-building', function() {
                 $('#retrievedAddressText').text(address);
                 $('#retrievedAddressDisplay').show();
                 
+                // Update barangay dropdown with address if needed
+                if (typeof updateBarangayDropdown === 'function') {
+                    updateBarangayDropdown(latNum, lngNum, address);
+                }
+                
                 showToast('success', 'Address obtained successfully!');
             })
             .catch(error => {
@@ -3384,7 +3402,7 @@ $(document).on('click', '.delete-building', function() {
                 showToast('error', 'Could not get address for these coordinates. Please enter address manually.');
             })
             .finally(() => {
-                $('#getAddressFromCoordsBtn').html('<i class="bi bi-geo-alt"></i> Get Address from Coordinates').prop('disabled', false);
+                $('#getAddressFromCoordsBtn').html('<i class="fa fa-map-marker"></i> Get Address from Coordinates').prop('disabled', false);
             });
     });
 
@@ -3690,7 +3708,7 @@ $(document).on('click', '.delete-building', function() {
                             showToast('warning', 'Location obtained but could not get address. Please enter address manually.');
                         })
                         .finally(() => {
-                            btn.html('<i class="bi bi-geo-alt"></i> Use My Current Location').prop('disabled', false);
+                            btn.html('<i class="fa fa-map-marker"></i> Use My Current Location').prop('disabled', false);
                         });
                 },
                 function(error) {
@@ -3708,7 +3726,7 @@ $(document).on('click', '.delete-building', function() {
                         default:
                             errorMessage += "An unknown error occurred.";
                     }
-                    btn.html('<i class="bi bi-geo-alt"></i> Use My Current Location').prop('disabled', false);
+                    btn.html('<i class="fa fa-map-marker"></i> Use My Current Location').prop('disabled', false);
                     showToast('error', errorMessage);
                 },
                 {
@@ -3771,14 +3789,14 @@ $(document).on('click', '.delete-building', function() {
                 }
                 
                 // Update instructions
-                $('.map-instructions').html('<i class="bi bi-check-circle text-success"></i> Click inside the green areas to select location');
+                $('.map-instructions').html('<i class="fa fa-check-circle text-success"></i> Click inside the green areas to select location');
             } else {
                 console.log('No geo-fences to display');
-                $('.map-instructions').html('<i class="bi bi-info-circle text-info"></i> Click on the map to select location');
+                $('.map-instructions').html('<i class="fa fa-info-circle text-info"></i> Click on the map to select location');
             }
         }).catch((error) => {
             console.log('Geo-fences failed to load, map will work without validation:', error);
-            $('.map-instructions').html('<i class="bi bi-info-circle text-info"></i> Click on the map to select location');
+            $('.map-instructions').html('<i class="fa fa-info-circle text-info"></i> Click on the map to select location');
         });
     }
     

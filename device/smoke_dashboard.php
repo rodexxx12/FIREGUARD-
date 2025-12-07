@@ -1,14 +1,27 @@
 <?php
-// Database connection
-$conn = new mysqli("localhost", "u520834156_userBagofire", "i[#[GQ!+=C9", "u520834156_DBBagofire");
+// Load core configuration and database connection
+require_once __DIR__ . '/../core/config/config.php';
+require_once __DIR__ . '/../core/database/database.php';
+
+// Database connection using environment variables
+$host = config('db.host', 'localhost');
+$dbname = config('db.name', '');
+$username = config('db.user', '');
+$password = config('db.pass', '');
+
+$conn = new mysqli($host, $username, $password, $dbname);
 
 // Check connection
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-// Get latest readings
-$result = $conn->query("SELECT * FROM smoke_readings ORDER BY reading_time DESC LIMIT 10");
+// Get latest readings - using prepared statement
+$stmt = $conn->prepare("SELECT * FROM smoke_readings ORDER BY reading_time DESC LIMIT ?");
+$limit = 10;
+$stmt->bind_param("i", $limit);
+$stmt->execute();
+$result = $stmt->get_result();
 ?>
 
 <!DOCTYPE html>

@@ -1,6 +1,8 @@
 <?php
 session_start();
 require_once '../../../db/db.php';
+require_once '../../components/security.php';
+require_once '../../../core/security/input_sanitizer.php';
 
 // Get barangay information
 function getBarangayInfo($barangayId) {
@@ -19,7 +21,6 @@ function getBarangayReports($barangayId, $filters = [], $page = 1, $perPage = 12
         SELECT 
             sir.*,
             br.barangay_name,
-            br.ir_number as barangay_ir_number,
             CASE 
                 WHEN sir.date_occurrence IS NULL OR sir.date_occurrence = '' OR sir.date_occurrence = '########' THEN 'N/A'
                 ELSE DATE_FORMAT(sir.date_occurrence, '%Y-%m-%d')
@@ -198,7 +199,6 @@ function generateReportData($barangayId, $period = 'daily', $filters = []) {
         SELECT 
             sir.*,
             br.barangay_name,
-            br.ir_number as barangay_ir_number,
             fd.geo_lat as latitude,
             fd.geo_long as longitude,
             fd.temp as temperature,
@@ -283,9 +283,9 @@ function generateReportData($barangayId, $period = 'daily', $filters = []) {
 function generateCSVReport($barangayId, $barangayName, $period = 'daily', $filters = []) {
     $reports = generateReportData($barangayId, $period, $filters);
     
-    // Debug: Log the first report to see what we're getting
-    if (!empty($reports)) {
-        error_log("CSV Debug - First report data: " . print_r($reports[0], true));
+    // Production-safe logging (development only)
+    if (function_exists('isDevelopmentEnvironment') && isDevelopmentEnvironment() && !empty($reports)) {
+        error_log("CSV Debug - First report data: " . json_encode($reports[0]));
     }
     
     // Create filename with period and date range info
@@ -401,27 +401,27 @@ function buildPaginationUrl($barangayId, $barangayName, $filters, $page, $perPag
     return 'reports.php?' . http_build_query($params);
 }
 
-$barangayId = isset($_GET['barangay_id']) ? (int)$_GET['barangay_id'] : 0;
-$barangayName = isset($_GET['name']) ? $_GET['name'] : '';
+$barangayId = sanitizeInt($_GET['barangay_id'] ?? 0);
+$barangayName = sanitizeString($_GET['name'] ?? '');
 
 // Handle report generation requests
 if (isset($_GET['generate']) && isset($_GET['format']) && isset($_GET['period'])) {
-    $generate = $_GET['generate'];
-    $format = $_GET['format'];
-    $period = $_GET['period'];
+    $generate = sanitizeString($_GET['generate'] ?? '');
+    $format = sanitizeString($_GET['format'] ?? '');
+    $period = sanitizeString($_GET['period'] ?? '');
     
-    if ($barangayId > 0 && $format === 'csv' && in_array($period, ['daily', 'monthly', 'yearly'])) {
+    if ($barangayId > 0 && $format === 'csv' && in_array($period, ['daily', 'monthly', 'yearly'], true)) {
         $barangay = getBarangayInfo($barangayId);
         if ($barangay) {
-            // Collect filters for report generation
+            // Collect filters for report generation - all sanitized
             $reportFilters = [
-                'date_from' => isset($_GET['date_from']) ? $_GET['date_from'] : null,
-                'date_to' => isset($_GET['date_to']) ? $_GET['date_to'] : null,
-                'status' => isset($_GET['status']) ? $_GET['status'] : null,
-                'investigator' => isset($_GET['investigator']) ? $_GET['investigator'] : null,
-                'specific_date' => isset($_GET['specific_date']) ? $_GET['specific_date'] : null,
-                'specific_month' => isset($_GET['specific_month']) ? $_GET['specific_month'] : null,
-                'specific_year' => isset($_GET['specific_year']) ? $_GET['specific_year'] : null
+                'date_from' => sanitizeString($_GET['date_from'] ?? ''),
+                'date_to' => sanitizeString($_GET['date_to'] ?? ''),
+                'status' => sanitizeString($_GET['status'] ?? ''),
+                'investigator' => sanitizeString($_GET['investigator'] ?? ''),
+                'specific_date' => sanitizeString($_GET['specific_date'] ?? ''),
+                'specific_month' => sanitizeString($_GET['specific_month'] ?? ''),
+                'specific_year' => sanitizeString($_GET['specific_year'] ?? '')
             ];
             
             // Remove empty values
@@ -436,13 +436,13 @@ if (isset($_GET['generate']) && isset($_GET['format']) && isset($_GET['period'])
     }
 }
 
-// Collect all filters
+// Collect all filters - sanitized
 $filters = [
-    'period' => isset($_GET['period']) ? $_GET['period'] : null,
-    'date_from' => isset($_GET['date_from']) ? $_GET['date_from'] : null,
-    'date_to' => isset($_GET['date_to']) ? $_GET['date_to'] : null,
-    'status' => isset($_GET['status']) ? $_GET['status'] : null,
-    'investigator' => isset($_GET['investigator']) ? $_GET['investigator'] : null
+    'period' => sanitizeString($_GET['period'] ?? ''),
+    'date_from' => sanitizeString($_GET['date_from'] ?? ''),
+    'date_to' => sanitizeString($_GET['date_to'] ?? ''),
+    'status' => sanitizeString($_GET['status'] ?? ''),
+    'investigator' => sanitizeString($_GET['investigator'] ?? '')
 ];
 
 // Remove empty values
@@ -450,9 +450,9 @@ $filters = array_filter($filters, function($value) {
     return !empty($value);
 });
 
-// Pagination parameters
-$page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
-$perPage = isset($_GET['per_page']) ? max(1, min(50, (int)$_GET['per_page'])) : 10; // Default to 10 per page, limit to max 50 per page
+// Pagination parameters - sanitized
+$page = max(1, sanitizeInt($_GET['page'] ?? 1));
+$perPage = max(1, min(50, sanitizeInt($_GET['per_page'] ?? 10))); // Default to 10 per page, limit to max 50 per page
 
 if ($barangayId <= 0) {
     header('Location: index.php');
@@ -1736,10 +1736,10 @@ $stats = getBarangayStats($barangayId, $filters);
             return `
                 <div class="sir-print" style="font-family:'Arial',sans-serif; background:white; color:black; padding:28px; line-height:1.45; font-size:11.5px;">
                     <div class="sir-header" style="text-align:center; border-bottom:1.5px solid #000; padding-bottom:12px; margin-bottom:16px;">
-                        <div style="display:flex; justify-content:center; gap:30px; align-items:center; margin-bottom:8px;">
-                            <img src="leftlogo.png" alt="BFP Logo" style="width:60px; height:60px;">
-                            <img src="centerlogo.png" alt="Republic of the Philippines Logo" style="width:85px; height:85px;">
-                            <img src="rightlogo.png" alt="DILG Logo" style="width:60px; height:60px;">
+                        <div style="display:flex; justify-content:center; gap:20px; align-items:center; margin-bottom:8px;">
+                            <img src="leftlogo.png" alt="BFP Logo" style="width:40px; height:40px;">
+                            <img src="centerlogo.png" alt="Republic of the Philippines Logo" style="width:50px; height:50px;">
+                            <img src="rightlogo.png" alt="DILG Logo" style="width:40px; height:40px;">
                         </div>
                         <div style="font-size:10px;">Republic of the Philippines</div>
                         <div style="font-size:10px;">Department of the Interior and Local Government</div>

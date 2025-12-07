@@ -723,31 +723,83 @@ require_once '../../../db/db.php';
             if (month) params.append('month', month);
             if (year) params.append('year', year);
             
-            fetch(`get_barangay_stats.php?${params.toString()}`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Barangay stats data received:', data);
-                    if (data.success) {
-                        if (data.data && data.data.labels && data.data.labels.length > 0) {
-                            createBarangayChart(data.data);
-                        } else {
-                            console.warn('No barangay data available');
-                            showError('barangayChart', 'No data available for the selected filters');
+            // Try different possible paths for the API
+            const apiPaths = [
+                'get_barangay_stats.php',
+                './get_barangay_stats.php',
+                'php/get_barangay_stats.php',
+                '../php/get_barangay_stats.php'
+            ];
+            
+            let currentPathIndex = 0;
+            
+            function tryApiPath() {
+                if (currentPathIndex >= apiPaths.length) {
+                    console.error('All API paths failed for barangay stats');
+                    showError('barangayChart', 'Failed to load barangay statistics. Please check server configuration.');
+                    return;
+                }
+                
+                const apiPath = apiPaths[currentPathIndex];
+                const url = params.toString() ? `${apiPath}?${params.toString()}` : apiPath;
+                console.log(`Trying barangay stats API path: ${url}`);
+                
+                fetch(url)
+                    .then(response => {
+                        console.log(`Response received for ${url}:`, response.status, response.statusText);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
                         }
-                    } else {
-                        console.error('Barangay stats error:', data.message);
-                        showError('barangayChart', data.message || 'Failed to load barangay statistics');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading barangay stats:', error);
-                    showError('barangayChart', 'Failed to load barangay statistics: ' + error.message);
-                });
+                        // Check if response is actually JSON
+                        const contentType = response.headers.get('content-type');
+                        if (!contentType || !contentType.includes('application/json')) {
+                            return response.text().then(text => {
+                                console.error('Non-JSON response received:', text.substring(0, 200));
+                                throw new Error('Server returned non-JSON response');
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Barangay stats data received:', data);
+                        if (data.success) {
+                            if (data.data && data.data.labels && data.data.labels.length > 0) {
+                                createBarangayChart(data.data);
+                            } else {
+                                console.warn('No barangay data available');
+                                // Show empty chart with message instead of error
+                                const emptyData = {
+                                    labels: ['No Data Available'],
+                                    heat_data: [0],
+                                    total_readings: [0],
+                                    max_heat: [0],
+                                    min_heat: [0],
+                                    avg_temp: [0],
+                                    avg_smoke: [0]
+                                };
+                                createBarangayChart(emptyData);
+                            }
+                        } else {
+                            console.error('Barangay stats error:', data.message);
+                            console.error('Error details:', data.debug || data.error || 'No additional details');
+                            // Show more detailed error message if available
+                            let errorMsg = data.message || 'Failed to load barangay statistics';
+                            if (data.debug && data.debug.error) {
+                                errorMsg += ': ' + data.debug.error;
+                            } else if (data.error) {
+                                errorMsg += ': ' + data.error;
+                            }
+                            showError('barangayChart', errorMsg);
+                        }
+                    })
+                    .catch(error => {
+                        console.error(`Error with path ${apiPath}:`, error);
+                        currentPathIndex++;
+                        tryApiPath();
+                    });
+            }
+            
+            tryApiPath();
         }
         
         function loadIncidentChart() {

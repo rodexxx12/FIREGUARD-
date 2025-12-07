@@ -1,12 +1,12 @@
 <?php
-// Enable error reporting
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST');
 header('Access-Control-Allow-Headers: Content-Type');
+
+// Load core configuration and database connection
+require_once __DIR__ . '/../core/config/config.php';
+require_once __DIR__ . '/../core/database/database.php';
 
 // Load configuration for SMS
 $config = require 'config.php';
@@ -23,35 +23,31 @@ const CRITICAL_TEMPERATURE_THRESHOLD = 60;  // °C
 const HIGH_SMOKE_THRESHOLD = 2000;
 const HIGH_HEAT_INDEX_THRESHOLD = 35;  // °C
 
-class Database {
-    private static $host = "localhost";
-    private static $dbname = "u520834156_DBBagofire";
-    private static $username = "u520834156_userBagofire";
-    private static $password = "i[#[GQ!+=C9";
+// Helper function to get mysqli connection from PDO
+function getMysqliConnection() {
+    static $conn = null;
     
-    public static function getConnection() {
-        static $conn = null;
+    if ($conn === null) {
+        $host = config('db.host', 'localhost');
+        $dbname = config('db.name', '');
+        $username = config('db.user', '');
+        $password = config('db.pass', '');
         
-        if ($conn === null) {
-            try {
-                $conn = new mysqli(
-                    self::$host, 
-                    self::$username, 
-                    self::$password, 
-                    self::$dbname
-                );
-                
-                if ($conn->connect_error) {
-                    throw new Exception("Database connection failed: " . $conn->connect_error);
-                }
-            } catch (Exception $e) {
-                error_log($e->getMessage());
-                return null;
+        try {
+            $conn = new mysqli($host, $username, $password, $dbname);
+            
+            if ($conn->connect_error) {
+                throw new Exception("Database connection failed: " . $conn->connect_error);
             }
+            
+            $conn->set_charset('utf8mb4');
+        } catch (Exception $e) {
+            error_log($e->getMessage());
+            return null;
         }
-        
-        return $conn;
     }
+    
+    return $conn;
 }
 
 class SmokeAPI {
@@ -171,11 +167,15 @@ class SmokeAPI {
     }
     
     private function getFirstActiveDeviceId() {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return null;
 
-        $query = "SELECT device_id FROM devices WHERE is_active = 1 ORDER BY device_id LIMIT 1";
-        $result = $conn->query($query);
+        // Using prepared statement for consistency
+        $stmt = $conn->prepare("SELECT device_id FROM devices WHERE is_active = ? ORDER BY device_id LIMIT 1");
+        $active = 1;
+        $stmt->bind_param("i", $active);
+        $stmt->execute();
+        $result = $stmt->get_result();
 
         if ($result && $result->num_rows > 0) {
             $row = $result->fetch_assoc();
@@ -186,7 +186,7 @@ class SmokeAPI {
     }
     
     private function createDefaultDevice() {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return null;
 
         // Ensure user exists
@@ -211,7 +211,7 @@ class SmokeAPI {
     }
     
     private function isValidDeviceId($device_id) {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return false;
 
         $stmt = $conn->prepare("SELECT device_id FROM devices WHERE device_id = ? AND is_active = 1");
@@ -227,7 +227,7 @@ class SmokeAPI {
     }
     
     private function updateDeviceStatus($status = 'online') {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return false;
 
         $stmt = $conn->prepare("UPDATE devices SET status = ?, last_activity = NOW() WHERE device_id = ?");
@@ -267,7 +267,7 @@ class SmokeAPI {
     }
     
     private function insertSmokeReading() {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return 'failed';
 
         $stmt = $conn->prepare("INSERT INTO smoke_readings (device_id, sensor_value, detected) VALUES (?, ?, ?)");
@@ -286,7 +286,7 @@ class SmokeAPI {
     }
     
     private function insertFlameReading() {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return 'failed';
 
         $stmt = $conn->prepare("INSERT INTO flame_readings (device_id, detected) VALUES (?, ?)");
@@ -306,7 +306,7 @@ class SmokeAPI {
     
    // Update the environment reading validation
     private function insertEnvironmentReading($heat_index) {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return 'failed';
 
         // Handle null values more gracefully
@@ -506,7 +506,7 @@ private function insertFireData($sensor_data, $smoke_reading_id, $flame_reading_
 
     private function getDeviceInfo($device_id = null) {
         $device_id = $device_id ?: $this->device_id;
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return null;
 
         $stmt = $conn->prepare("SELECT device_id, user_id, device_name, device_number, serial_number, building_id, status FROM devices WHERE device_id = ?");
@@ -527,7 +527,7 @@ private function insertFireData($sensor_data, $smoke_reading_id, $flame_reading_
     private function getBuildingInfo($building_id) {
         if (!$building_id) return null;
         
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return null;
 
         $stmt = $conn->prepare("SELECT building_id, building_name, building_type, address, contact_person, contact_number, latitude, longitude FROM buildings WHERE building_id = ?");
@@ -763,7 +763,7 @@ private function handleError(Exception $e) {
      * Log events to system_logs table
      */
     private function logEvent($event_type, $sensor_data, $fire_data_id = null, $admin_id = null) {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return;
 
         // Get device info to extract user_id and building_id
@@ -812,7 +812,7 @@ private function handleError(Exception $e) {
      */
     private function getLatestSmokeReading($device_id = null) {
         $device_id = $device_id ?: $this->device_id;
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return ['smoke' => 0, 'detected' => 0, 'id' => null];
 
         $query = "SELECT id, sensor_value, detected FROM smoke_readings WHERE device_id = ? ORDER BY reading_time DESC LIMIT 1";
@@ -840,7 +840,7 @@ private function handleError(Exception $e) {
      */
     private function getLatestFlameReading($device_id = null) {
         $device_id = $device_id ?: $this->device_id;
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return ['flame_detected' => 0, 'id' => null];
 
         $query = "SELECT id, detected FROM flame_readings WHERE device_id = ? ORDER BY reading_time DESC LIMIT 1";
@@ -867,7 +867,7 @@ private function handleError(Exception $e) {
      */
     private function getLatestEnvironmentReading($device_id = null) {
         $device_id = $device_id ?: $this->device_id;
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return ['temperature' => 0, 'humidity' => 0, 'heat_index' => 0, 'id' => null];
 
         $query = "SELECT id, temperature, humidity, heat_index FROM environment_readings WHERE device_id = ? ORDER BY reading_time DESC LIMIT 1";
@@ -895,15 +895,21 @@ private function handleError(Exception $e) {
      * Get all active devices
      */
     private function getAllActiveDevices() {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return [];
 
         $query = "SELECT device_id, user_id, device_name, device_number, serial_number, building_id, status 
                   FROM devices 
-                  WHERE is_active = 1 AND status = 'online'
+                  WHERE is_active = ? AND status = ?
                   ORDER BY device_id";
         
-        $result = $conn->query($query);
+        // Using prepared statement
+        $stmt = $conn->prepare($query);
+        $active = 1;
+        $status = 'online';
+        $stmt->bind_param("is", $active, $status);
+        $stmt->execute();
+        $result = $stmt->get_result();
         $devices = [];
 
         if ($result && $result->num_rows > 0) {
@@ -919,17 +925,21 @@ private function handleError(Exception $e) {
      * Get active sensor device (preferably device 5)
      */
     private function getActiveSensorDevice() {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return null;
 
         // Get the device that's actually sending sensor data
         // First try to find device 5 (DEV425FTVWIE) which is the known active sensor device
-        $query = "SELECT device_id, user_id, device_name, device_number, serial_number, building_id, status 
+        $stmt = $conn->prepare("SELECT device_id, user_id, device_name, device_number, serial_number, building_id, status 
                   FROM devices 
-                  WHERE device_id = 5 AND is_active = 1 AND status = 'online'
-                  LIMIT 1";
-        
-        $result = $conn->query($query);
+                  WHERE device_id = ? AND is_active = ? AND status = ?
+                  LIMIT 1");
+        $deviceId = 5;
+        $active = 1;
+        $status = 'online';
+        $stmt->bind_param("iis", $deviceId, $active, $status);
+        $stmt->execute();
+        $result = $stmt->get_result();
         
         if ($result && $result->num_rows > 0) {
             $device = $result->fetch_assoc();
@@ -937,13 +947,14 @@ private function handleError(Exception $e) {
         }
 
         // Fallback: get the first active online device
-        $fallback_query = "SELECT device_id, user_id, device_name, device_number, serial_number, building_id, status 
+        $fallbackStmt = $conn->prepare("SELECT device_id, user_id, device_name, device_number, serial_number, building_id, status 
                            FROM devices 
-                           WHERE is_active = 1 AND status = 'online'
+                           WHERE is_active = ? AND status = ?
                            ORDER BY device_id
-                           LIMIT 1";
-        
-        $fallback_result = $conn->query($fallback_query);
+                           LIMIT 1");
+        $fallbackStmt->bind_param("is", $active, $status);
+        $fallbackStmt->execute();
+        $fallback_result = $fallbackStmt->get_result();
         
         if ($fallback_result && $fallback_result->num_rows > 0) {
             $device = $fallback_result->fetch_assoc();
@@ -1078,6 +1089,9 @@ private function handleError(Exception $e) {
         error_log("Monitoring active sensor device: " . $active_sensor_device['device_id'] . " (" . $active_sensor_device['device_name'] . " - " . $active_sensor_device['device_number'] . ")");
         
         try {
+            // Get device info for messaging
+            $device_info = $this->getDeviceInfo($active_sensor_device['device_id']);
+            
             // Get latest readings and process them
             $smoke_data = $this->getLatestSmokeReading($active_sensor_device['device_id']);
             $flame_data = $this->getLatestFlameReading($active_sensor_device['device_id']);
@@ -1115,7 +1129,7 @@ private function handleError(Exception $e) {
                 }
             }
             
-            if ($should_send_alert) {
+            if ($should_send_alert && $device_info) {
                 $emergency_message = $this->generateEmergencyMessage($device_info, $detection_result, $sensor_data);
                 $this->sendSMSAlerts($detection_result, $sensor_data);
             }

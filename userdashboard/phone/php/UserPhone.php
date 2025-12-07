@@ -343,8 +343,19 @@ class UserPhoneModel {
         $apiKey = trim($this->apiKey);
         $device = trim($this->device);
         
+        // Remove any remaining quotes or special characters
+        $apiKey = trim($apiKey, " \t\n\r\0\x0B\"'");
+        $device = trim($device, " \t\n\r\0\x0B\"'");
+        
+        // Validate API key is not empty after trimming
+        if (empty($apiKey)) {
+            $errorMsg = 'SMS API key is empty. Please configure SMS_API_KEY in .env file.';
+            error_log("SMS Error: $errorMsg");
+            return [false, $errorMsg];
+        }
+        
         // Debug logging (remove in production if needed)
-        error_log("SMS Debug: API Key: " . substr($apiKey, 0, 10) . "... (length: " . strlen($apiKey) . "), Device: $device");
+        error_log("SMS Debug: API Key: " . substr($apiKey, 0, 10) . "... (length: " . strlen($apiKey) . "), Device: $device, URL: $this->smsUrl");
         
         $params = [
             'message' => "Your verification code is: $code. Valid for 15 minutes.",
@@ -352,28 +363,74 @@ class UserPhoneModel {
             'device' => $device
         ];
 
-        // Use the exact header format from device/smokestore.php (working example)
-        $headers = [
-            "Content-Type: application/x-www-form-urlencoded",
-            "apikey: $apiKey"
+        // Try multiple header formats - different parts of the codebase use different formats
+        // Format 1: As used in device/sms.php (no space after colon, no Content-Type) - THIS IS THE WORKING FORMAT
+        // Format 2: As used in device/smokestore.php (with space after colon and Content-Type)
+        $headerFormats = [
+            ['apikey:' . $apiKey],  // device/sms.php format - try this first as it's known to work
+            ["Content-Type: application/x-www-form-urlencoded", "apikey: $apiKey"]  // smokestore.php format
         ];
+        
+        $response = false;
+        $httpCode = 0;
+        $error = '';
+        $curlErrno = 0;
+        $lastError = '';
+        
+        // Try each header format
+        foreach ($headerFormats as $formatIndex => $headers) {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $this->smsUrl);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
 
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $this->smsUrl);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        $curlErrno = curl_errno($ch);
-        curl_close($ch);
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            $curlErrno = curl_errno($ch);
+            curl_close($ch);
+            
+            // Log the attempt
+            error_log("SMS Request Debug (Format " . ($formatIndex + 1) . "): URL=$this->smsUrl, HTTP=$httpCode, Headers=" . json_encode($headers) . ", Response=" . substr($response ?: '', 0, 200));
+            
+            // If we got a successful response, break
+            if ($httpCode == 200 && $response !== false) {
+                $json = json_decode($response, true);
+                if (isset($json['success']) && $json['success']) {
+                    error_log("SMS: Success with header format #" . ($formatIndex + 1));
+                    break; // Success!
+                }
+                // If we got 422 (header format issue), try next format
+                if (isset($json['code']) && $json['code'] == 422) {
+                    error_log("SMS: Header format #" . ($formatIndex + 1) . " not recognized (422), trying next format...");
+                    $lastError = $response;
+                    continue;
+                }
+                // For 406 (API key mismatch), don't retry - the key is wrong
+                if (isset($json['code']) && $json['code'] == 406) {
+                    $lastError = $response;
+                    break; // API key is wrong, no point trying other formats
+                }
+            }
+            
+            // If connection error, don't retry
+            if ($curlErrno !== 0) {
+                break;
+            }
+            
+            $lastError = $response;
+        }
+        
+        // Use the response from the loop, or lastError if no response
+        if ($response === false || empty($response)) {
+            $response = $lastError;
+        }
 
         // Ensure log directory exists
         $logDir = __DIR__ . '/../';
@@ -382,7 +439,8 @@ class UserPhoneModel {
         }
 
         // Log the SMS attempt with more details
-        $logEntry = date('Y-m-d H:i:s') . " | Phone: $phoneNumber | Code: $code | HTTP: $httpCode | Response: " . substr($response, 0, 500) . " | Error: $error | Curl Errno: $curlErrno\n";
+        $logResponse = $response ?: $lastError ?: '';
+        $logEntry = date('Y-m-d H:i:s') . " | Phone: $phoneNumber | Code: $code | HTTP: $httpCode | Response: " . substr($logResponse, 0, 500) . " | Error: $error | Curl Errno: $curlErrno | API Key: " . substr($apiKey, 0, 10) . "... | Device: $device\n";
         @file_put_contents($logDir . 'sms_log.txt', $logEntry, FILE_APPEND);
 
         // Check for cURL errors first
@@ -449,7 +507,55 @@ class UserPhoneModel {
                 
                 // Return user-friendly error message
                 if (stripos($errorMsg, 'API key') !== false || stripos($errorMsg, 'authentication') !== false) {
-                    return [false, 'SMS API authentication failed. Please contact administrator to configure SMS API key correctly.'];
+                    // Check if we're using fallback config
+                    $configSource = '';
+                    $envPath = __DIR__ . '/../../../.env';
+                    $deviceConfigPath = __DIR__ . '/../../../device/config.php';
+                    $diagnosticUrl = '../diagnose_sms.php';
+                    $errorCode = isset($json['code']) ? $json['code'] : 'Unknown';
+                    
+                    // Determine source of API key
+                    $envApiKey = getEnvVar('SMS_API_KEY', '');
+                    $usingEnv = !empty($envApiKey) && file_exists($envPath);
+                    
+                    if (!$usingEnv) {
+                        if (file_exists($deviceConfigPath)) {
+                            $configSource = '⚠️ The system is using a fallback API key from device/config.php, which is invalid or expired.';
+                        } else {
+                            $configSource = '❌ No API key is configured.';
+                        }
+                    } else {
+                        $configSource = '⚠️ The API key in your .env file (lines 76-80) is being rejected by PageNet.';
+                    }
+                    
+                    // Build comprehensive error message
+                    $errorMessage = 'SMS API authentication failed. Error Code: ' . $errorCode . ' (API Key Rejected).' . "\n\n";
+                    $errorMessage .= $configSource . "\n\n";
+                    
+                    if ($errorCode == 406) {
+                        $errorMessage .= '🔴 Error 406 means: "API Key mismatch" or "API key not acceptable".' . "\n";
+                        $errorMessage .= 'This indicates your API key is invalid, expired, or has been revoked by PageNet.' . "\n\n";
+                    }
+                    
+                    $errorMessage .= '📋 Action Required:' . "\n";
+                    $errorMessage .= '1. Contact PageNet support to get a NEW, valid API key and device ID' . "\n";
+                    
+                    if ($usingEnv) {
+                        $errorMessage .= '2. Update your .env file (lines 76-80) with the new credentials:' . "\n";
+                        $errorMessage .= '   SMS_API_KEY=new_api_key_from_pagenet' . "\n";
+                        $errorMessage .= '   SMS_DEVICE_ID=new_device_id_from_pagenet' . "\n";
+                    } else {
+                        $errorMessage .= '2. Add SMS credentials to your .env file (create if needed, lines 76-80):' . "\n";
+                        $errorMessage .= '   SMS_API_KEY=new_api_key_from_pagenet' . "\n";
+                        $errorMessage .= '   SMS_DEVICE_ID=new_device_id_from_pagenet' . "\n";
+                        $errorMessage .= '   SMS_API_URL=https://sms.pagenet.info/api/v1/sms/send' . "\n";
+                    }
+                    
+                    $errorMessage .= '3. Test your credentials using the diagnostic tool: ' . $diagnosticUrl . "\n";
+                    $errorMessage .= '4. Refresh this page and try again' . "\n\n";
+                    $errorMessage .= '💡 Tip: Make sure there are NO quotes around values and NO spaces before/after the = sign.';
+                    
+                    return [false, $errorMessage];
                 }
                 
                 return [false, $errorMsg ?: 'SMS API returned error'];
@@ -621,6 +727,17 @@ try {
     
     // Initialize phone model with SMS credentials
     $phoneModel = new UserPhoneModel($db, $config['api_key'], $config['device'], $config['url']);
+    
+    // Check SMS configuration and set error/warning if not configured
+    $smsConfigError = null;
+    if (!$config['is_configured']) {
+        $smsConfigError = [
+            'title' => 'SMS Service Not Configured',
+            'message' => 'The SMS service is not properly configured. Please check your .env file.',
+            'errors' => $config['errors']
+        ];
+        error_log("SMS Configuration Error on UserPhone.php: " . implode(', ', $config['errors']));
+    }
     
     // Get current user ID (from session)
     $userId = $_SESSION['user_id'] ?? null;
@@ -985,6 +1102,11 @@ try {
             <h2><i class="fa fa-phone"></i> My Phone Numbers <small>Manage your registered phone numbers</small></h2>
             <ul class="nav navbar-right panel_toolbox">
                 <li>
+                    <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#smsLogModal" title="View SMS Log">
+                        <i class="fa fa-file-text-o"></i> SMS Log
+                    </button>
+                </li>
+                <li>
                     <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#helpModal">
                         <i class="fa fa-question-circle"></i> Help
                     </button>
@@ -1004,6 +1126,27 @@ try {
             <div class="clearfix"></div>
         </div>
         <div class="x_content">
+            <!-- SMS Configuration Error Alert -->
+            <?php if (isset($smsConfigError) && $smsConfigError): ?>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <h4 class="alert-heading"><i class="fa fa-exclamation-triangle"></i> <?php echo htmlspecialchars($smsConfigError['title']); ?></h4>
+                    <p class="mb-2"><?php echo htmlspecialchars($smsConfigError['message']); ?></p>
+                    <hr>
+                    <p class="mb-2"><strong>Missing Configuration:</strong></p>
+                    <ul class="mb-0">
+                        <?php foreach ($smsConfigError['errors'] as $error): ?>
+                            <li><code><?php echo htmlspecialchars($error); ?></code></li>
+                        <?php endforeach; ?>
+                    </ul>
+                    <hr>
+                    <p class="mb-0"><small><strong>To fix this:</strong> Add the required SMS API credentials to your <code>.env</code> file in the root directory:</small></p>
+                    <pre class="bg-dark text-white p-2 mt-2 rounded"><code>SMS_API_KEY=your_api_key_here
+SMS_DEVICE_ID=your_device_id_here
+SMS_API_URL=https://sms.pagenet.info/api/v1/sms/send</code></pre>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            <?php endif; ?>
+            
             <?php if (empty($phoneNumbers)): ?>
                 <div class="text-center py-5">
                     <div class="bg-light bg-opacity-50 p-4 rounded-circle d-inline-block mb-3">
@@ -1267,6 +1410,97 @@ try {
         </div>
     </div>
 
+    <!-- SMS Log Viewer Modal -->
+    <div class="modal fade" id="smsLogModal" tabindex="-1" aria-labelledby="smsLogModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title" id="smsLogModalLabel">
+                        <i class="fa fa-file-text-o"></i> SMS Log Viewer
+                    </h4>
+                    <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <?php
+                    // Read and display SMS log file
+                    $logFile = __DIR__ . '/../sms_log.txt';
+                    if (file_exists($logFile)) {
+                        $logLines = file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                        $logLines = array_reverse($logLines); // Show newest first
+                        $recentLogs = array_slice($logLines, 0, 20); // Show last 20 entries
+                        
+                        if (!empty($recentLogs)) {
+                            echo '<div class="alert alert-info">';
+                            echo '<i class="fa fa-info-circle"></i> Showing last 20 SMS attempts';
+                            echo '</div>';
+                            echo '<div style="max-height: 400px; overflow-y: auto;">';
+                            echo '<table class="table table-striped table-bordered table-sm">';
+                            echo '<thead><tr>';
+                            echo '<th>Time</th>';
+                            echo '<th>Phone</th>';
+                            echo '<th>Code</th>';
+                            echo '<th>Status</th>';
+                            echo '<th>Error</th>';
+                            echo '</tr></thead>';
+                            echo '<tbody>';
+                            
+                            foreach ($recentLogs as $line) {
+                                $parts = explode(' | ', $line);
+                                if (count($parts) >= 5) {
+                                    $time = $parts[0] ?? '';
+                                    $phone = str_replace('Phone: ', '', $parts[1] ?? '');
+                                    $code = str_replace('Code: ', '', $parts[2] ?? '');
+                                    $http = str_replace('HTTP: ', '', $parts[3] ?? '');
+                                    $response = str_replace('Response: ', '', $parts[4] ?? '');
+                                    
+                                    // Parse response to check for errors
+                                    $hasError = false;
+                                    $errorMsg = '';
+                                    $responseData = json_decode($response, true);
+                                    if ($responseData && isset($responseData['success']) && !$responseData['success']) {
+                                        $hasError = true;
+                                        if (isset($responseData['errors']) && is_array($responseData['errors'])) {
+                                            $errorMsg = implode(', ', $responseData['errors']);
+                                        }
+                                    }
+                                    
+                                    $statusClass = $hasError ? 'danger' : 'success';
+                                    $statusIcon = $hasError ? 'fa-times-circle' : 'fa-check-circle';
+                                    $statusText = $hasError ? 'Failed' : 'Success';
+                                    
+                                    echo '<tr class="table-' . $statusClass . '">';
+                                    echo '<td><small>' . htmlspecialchars($time) . '</small></td>';
+                                    echo '<td><small>' . htmlspecialchars($phone) . '</small></td>';
+                                    echo '<td><small><code>' . htmlspecialchars($code) . '</code></small></td>';
+                                    echo '<td><small><i class="fa ' . $statusIcon . '"></i> ' . $statusText . '</small></td>';
+                                    echo '<td><small>' . htmlspecialchars($errorMsg) . '</small></td>';
+                                    echo '</tr>';
+                                }
+                            }
+                            
+                            echo '</tbody></table>';
+                            echo '</div>';
+                        } else {
+                            echo '<div class="alert alert-info">';
+                            echo '<i class="fa fa-info-circle"></i> No SMS log entries found.';
+                            echo '</div>';
+                        }
+                    } else {
+                        echo '<div class="alert alert-warning">';
+                        echo '<i class="fa fa-exclamation-triangle"></i> SMS log file not found. It will be created when the first SMS is sent.';
+                        echo '</div>';
+                    }
+                    ?>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Help Modal - Gentelella Style -->
     <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-md">
@@ -1442,9 +1676,17 @@ try {
         // Helper function to safely get Parsley instance
         function getParsleyInstance($element) {
             if (!$element || !$element.length) return null;
+            if (typeof window.Parsley === 'undefined') {
+                console.warn('Parsley.js is not loaded');
+                return null;
+            }
             try {
                 const parsley = $element.parsley();
-                return parsley && typeof parsley === 'object' ? parsley : null;
+                // Check if parsley instance is valid and has required methods
+                if (parsley && typeof parsley === 'object' && typeof parsley.isValid === 'function') {
+                    return parsley;
+                }
+                return null;
             } catch (e) {
                 console.warn('Parsley not available for element:', e);
                 return null;
@@ -1812,9 +2054,27 @@ try {
                 // Parsley validation is handled automatically
                 // Only proceed if form is valid
                 const formParsley = getParsleyInstance($(this));
-                if (formParsley && !formParsley.isValid()) {
-                    e.preventDefault();
-                    return false;
+                if (formParsley) {
+                    // Check if form is valid using Parsley
+                    if (typeof formParsley.isValid === 'function') {
+                        if (!formParsley.isValid()) {
+                            e.preventDefault();
+                            return false;
+                        }
+                    }
+                } else {
+                    // Fallback: Basic validation if Parsley is not available
+                    const phoneNumber = $('#phone_number').val().trim();
+                    if (!phoneNumber || !/^09[0-9]{9}$/.test(phoneNumber)) {
+                        e.preventDefault();
+                        Swal.fire({
+                            title: 'Invalid Phone Number',
+                            text: 'Please enter a valid 11-digit phone number starting with 09',
+                            icon: 'error',
+                            confirmButtonText: 'OK'
+                        });
+                        return false;
+                    }
                 }
             });
             

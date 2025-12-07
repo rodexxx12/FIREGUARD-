@@ -56,7 +56,7 @@ if (!function_exists('getBaseUrl')) {
 
 // Check if admin is logged in
 if (isset($_GET['admin_id']) && !empty($_GET['admin_id'])) {
-    $admin_id = $_GET['admin_id'];
+    $admin_id = sanitizeInt($_GET['admin_id']);
     error_log("Admin ID found in parameter: " . $admin_id);
 
     // Database connection using centralized connection
@@ -131,12 +131,9 @@ if (isset($_GET['admin_id']) && !empty($_GET['admin_id'])) {
     error_log("No admin_id parameter provided");
 }
 
-// Debug logging (remove in production)
-if (isset($_GET['debug']) && $_GET['debug'] === 'profile') {
+// Production-safe logging (only if isDevelopmentEnvironment)
+if (function_exists('isDevelopmentEnvironment') && isDevelopmentEnvironment() && isset($_GET['debug']) && $_GET['debug'] === 'profile') {
     error_log("Profile.php debug - admin_id: " . (isset($_GET['admin_id']) ? $_GET['admin_id'] : 'NOT SET'));
     error_log("Profile.php debug - profile_image_url: " . $profile_image_url);
-    error_log("Profile.php debug - admin_data: " . print_r($admin_data, true));
-    error_log("Profile.php debug - current_dir: " . __DIR__);
-    error_log("Profile.php debug - base_url: " . getBaseUrl());
 }
 ?>

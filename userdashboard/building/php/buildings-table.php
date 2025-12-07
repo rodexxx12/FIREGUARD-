@@ -419,11 +419,11 @@ include('../../components/header.php');
             <div class="x_panel mt-4">
                 <div class="x_content">
                     <div class="empty-state">
-                        <i class="bi bi-building"></i>
+                        <i class="fa fa-building"></i>
                         <h4 class="mt-3">No Buildings Found</h4>
                         <p class="text-muted">Add your first building to see it listed here.</p>
                         <a href="main.php" class="btn btn-primary mt-3">
-                            <i class="bi bi-plus-lg"></i> Register Building
+                            <i class="fa fa-plus"></i> Register Building
                         </a>
                     </div>
                 </div>
@@ -442,9 +442,9 @@ include('../../components/header.php');
                                         <a class="dropdown-item" href="main.php">Register New Building</a>
                                         <a class="dropdown-item" href="#" id="panelRefresh">Refresh Table</a>
                                         <div class="dropdown-divider"></div>
-                                        <a class="dropdown-item" href="#" id="toolboxCopy"><i class="bi bi-clipboard"></i> Copy</a>
-                                        <a class="dropdown-item" href="#" id="toolboxCSV"><i class="bi bi-filetype-csv"></i> CSV</a>
-                                        <a class="dropdown-item" href="#" id="toolboxPrint"><i class="bi bi-printer"></i> Print</a>
+                                        <a class="dropdown-item" href="#" id="toolboxCopy"><i class="fa fa-clipboard"></i> Copy</a>
+                                        <a class="dropdown-item" href="#" id="toolboxCSV"><i class="fa fa-file-excel-o"></i> CSV</a>
+                                        <a class="dropdown-item" href="#" id="toolboxPrint"><i class="fa fa-print"></i> Print</a>
                                     </div>
                                 </li>
                                 <!-- <li><a class="close-link"><i class="fa fa-close"></i></a></li> -->
@@ -495,10 +495,10 @@ include('../../components/header.php');
                                                 <td class="last">
                                                     <div class="btn-group" role="group">
                                                         <button class="btn btn-warning btn-sm edit-building" data-id="<?php echo $building['id']; ?>" title="Edit">
-                                                            <i class="bi bi-pencil-square"></i>
+                                                            <i class="fa fa-pencil"></i>
                                                         </button>
                                                         <button class="btn btn-danger btn-sm delete-building" data-id="<?php echo $building['id']; ?>" title="Delete">
-                                                            <i class="bi bi-trash-fill"></i>
+                                                            <i class="fa fa-trash"></i>
                                                         </button>
                                                     </div>
                                                 </td>

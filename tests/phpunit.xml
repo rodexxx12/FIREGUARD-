@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.5/phpunit.xsd"
+         bootstrap="bootstrap.php"
+         colors="true"
+         verbose="true"
+         stopOnFailure="false"
+         stopOnError="false"
+         convertErrorsToExceptions="true"
+         convertNoticesToExceptions="true"
+         convertWarningsToExceptions="true">
+    
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>./unit</directory>
+        </testsuite>
+        <testsuite name="Integration">
+            <directory>./integration</directory>
+        </testsuite>
+        <testsuite name="E2E">
+            <directory>./e2e</directory>
+        </testsuite>
+        <testsuite name="Core Modules">
+            <directory>./unit/Core</directory>
+        </testsuite>
+        <testsuite name="Security">
+            <directory>./unit/Security</directory>
+        </testsuite>
+        <testsuite name="Authentication">
+            <directory>./unit/Auth</directory>
+        </testsuite>
+        <testsuite name="All Tests">
+            <directory>./unit</directory>
+            <directory>./integration</directory>
+            <directory>./e2e</directory>
+        </testsuite>
+    </testsuites>
+    
+    <coverage processUncoveredFiles="true">
+        <include>
+            <directory suffix=".php">../core</directory>
+        </include>
+        <exclude>
+            <directory>../vendor</directory>
+            <directory>../vendors</directory>
+            <directory>../tests</directory>
+            <directory>../node_modules</directory>
+        </exclude>
+        <report>
+            <html outputDirectory="../coverage/html"/>
+            <text outputFile="php://stdout" showUncoveredFiles="true"/>
+            <clover outputFile="../coverage/clover.xml"/>
+        </report>
+    </coverage>
+    
+    <logging/>
+    
+    <!-- Coverage Thresholds -->
+    <!-- Note: PHPUnit 9.5 doesn't support enforcing coverage thresholds directly -->
+    <!-- Use phpunit-coverage-check or similar tools to enforce these targets: -->
+    <!-- Minimum 70% line coverage recommended -->
+    <!-- Minimum 70% method coverage recommended -->
+    
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="APP_DEBUG" value="false"/>
+        <ini name="display_errors" value="1"/>
+        <ini name="error_reporting" value="E_ALL"/>
+    </php>
+</phpunit>
+

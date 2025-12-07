@@ -1,7 +1,14 @@
 <?php
+// Environment-aware error handling
+$isProduction = (getenv('APP_ENV') === 'production' || 
+                (isset($_SERVER['HTTP_HOST']) && 
+                 strpos($_SERVER['HTTP_HOST'], 'localhost') === false && 
+                 strpos($_SERVER['HTTP_HOST'], '127.0.0.1') === false));
+$debugMode = filter_var(getenv('APP_DEBUG') ?? '0', FILTER_VALIDATE_BOOLEAN);
+
 error_reporting(E_ALL);
-ini_set('display_errors', 0);
-ini_set('log_errors', 1);
+ini_set('display_errors', ($isProduction && !$debugMode) ? '0' : '1');
+ini_set('log_errors', '1');
 date_default_timezone_set('Asia/Manila');
 
 function sendJsonError($message, $code = 500) {

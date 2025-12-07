@@ -1,3 +1,82 @@
+/* Gentelella Panel Styles */
+.x_panel {
+    width: 100%;
+    padding: 10px 17px;
+    display: inline-block;
+    background: #fff;
+    border: 1px solid #E6E9ED;
+    -webkit-column-break-inside: avoid;
+    -moz-column-break-inside: avoid;
+    column-break-inside: avoid;
+    opacity: 1;
+    transition: all .2s ease;
+    margin-bottom: 20px;
+}
+
+.x_title {
+    border-bottom: 2px solid #E6E9ED;
+    padding: 1px 5px 6px;
+    margin-bottom: 10px;
+}
+
+.x_title .filter {
+    width: 40%;
+    float: right;
+}
+
+.x_title h2 {
+    margin: 5px 0 6px;
+    float: left;
+    display: block;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.x_title h2 small {
+    margin-left: 10px;
+}
+
+.x_title span {
+    color: #BDBDBD;
+}
+
+.x_content {
+    padding: 0 5px 6px;
+    position: relative;
+    width: 100%;
+    float: left;
+    clear: both;
+    margin-top: 5px;
+}
+
+.x_title {
+    font-size: 13px;
+    font-weight: 400;
+    color: #758697;
+    margin: 6px 0 4px;
+}
+
+.panel_toolbox {
+    float: right;
+    min-width: 70px;
+}
+
+.panel_toolbox > li {
+    float: left;
+    cursor: pointer;
+}
+
+.panel_toolbox > li > a {
+    padding: 5px;
+    color: #C5C7CB;
+    font-size: 14px;
+}
+
+.panel_toolbox > li > a:hover {
+    color: #23527c;
+}
+
 .card {
     margin-bottom: 20px;
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
@@ -161,13 +240,11 @@ h1 {
     font-weight: 700;
     margin-bottom: 2rem;
 }
-/* Enhanced Table Styles */
+/* Enhanced Table Styles - Gentelella */
 .table {
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.05);
     margin-bottom: 0;
 }
+
 .table thead th {
     background-color: #f8f9fa;
     border-bottom: 2px solid #dee2e6;
@@ -179,21 +256,26 @@ h1 {
     padding: 1rem;
     white-space: nowrap;
 }
+
 .table tbody tr {
     transition: all 0.2s ease;
 }
+
 .table tbody tr:hover {
     background-color: rgba(0, 123, 255, 0.05);
 }
+
 .table tbody td {
     padding: 1rem;
     vertical-align: middle;
     border-bottom: 1px solid #eee;
     color: #495057;
 }
+
 .table tbody tr:last-child td {
     border-bottom: none;
 }
+
 .table .status-badge {
     padding: 0.5rem 1rem;
     border-radius: 50px;
@@ -203,49 +285,88 @@ h1 {
     align-items: center;
     gap: 0.5rem;
 }
+
 .table .status-badge i {
     font-size: 0.75rem;
 }
+
 .table .action-btns {
     display: flex;
     gap: 0.5rem;
     justify-content: flex-start;
 }
-.table .action-btns .btn {
-    padding: 0.5rem;
-    width: 35px;
-    height: 35px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
+
+.table .action-btns .btn-xs {
+    padding: 0.25rem 0.5rem;
+    font-size: 12px;
+    line-height: 1.5;
+    border-radius: 3px;
     transition: all 0.2s ease;
 }
+
 .table .action-btns .btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
+
 .table .action-btns .btn-warning {
     background-color: #fff3cd;
     border-color: #fff3cd;
     color: #856404;
 }
+
 .table .action-btns .btn-warning:hover {
     background-color: #ffeeba;
     border-color: #ffeeba;
 }
+
 .table .action-btns .btn-danger {
     background-color: #f8d7da;
     border-color: #f8d7da;
     color: #721c24;
 }
+
 .table .action-btns .btn-danger:hover {
     background-color: #f5c6cb;
     border-color: #f5c6cb;
 }
+
+.table .action-btns .btn-success {
+    background-color: #d4edda;
+    border-color: #d4edda;
+    color: #155724;
+}
+
+.table .action-btns .btn-success:hover {
+    background-color: #c3e6cb;
+    border-color: #c3e6cb;
+}
+
 .table-responsive {
     border-radius: 10px;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.05);
+}
+
+/* DataTables Custom Styles */
+.dataTables_wrapper .dataTables_length,
+.dataTables_wrapper .dataTables_filter,
+.dataTables_wrapper .dataTables_info,
+.dataTables_wrapper .dataTables_paginate {
+    margin-top: 15px;
+}
+
+.dataTables_wrapper .dataTables_filter input {
+    margin-left: 0.5em;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 5px 10px;
+}
+
+.card-box {
+    padding: 20px;
+    border-radius: 5px;
+    margin-bottom: 30px;
+    background: #fff;
 }
 .form-control, .form-select {
     border-radius: 8px;

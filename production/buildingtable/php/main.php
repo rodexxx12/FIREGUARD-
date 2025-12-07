@@ -62,9 +62,7 @@ $buildings = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 <!-- Include header components -->
 <?php include '../../components/header.php'; ?>
-<?php include '../../css/building_table.css'; ?>
-
-
+<link rel="stylesheet" href="../css/building_table.css">
 </head>
 <body class="nav-md">
     <div class="container body">

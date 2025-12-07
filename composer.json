@@ -5,12 +5,14 @@
     "license": "proprietary",
     "require": {
         "php": ">=7.4",
-        "ext-pdo": "*",
-        "ext-mysqli": "*",
+        "ext-json": "*",
         "ext-mbstring": "*",
-        "ext-json": "*"
+        "ext-mysqli": "*",
+        "ext-pdo": "*",
+        "phpmailer/phpmailer": "^7.0"
     },
     "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.91",
         "phpunit/phpunit": "^9.5"
     },
     "autoload": {
@@ -29,9 +31,13 @@
     },
     "scripts": {
         "test": "phpunit --configuration tests/phpunit.xml",
-        "test-coverage": "phpunit --configuration tests/phpunit.xml --coverage-html coverage/",
+        "test-coverage": "phpunit --configuration tests/phpunit.xml --coverage-html coverage/html --coverage-text --coverage-clover coverage/clover.xml",
+        "test-coverage-text": "phpunit --configuration tests/phpunit.xml --coverage-text",
+        "test-coverage-html": "phpunit --configuration tests/phpunit.xml --coverage-html coverage/html",
+        "test-coverage-check": "php scripts/check-coverage.php",
         "audit": "php scripts/audit-dependencies.php",
-        "optimize-db": "php scripts/optimize-database.php"
+        "optimize-db": "php scripts/optimize-database.php",
+        "check-readability": "php tests/pre_deployment/code_readability_consistency_check.php"
     },
     "config": {
         "optimize-autoloader": true,
@@ -40,9 +46,3 @@
     "minimum-stability": "stable",
     "prefer-stable": true
 }
-
-
-
-
-
-

@@ -349,123 +349,128 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Include header after all header() calls are done
 require_once '../../components/header.php';
 ?>
-
-    <link rel="stylesheet" href="../css/spot.css">
     <style>
-        .container-fluid {
-            background-color: white !important;
-        }
-        
-        .right_col {
-            background-color: white !important;
-        }
-        
-        .required-field::after {
-            content: " *";
+    .required {
             color: #dc3545;
-            font-weight: bold;
-        }
-        
-        .fire-data-label {
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-weight: 500;
-        }
-        
-        .fire-data-value {
-            font-weight: 500;
-        }
-        
-        .form-control {
-            font-size: 0.9rem;
-            padding: 0.5rem 0.75rem;
-        }
-        
-        .form-select {
-            font-size: 0.9rem;
-            padding: 0.5rem 0.75rem;
-        }
-        
-        .form-label {
-            font-size: 0.9rem;
-            margin-bottom: 0.5rem;
-        }
-        
-        /* Modern Button Styles */
-        .btn-gradient-danger {
-            background: linear-gradient(135deg, #007bff 0%, #0056b3 50%, #004085 100%);
-            border: none;
-            color: white;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .btn-gradient-danger:hover {
-            background: linear-gradient(135deg, #0056b3 0%, #004085 50%, #002752 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 123, 255, 0.4) !important;
-            color: white;
-        }
-        
-        .btn-gradient-danger:active {
-            transform: translateY(0);
-            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3) !important;
-        }
-        
-        .btn-gradient-secondary {
-            background: linear-gradient(135deg, #6c757d 0%, #5a6268 50%, #495057 100%);
-            border: none;
-            color: white;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .btn-gradient-secondary:hover {
-            background: linear-gradient(135deg, #5a6268 0%, #495057 50%, #343a40 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(108, 117, 125, 0.4) !important;
-            color: white;
-        }
-        
-        .btn-gradient-secondary:active {
-            transform: translateY(0);
-            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3) !important;
-        }
-        
-        /* Button ripple effect */
-        .btn-gradient-danger::before,
-        .btn-gradient-secondary::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.3);
-            transition: width 0.6s, height 0.6s;
-            transform: translate(-50%, -50%);
-            z-index: 0;
-        }
-        
-        .btn-gradient-danger:active::before,
-        .btn-gradient-secondary:active::before {
-            width: 300px;
-            height: 300px;
-        }
-        
-        .btn-gradient-danger i,
-        .btn-gradient-secondary i {
-            position: relative;
-            z-index: 1;
-        }
-        
-        /* Enhanced shadow for better visibility */
-        .shadow-lg {
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+    }
+    
+    /* Gentelella Form Step Styling */
+    .form-step {
+        transition: opacity 0.3s ease-in-out;
+        margin-bottom: 30px;
+        clear: both;
+        overflow: visible !important;
+        height: auto !important;
+        max-height: none !important;
+    }
+    
+    .form-step.x_panel {
+        overflow: visible !important;
+        height: auto !important;
+        max-height: none !important;
+        background: #fff;
+        border: 1px solid #E6E9ED;
+        padding: 10px 17px;
+        display: inline-block;
+        width: 100%;
+        margin-bottom: 20px;
+    }
+    
+    .form-step .x_content {
+        overflow: visible !important;
+        max-height: none !important;
+        height: auto !important;
+        padding: 0 5px 6px;
+        position: relative;
+        width: 100%;
+        float: left;
+        clear: both;
+        margin-top: 5px;
+    }
+    
+    .form-step.previous-step {
+        opacity: 0.8;
+    }
+    
+    /* Gentelella Form Group Styling */
+    .form-step .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-step .form-group label {
+        font-weight: bold !important;
+        color: #758697;
+        margin-bottom: 10px;
+        display: block;
+        font-size: 15px;
+    }
+    
+    .form-step .form-group > div {
+        color: #333;
+        font-size: 15px;
+        font-weight: 500;
+        padding: 5px 0;
+        word-wrap: break-word;
+        min-height: 22px;
+    }
+    
+    .form-step .form-group .control-label {
+        font-weight: bold !important;
+        font-size: 15px;
+    }
+    
+    /* Form Navigation */
+    .form-navigation {
+        padding: 20px 0;
+        border-top: 1px solid #E6E9ED;
+        margin-top: 20px;
+        text-align: center;
+        clear: both;
+    }
+    
+    .form-navigation .btn {
+        margin: 0 5px;
+        min-width: 120px;
+        padding: 8px 20px;
+        font-size: 14px;
+    }
+    
+    /* Gentelella Input Styling */
+    .form-control {
+        border: 1px solid #D7DCE2;
+        border-radius: 0;
+        padding: 8px 12px;
+        font-size: 14px;
+        color: #555;
+        background-color: #fff;
+    }
+    
+    .form-control:focus {
+        border-color: #26B99A;
+        outline: 0;
+        box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 8px rgba(38, 185, 154, 0.3);
+    }
+    
+    .form-control:disabled {
+        background-color: #f5f5f5;
+        cursor: not-allowed;
+    }
+    
+    /* Gentelella Panel Title - Bold Red */
+    .x_title {
+        border-bottom: 2px solid #E6E9ED;
+        padding: 1px 5px 6px;
+        margin-bottom: 10px;
+    }
+    
+    .x_title h2,
+    .form-step .x_title h2 {
+        margin: 5px 0 6px;
+        float: left;
+        display: block;
+        font-size: 18px;
+        font-weight: bold !important;
+        color: #dc3545 !important;
         }
     </style>
 </head>
@@ -478,14 +483,13 @@ require_once '../../components/header.php';
         </div>
         <?php include('../../components/navigation.php')?>
         <div class="right_col" role="main"> 
-    <div class="container-fluid">
-        <div class="card shadow">
-            <div class="card-body p-4">
-            <div class="container-fluid py-4">   
-            
+            <div class="clearfix"></div>
+            <div class="row">
+                <div class="col-md-12 col-sm-12">
+                        <div class="x_content">
             <?php if ($error_message): ?>
                 <div class="alert alert-danger" id="error-alert" style="display: none;">
-                    <i class="fas fa-exclamation-circle"></i> <?php echo $error_message; ?>
+                                    <i class="fas fa-exclamation-triangle"></i> <?php echo htmlspecialchars($error_message); ?>
                 </div>
             <?php endif; ?>
             
@@ -500,95 +504,133 @@ require_once '../../components/header.php';
                 </div>
             <?php endif; ?>
             
-            <form method="POST" id="spotReportForm" <?php echo $isReadOnlyStatus ? 'onsubmit="return false;"' : ''; ?>>
+                            <form method="POST" action="" class="form-horizontal form-label-left" id="spotReportForm" <?php echo $isReadOnlyStatus ? 'onsubmit="return false;"' : ''; ?>>
                 <!-- Report Header Section -->
-                <div class="card mb-4">
-                    <div class="card-header bg-light">
-                        <h5 class="card-title mb-0 text-uppercase fw-semibold">Report Header</h5>
+                                <div class="x_panel form-step" data-step="0">
+                                    <div class="x_title">
+                                        <h2>Report Header</h2>
+                                        <div class="clearfix"></div>
                     </div>
-                    <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="report_for" class="form-label required-field">Report For</label>
+                                    <div class="x_content">
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="report_for">Report For <span class="required">*</span></label>
+                                            <div class="col-md-9 col-sm-9">
                                 <input type="text" class="form-control" id="report_for" name="report_for" value="<?php echo htmlspecialchars($report['report_for']); ?>" required <?php echo $formDisabled; ?>>
                             </div>
-                            <div class="col-md-6">
-                                <label for="subject" class="form-label required-field">Subject</label>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="subject">Subject <span class="required">*</span></label>
+                                            <div class="col-md-9 col-sm-9">
                                 <input type="text" class="form-control" id="subject" name="subject" value="<?php echo htmlspecialchars($report['subject']); ?>" required <?php echo $formDisabled; ?>>
                             </div>
-                            <div class="col-md-6">
-                                <label for="reports_status" class="form-label">Status</label>
-                                <select class="form-select" id="reports_status" name="reports_status" <?php echo $formDisabled; ?>>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="reports_status">Status</label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <select class="form-control" id="reports_status" name="reports_status" <?php echo $formDisabled; ?>>
                                     <option value="draft" <?php echo $report['reports_status'] === 'draft' ? 'selected' : ''; ?>>Draft</option>
                                     <option value="pending_review" <?php echo $report['reports_status'] === 'pending_review' ? 'selected' : ''; ?>>Pending Review</option>
                                     <option value="final" <?php echo $report['reports_status'] === 'final' ? 'selected' : ''; ?>>Final</option>
                                 </select>
                             </div>
-                            <div class="col-md-6">
-                                <label for="date_completed" class="form-label required-field">Date Completed</label>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="date_completed">Date Completed <span class="required">*</span></label>
+                                            <div class="col-md-9 col-sm-9">
                                 <input type="date" class="form-control" id="date_completed" name="date_completed" value="<?php echo $report['date_completed']; ?>" required <?php echo $formDisabled; ?>>
                             </div>
                         </div>
                     </div>
+                                    <div class="form-navigation">
+                                        <button type="button" class="btn btn-primary btn-next" onclick="nextStep()" <?php echo $formDisabled; ?>>
+                                            Next <i class="fa fa-arrow-right"></i>
+                                        </button>
+                    </div>
                 </div>
                 
                 <!-- Incident Details Section -->
-                <div class="card mb-4">
-                    <div class="card-header bg-light">
-                        <h5 class="card-title mb-0 text-uppercase fw-semibold">Incident Details</h5>
+                                <div class="x_panel form-step" data-step="1" style="display: none;">
+                                    <div class="x_title">
+                                        <h2>Incident Details</h2>
+                                        <div class="clearfix"></div>
                     </div>
-                    <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="date_occurrence" class="form-label required-field">Date of Occurrence</label>
+                                    <div class="x_content">
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="date_occurrence">Date of Occurrence <span class="required">*</span></label>
+                                            <div class="col-md-9 col-sm-9">
                                 <input type="date" class="form-control" id="date_occurrence" name="date_occurrence" value="<?php echo $report['date_occurrence']; ?>" required <?php echo $formDisabled; ?>>
                             </div>
-                            <div class="col-md-6">
-                                <label for="time_occurrence" class="form-label required-field">Time of Occurrence</label>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="time_occurrence">Time of Occurrence <span class="required">*</span></label>
+                                            <div class="col-md-9 col-sm-9">
                                 <input type="time" class="form-control" id="time_occurrence" name="time_occurrence" value="<?php echo $report['time_occurrence']; ?>" required <?php echo $formDisabled; ?>>
                             </div>
-                            <div class="col-md-6">
-                                <label for="place_occurrence" class="form-label required-field">Location</label>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="place_occurrence">Location <span class="required">*</span></label>
+                                            <div class="col-md-9 col-sm-9">
                                 <input type="text" class="form-control" id="place_occurrence" name="place_occurrence" value="<?php echo htmlspecialchars($report['place_occurrence']); ?>" required <?php echo $formDisabled; ?>>
                             </div>
-                            <div class="col-md-6">
-                                <label for="establishment_name" class="form-label required-field">Establishment</label>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="establishment_name">Establishment <span class="required">*</span></label>
+                                            <div class="col-md-9 col-sm-9">
                                 <input type="text" class="form-control" id="establishment_name" name="establishment_name" value="<?php echo htmlspecialchars($report['establishment_name']); ?>" required <?php echo $formDisabled; ?>>
                             </div>
-                            <div class="col-md-6">
-                                <label for="owner" class="form-label">Property Owner</label>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="owner">Property Owner</label>
+                                            <div class="col-md-9 col-sm-9">
                                 <input type="text" class="form-control" id="owner" name="owner" value="<?php echo htmlspecialchars($report['owner']); ?>" <?php echo $formDisabled; ?>>
                             </div>
-                            <div class="col-md-6">
-                                <label for="occupant" class="form-label">Occupant</label>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="occupant">Occupant</label>
+                                            <div class="col-md-9 col-sm-9">
                                 <input type="text" class="form-control" id="occupant" name="occupant" value="<?php echo htmlspecialchars($report['occupant']); ?>" <?php echo $formDisabled; ?>>
                             </div>
                         </div>
                     </div>
+                                    <div class="form-navigation">
+                                        <button type="button" class="btn btn-default btn-prev" onclick="prevStep()" <?php echo $formDisabled; ?>>
+                                            <i class="fa fa-arrow-left"></i> Previous
+                                        </button>
+                                        <button type="button" class="btn btn-primary btn-next" onclick="nextStep()" <?php echo $formDisabled; ?>>
+                                            Next <i class="fa fa-arrow-right"></i>
+                                        </button>
+                    </div>
                 </div>
                 
                 <!-- Casualties and Damage Section -->
-                <div class="card mb-4">
-                    <div class="card-header bg-light">
-                        <h5 class="card-title mb-0 text-uppercase fw-semibold">Casualties and Damage Assessment</h5>
+                                <div class="x_panel form-step" data-step="2" style="display: none;">
+                                    <div class="x_title">
+                                        <h2>Casualties and Damage Assessment</h2>
+                                        <div class="clearfix"></div>
                     </div>
-                    <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="fatalities" class="form-label">Fatalities</label>
+                                    <div class="x_content">
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="fatalities">Fatalities</label>
+                                            <div class="col-md-9 col-sm-9">
                                 <input type="number" class="form-control" id="fatalities" name="fatalities" min="0" value="<?php echo $report['fatalities']; ?>" <?php echo $formDisabled; ?>>
                             </div>
-                            <div class="col-md-6">
-                                <label for="injured" class="form-label">Injured</label>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="injured">Injured</label>
+                                            <div class="col-md-9 col-sm-9">
                                 <input type="number" class="form-control" id="injured" name="injured" min="0" value="<?php echo $report['injured']; ?>" <?php echo $formDisabled; ?>>
                             </div>
-                            <div class="col-md-6">
-                                <label for="estimated_damage" class="form-label">Estimated Damage (₱)</label>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="estimated_damage">Estimated Damage (₱)</label>
+                                            <div class="col-md-9 col-sm-9">
                                 <input type="number" class="form-control" id="estimated_damage" name="estimated_damage" min="0" step="0.01" value="<?php echo $report['estimated_damage']; ?>" <?php echo $formDisabled; ?>>
                             </div>
-                            <div class="col-md-6">
-                                <label for="highest_alarm_level" class="form-label">Alarm Level</label>
-                                <select class="form-select" id="highest_alarm_level" name="highest_alarm_level" <?php echo $formDisabled; ?>>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="highest_alarm_level">Alarm Level</label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <select class="form-control" id="highest_alarm_level" name="highest_alarm_level" <?php echo $formDisabled; ?>>
                                     <option value="Level 1" <?php echo $report['highest_alarm_level'] === 'Level 1' ? 'selected' : ''; ?>>Level 1</option>
                                     <option value="Level 2" <?php echo $report['highest_alarm_level'] === 'Level 2' ? 'selected' : ''; ?>>Level 2</option>
                                     <option value="Level 3" <?php echo $report['highest_alarm_level'] === 'Level 3' ? 'selected' : ''; ?>>Level 3</option>
@@ -596,40 +638,59 @@ require_once '../../components/header.php';
                                     <option value="Level 5" <?php echo $report['highest_alarm_level'] === 'Level 5' ? 'selected' : ''; ?>>Level 5</option>
                                 </select>
                             </div>
-                            <div class="col-md-6">
-                                <label for="time_fire_started" class="form-label">Fire Start Time</label>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="time_fire_started">Fire Start Time</label>
+                                            <div class="col-md-9 col-sm-9">
                                 <input type="datetime-local" class="form-control" id="time_fire_started" name="time_fire_started" value="<?php echo getDateTimeForFormInput($report['time_fire_started']); ?>" <?php echo $formDisabled; ?>>
                             </div>
-                            <div class="col-md-6">
-                                <label for="time_fire_out" class="form-label">Fire Extinguished</label>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="time_fire_out">Fire Extinguished</label>
+                                            <div class="col-md-9 col-sm-9">
                                 <input type="datetime-local" class="form-control" id="time_fire_out" name="time_fire_out" value="<?php echo !empty($report['time_fire_out']) ? getDateTimeForFormInput($report['time_fire_out']) : ''; ?>" <?php echo $formDisabled; ?>>
                             </div>
                         </div>
                     </div>
+                                    <div class="form-navigation">
+                                        <button type="button" class="btn btn-default btn-prev" onclick="prevStep()" <?php echo $formDisabled; ?>>
+                                            <i class="fa fa-arrow-left"></i> Previous
+                                        </button>
+                                        <button type="button" class="btn btn-primary btn-next" onclick="nextStep()" <?php echo $formDisabled; ?>>
+                                            Next <i class="fa fa-arrow-right"></i>
+                                        </button>
+                    </div>
                 </div>
                 
                 <!-- Assessment Details Section -->
-                <div class="card mb-4">
-                    <div class="card-header bg-light">
-                        <h5 class="card-title mb-0 text-uppercase fw-semibold">Assessment Details</h5>
+                                <div class="x_panel form-step" data-step="3" style="display: none;">
+                                    <div class="x_title">
+                                        <h2>Assessment Details</h2>
+                                        <div class="clearfix"></div>
                     </div>
-                    <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="establishments_affected" class="form-label">Properties Affected</label>
+                                    <div class="x_content">
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="establishments_affected">Properties Affected</label>
+                                            <div class="col-md-9 col-sm-9">
                                 <input type="number" class="form-control" id="establishments_affected" name="establishments_affected" min="1" value="<?php echo $report['establishments_affected']; ?>" <?php echo $formDisabled; ?>>
                             </div>
-                            <div class="col-md-6">
-                                <label for="estimated_area_sqm" class="form-label">Area Affected (sqm)</label>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="estimated_area_sqm">Area Affected (sqm)</label>
+                                            <div class="col-md-9 col-sm-9">
                                 <input type="number" class="form-control" id="estimated_area_sqm" name="estimated_area_sqm" min="0" step="0.01" value="<?php echo $report['estimated_area_sqm']; ?>" <?php echo $formDisabled; ?>>
                             </div>
-                            <div class="col-md-6">
-                                <label for="damage_computation" class="form-label">Total Damage (₱)</label>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="damage_computation">Total Damage (₱)</label>
+                                            <div class="col-md-9 col-sm-9">
                                 <input type="number" class="form-control" id="damage_computation" name="damage_computation" min="0" step="0.01" value="<?php echo $report['damage_computation']; ?>" <?php echo $formDisabled; ?>>
                             </div>
-                            <div class="col-md-6">
-                                <label for="weather_condition" class="form-label">Weather Conditions</label>
-                                <select class="form-select" id="weather_condition" name="weather_condition" <?php echo $formDisabled; ?>>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="weather_condition">Weather Conditions</label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <select class="form-control" id="weather_condition" name="weather_condition" <?php echo $formDisabled; ?>>
                                     <option value="Normal" <?php echo $report['weather_condition'] === 'Normal' ? 'selected' : ''; ?>>Normal</option>
                                     <option value="Rainy" <?php echo $report['weather_condition'] === 'Rainy' ? 'selected' : ''; ?>>Rainy</option>
                                     <option value="Sunny" <?php echo $report['weather_condition'] === 'Sunny' ? 'selected' : ''; ?>>Sunny</option>
@@ -637,126 +698,293 @@ require_once '../../components/header.php';
                                     <option value="Stormy" <?php echo $report['weather_condition'] === 'Stormy' ? 'selected' : ''; ?>>Stormy</option>
                                 </select>
                             </div>
-                            <div class="col-md-12">
-                                <label class="form-label">Personnel Involved</label>
-                                <div class="row g-2">
-                                    <div class="col-md-3 col-sm-6">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="personnel_investigator" name="personnel_investigator" value="1" <?php echo $personnelInvestigatorChecked ? 'checked' : ''; ?> <?php echo $formDisabled; ?>>
-                                            <label class="form-check-label" for="personnel_investigator">
-                                                Investigator
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3">Personnel Involved</label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <div class="checkbox">
+                                                    <label>
+                                                        <input type="checkbox" id="personnel_investigator" name="personnel_investigator" value="1" <?php echo $personnelInvestigatorChecked ? 'checked' : ''; ?> <?php echo $formDisabled; ?>> Investigator
                                             </label>
                                         </div>
-                                    </div>
-                                    <div class="col-md-3 col-sm-6">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="personnel_owner" name="personnel_owner" value="1" <?php echo $personnelOwnerChecked ? 'checked' : ''; ?> <?php echo $formDisabled; ?>>
-                                            <label class="form-check-label" for="personnel_owner">
-                                                Owner
+                                                <div class="checkbox">
+                                                    <label>
+                                                        <input type="checkbox" id="personnel_owner" name="personnel_owner" value="1" <?php echo $personnelOwnerChecked ? 'checked' : ''; ?> <?php echo $formDisabled; ?>> Owner
                                             </label>
                                         </div>
-                                    </div>
-                                    <div class="col-md-3 col-sm-6">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="personnel_occupant" name="personnel_occupant" value="1" <?php echo $personnelOccupantChecked ? 'checked' : ''; ?> <?php echo $formDisabled; ?>>
-                                            <label class="form-check-label" for="personnel_occupant">
-                                                Occupant
+                                                <div class="checkbox">
+                                                    <label>
+                                                        <input type="checkbox" id="personnel_occupant" name="personnel_occupant" value="1" <?php echo $personnelOccupantChecked ? 'checked' : ''; ?> <?php echo $formDisabled; ?>> Occupant
                                             </label>
                                         </div>
-                                    </div>
-                                    <div class="col-md-3 col-sm-6">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="personnel_other" name="personnel_other" value="1" <?php echo $personnelOtherChecked ? 'checked' : ''; ?> <?php echo $formDisabled; ?>>
-                                            <label class="form-check-label" for="personnel_other">
-                                                Other Involved Persons
+                                                <div class="checkbox">
+                                                    <label>
+                                                        <input type="checkbox" id="personnel_other" name="personnel_other" value="1" <?php echo $personnelOtherChecked ? 'checked' : ''; ?> <?php echo $formDisabled; ?>> Other Involved Persons
                                             </label>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="mt-3">
-                                    <label for="involved" class="form-label">Additional Personnel Details</label>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="involved">Additional Personnel Details</label>
+                                            <div class="col-md-9 col-sm-9">
                                     <input type="text" class="form-control" id="involved" name="involved" value="<?php echo htmlspecialchars($existingInvolved); ?>" placeholder="Specify other personnel involved..." <?php echo $formDisabled; ?>>
                                 </div>
                             </div>
                         </div>
+                                    <div class="form-navigation">
+                                        <button type="button" class="btn btn-default btn-prev" onclick="prevStep()" <?php echo $formDisabled; ?>>
+                                            <i class="fa fa-arrow-left"></i> Previous
+                                        </button>
+                                        <button type="button" class="btn btn-primary btn-next" onclick="nextStep()" <?php echo $formDisabled; ?>>
+                                            Next <i class="fa fa-arrow-right"></i>
+                                        </button>
                     </div>
                 </div>
                 
                 <!-- Investigation Notes Section -->
-                <div class="card mb-4">
-                    <div class="card-header bg-light">
-                        <h5 class="card-title mb-0 text-uppercase fw-semibold">Investigation Notes</h5>
+                                <div class="x_panel form-step" data-step="4" style="display: none;">
+                                    <div class="x_title">
+                                        <h2>Investigation Notes</h2>
+                                        <div class="clearfix"></div>
                     </div>
-                    <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="location_of_fatalities" class="form-label">Fatalities Location</label>
+                                    <div class="x_content">
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="location_of_fatalities">Fatalities Location</label>
+                                            <div class="col-md-9 col-sm-9">
                                 <textarea class="form-control" id="location_of_fatalities" name="location_of_fatalities" rows="4" placeholder="Specify exact location where fatalities were found..." <?php echo $formDisabled; ?>><?php echo htmlspecialchars($report['location_of_fatalities']); ?></textarea>
                             </div>
-                            <div class="col-md-6">
-                                <label for="other_info" class="form-label">Additional Findings</label>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="other_info">Additional Findings</label>
+                                            <div class="col-md-9 col-sm-9">
                                 <textarea class="form-control" id="other_info" name="other_info" rows="4" placeholder="Any additional information, observations, or findings..." <?php echo $formDisabled; ?>><?php echo htmlspecialchars($report['other_info']); ?></textarea>
                             </div>
-                            <div class="col-md-12">
-                                <label for="disposition" class="form-label">Investigation Disposition</label>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="disposition">Investigation Disposition</label>
+                                            <div class="col-md-9 col-sm-9">
                                 <textarea class="form-control" id="disposition" name="disposition" rows="4" placeholder="Final disposition and recommendations..." <?php echo $formDisabled; ?>><?php echo htmlspecialchars($report['disposition']); ?></textarea>
                             </div>
                         </div>
                     </div>
+                                    <div class="form-navigation">
+                                        <button type="button" class="btn btn-default btn-prev" onclick="prevStep()" <?php echo $formDisabled; ?>>
+                                            <i class="fa fa-arrow-left"></i> Previous
+                                        </button>
+                                        <button type="button" class="btn btn-primary btn-next" onclick="nextStep()" <?php echo $formDisabled; ?>>
+                                            Next <i class="fa fa-arrow-right"></i>
+                                        </button>
+                    </div>
                 </div>
                 
                 <!-- Investigator Information Section -->
-                <div class="card mb-4">
-                    <div class="card-header bg-light">
-                        <h5 class="card-title mb-0 text-uppercase fw-semibold">Investigator Information</h5>
+                                <div class="x_panel form-step" data-step="5" style="display: none;">
+                                    <div class="x_title">
+                                        <h2>Investigator Information</h2>
+                                        <div class="clearfix"></div>
                     </div>
-                    <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="investigator_name" class="form-label required-field">Investigator Name</label>
+                                    <div class="x_content">
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="investigator_name">Investigator Name <span class="required">*</span></label>
+                                            <div class="col-md-9 col-sm-9">
                                 <input type="text" class="form-control" id="investigator_name" name="investigator_name" value="<?php echo htmlspecialchars($report['investigator_name']); ?>" required <?php echo $formDisabled; ?>>
                             </div>
-                            <div class="col-md-6">
-                                <label for="investigator_signature" class="form-label">Investigator Signature</label>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3" for="investigator_signature">Investigator Signature</label>
+                                            <div class="col-md-9 col-sm-9">
                                 <input type="text" class="form-control" id="investigator_signature" name="investigator_signature" value="<?php echo htmlspecialchars($report['investigator_signature']); ?>" <?php echo $formDisabled; ?>>
                             </div>
-                            <div class="col-md-12">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="turned_over" value="1" <?php echo $report['turned_over'] ? 'checked' : ''; ?> <?php echo $formDisabled; ?>>
-                                    <label class="form-check-label" for="turned_over">
-                                        Report Turned Over
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="control-label col-md-3 col-sm-3"></label>
+                                            <div class="col-md-9 col-sm-9">
+                                                <div class="checkbox">
+                                                    <label>
+                                                        <input type="checkbox" name="turned_over" value="1" <?php echo $report['turned_over'] ? 'checked' : ''; ?> <?php echo $formDisabled; ?>> Report Turned Over
                                     </label>
                                 </div>
                             </div>
                         </div>
                     </div>
+                                    <div class="form-navigation">
+                                        <button type="button" class="btn btn-default btn-prev" onclick="prevStep()" <?php echo $formDisabled; ?>>
+                                            <i class="fa fa-arrow-left"></i> Previous
+                                        </button>
+                    </div>
                 </div>
                 
-                <div class="d-flex justify-content-center gap-4 pt-5 border-top">
-                    <a href="view.php?id=<?php echo $report['id']; ?>" class="btn btn-lg btn-gradient-secondary shadow-lg px-4 py-3 fw-bold text-uppercase">
-                        <i class="fas fa-arrow-left me-2"></i> Cancel
+                                <div class="ln_solid"></div>
+                                <div class="form-group" id="submit-section" style="display: none;">
+                                    <div class="col-md-12 col-sm-12 text-center">
+                                        <a href="view.php?id=<?php echo $report['id']; ?>" class="btn btn-primary">
+                                            <i class="fa fa-arrow-left"></i> Cancel
                     </a>
                     <?php if ($report['reports_status'] === 'final'): ?>
-                        <button type="button" class="btn btn-lg btn-outline-secondary shadow-lg px-4 py-3 fw-bold text-uppercase" disabled title="Report is Final - Cannot be Updated">
-                            <i class="fas fa-lock me-2"></i> Report Final - Cannot Update
+                                            <button type="button" class="btn btn-default" disabled title="Report is Final - Cannot be Updated">
+                                                <i class="fa fa-lock"></i> Report Final - Cannot Update
                         </button>
                     <?php else: ?>
-                        <button type="submit" class="btn btn-lg btn-gradient-danger shadow-lg px-4 py-3 fw-bold text-uppercase">
-                            <i class="fas fa-save me-2"></i> Update Report
+                                            <button type="submit" class="btn btn-success">
+                                                <i class="fa fa-save"></i> Update Report
                         </button>
                     <?php endif; ?>
+                                    </div>
                 </div>
             </form>
+                        </div>
             </div>
         </div>
     </div>
     </div>
     </div>
 
+    <?php include '../../components/scripts.php'; ?>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-        // Real-time validation feedback
+    // Form step navigation
+    let currentStep = 0;
+    const totalSteps = document.querySelectorAll('.form-step').length;
+    
+    function showStep(step) {
+        const steps = document.querySelectorAll('.form-step');
+        steps.forEach((s, index) => {
+            // Show all steps from 0 to current step (including current)
+            if (index <= step) {
+                s.style.display = 'block';
+                // Add visual class to distinguish previous steps
+                s.classList.remove('previous-step');
+                if (index < step) {
+                    s.classList.add('previous-step');
+                }
+            } else {
+                s.style.display = 'none';
+                s.classList.remove('previous-step');
+            }
+        });
+        
+        // Scroll to current step
+        if (steps[step]) {
+            setTimeout(() => {
+                steps[step].scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        }
+        
+        // Show/hide submit section on last step
+        const submitSection = document.getElementById('submit-section');
+        if (submitSection) {
+            if (step === totalSteps - 1) {
+                submitSection.style.display = 'block';
+            } else {
+                submitSection.style.display = 'none';
+            }
+        }
+        
+        // Update previous button visibility for current step
+        const currentStepPanel = steps[step];
+        if (currentStepPanel) {
+            const prevButton = currentStepPanel.querySelector('.btn-prev');
+            if (prevButton) {
+                prevButton.style.display = step === 0 ? 'none' : 'inline-block';
+            }
+        }
+        
+        // Hide Next buttons on all previous steps, show only on current step
+        steps.forEach((s, index) => {
+            const nextButton = s.querySelector('.btn-next');
+            if (nextButton) {
+                if (index === step) {
+                    nextButton.style.display = 'inline-block';
+                } else {
+                    nextButton.style.display = 'none';
+                }
+            }
+        });
+        
+        currentStep = step;
+    }
+    
+    function nextStep() {
+        if (currentStep < totalSteps - 1) {
+            // Validate current step before proceeding
+            if (validateCurrentStep(currentStep)) {
+                showStep(currentStep + 1);
+            }
+        }
+    }
+    
+    function prevStep() {
+        if (currentStep > 0) {
+            showStep(currentStep - 1);
+        }
+    }
+    
+    function validateCurrentStep(step) {
+        const stepPanel = document.querySelectorAll('.form-step')[step];
+        if (!stepPanel) return true;
+        
+        const stepData = parseInt(stepPanel.getAttribute('data-step'));
+        
+        // Get required fields in current step
+        const requiredFields = stepPanel.querySelectorAll('[required]');
+        let isValid = true;
+        const errors = [];
+        
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                isValid = false;
+                field.classList.add('is-invalid');
+                const fieldName = field.getAttribute('name') || field.getAttribute('id');
+                errors.push(`${fieldName} is required`);
+            } else {
+                field.classList.remove('is-invalid');
+            }
+        });
+        
+        // Additional validations for specific steps
+        // Report Header step (step 0)
+        if (stepData === 0) {
+            const subject = document.getElementById('subject');
+            if (subject && subject.value.trim().length > 0 && subject.value.trim().length < 10) {
+                isValid = false;
+                subject.classList.add('is-invalid');
+                errors.push('Subject must be at least 10 characters long.');
+            }
+        }
+        
+        // Incident Details step (step 1)
+        if (stepData === 1) {
+            const placeOccurrence = document.getElementById('place_occurrence');
+            if (placeOccurrence && placeOccurrence.value.trim().length > 0 && placeOccurrence.value.trim().length < 5) {
+                isValid = false;
+                placeOccurrence.classList.add('is-invalid');
+                errors.push('Location must be at least 5 characters long.');
+            }
+            
+            // Validate date logic
+            if (!validateDateLogic()) {
+                isValid = false;
+            }
+        }
+        
+        if (!isValid && errors.length > 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                html: 'Please complete all required fields before proceeding:<br>' + errors.join('<br>'),
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#dc3545'
+            });
+        }
+        
+        return isValid;
+    }
+    
+    // Initialize: show first step
         document.addEventListener('DOMContentLoaded', function() {
+        showStep(0);
+        
+        // Real-time validation feedback
             // Show SweetAlert2 modals for PHP messages
             <?php if ($error_message): ?>
             Swal.fire({
@@ -846,6 +1074,14 @@ require_once '../../components/header.php';
                     field.addEventListener('change', function() {
                         validateDateLogic();
                     });
+                    field.addEventListener('input', function() {
+                        // Clear error when user starts typing/changing
+                        clearFieldError(field);
+                        // Re-validate after a short delay to avoid validation while typing
+                        setTimeout(function() {
+                            validateDateLogic();
+                        }, 100);
+                    });
                 });
             }
             
@@ -878,6 +1114,27 @@ require_once '../../components/header.php';
             if (form) {
                 form.addEventListener('submit', function(e) {
                     e.preventDefault();
+                
+                // Validate all steps before submission
+                let allStepsValid = true;
+                for (let i = 0; i < totalSteps; i++) {
+                    if (!validateCurrentStep(i)) {
+                        allStepsValid = false;
+                        showStep(i); // Show the step with errors
+                        break;
+                    }
+                }
+                
+                if (!allStepsValid) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Validation Failed',
+                        html: 'Please complete all required fields in all sections before submitting.',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#dc3545'
+                    });
+                    return;
+                }
                     
                     if (!validateForm()) {
                         Swal.fire({
@@ -955,17 +1212,28 @@ require_once '../../components/header.php';
             const dateCompleted = document.getElementById('date_completed');
             const dateOccurrence = document.getElementById('date_occurrence');
             
+            // Clear any existing errors first
+            if (dateCompleted) clearFieldError(dateCompleted);
+            if (dateOccurrence) clearFieldError(dateOccurrence);
+            
+            // Only validate if both dates are present
             if (dateCompleted && dateOccurrence && dateCompleted.value && dateOccurrence.value) {
-                const completedDate = new Date(dateCompleted.value);
-                const occurrenceDate = new Date(dateOccurrence.value);
+                // Parse dates as local dates (YYYY-MM-DD format) to avoid timezone issues
+                const completedDate = new Date(dateCompleted.value + 'T00:00:00');
+                const occurrenceDate = new Date(dateOccurrence.value + 'T00:00:00');
+                const today = new Date();
+                today.setHours(0, 0, 0, 0); // Reset time to midnight for accurate date comparison
                 
+                // Check if Date Completed is before Date of Occurrence
                 if (completedDate < occurrenceDate) {
                     showFieldError(dateCompleted, 'Date Completed cannot be before Date of Occurrence.');
                     return false;
                 }
                 
+                // Validate Date of Occurrence is not more than 30 days in the past
                 const thirtyDaysAgo = new Date();
                 thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                thirtyDaysAgo.setHours(0, 0, 0, 0);
                 
                 if (occurrenceDate < thirtyDaysAgo) {
                     showFieldError(dateOccurrence, 'Date of Occurrence cannot be more than 30 days in the past.');
@@ -997,13 +1265,23 @@ require_once '../../components/header.php';
         
         function validatePersonnelSelection() {
             const personnelCheckboxes = document.querySelectorAll('input[name^="personnel_"]:checked');
-            const personnelSection = document.querySelector('input[name^="personnel_"]').closest('.col-md-12');
+            const firstPersonnelInput = document.querySelector('input[name^="personnel_"]');
             
             if (personnelCheckboxes.length === 0) {
-                showSectionError(personnelSection, 'At least one Personnel Involved option must be selected.');
+                if (firstPersonnelInput) {
+                    const personnelSection = firstPersonnelInput.closest('.form-group');
+                    if (personnelSection) {
+                        showSectionError(personnelSection, 'At least one Personnel Involved option must be selected.');
+                    }
+                }
                 return false;
             } else {
-                clearSectionError(personnelSection);
+                if (firstPersonnelInput) {
+                    const personnelSection = firstPersonnelInput.closest('.form-group');
+                    if (personnelSection) {
+                        clearSectionError(personnelSection);
+                    }
+                }
             }
             
             return true;
@@ -1086,7 +1364,9 @@ require_once '../../components/header.php';
             errorDiv.className = 'alert alert-danger mt-2';
             errorDiv.textContent = message;
             
-            section.appendChild(errorDiv);
+            if (section) {
+                section.appendChild(errorDiv);
+            }
             
             // Show SweetAlert2 toast for section errors
             Swal.fire({
@@ -1102,13 +1382,13 @@ require_once '../../components/header.php';
         }
         
         function clearSectionError(section) {
-            const errorDiv = section.querySelector('.alert.alert-danger');
-            if (errorDiv) {
-                errorDiv.remove();
+            if (section) {
+                const errorDiv = section.querySelector('.alert.alert-danger');
+                if (errorDiv) {
+                    errorDiv.remove();
+                }
             }
         }
     </script>
-     <!-- Include header components -->
- <?php include '../../../../components/scripts.php'; ?>
 </body>
 </html>

@@ -9,9 +9,14 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 require_once '../functions/functions.php';
 
-// Keep error reporting but avoid echoing HTML into JSON
+// Include input sanitizer for secure input handling
+require_once __DIR__ . '/../../../core/security/input_sanitizer.php';
+
+// Environment-aware error handling for JSON responses
+$isProduction = (getenv('APP_ENV') === 'production');
+$debugMode = filter_var(getenv('APP_DEBUG') ?? '0', FILTER_VALIDATE_BOOLEAN);
 error_reporting(E_ALL);
-ini_set('display_errors', 0);
+ini_set('display_errors', ($isProduction && !$debugMode) ? '0' : '1');
 
 // Check if admin is logged in
 if (!isset($_SESSION['admin_id'])) {
@@ -27,14 +32,15 @@ header('Access-Control-Allow-Headers: Content-Type');
 
 header('Content-Type: application/json');
 
-$action = $_GET['action'] ?? '';
+// Sanitize action parameter for security
+$action = sanitizeString($_GET['action'] ?? '');
 
 try {
     switch ($action) {
         case 'trends':
-            $period = $_GET['period'] ?? 'monthly';
-            $start = $_GET['start'] ?? '';
-            $end = $_GET['end'] ?? '';
+            $period = sanitizeString($_GET['period'] ?? 'monthly');
+            $start = sanitizeString($_GET['start'] ?? '');
+            $end = sanitizeString($_GET['end'] ?? '');
             switch ($period) {
                 case 'daily':
                     $data = !empty($start) && !empty($end) ? getIncidentsByDayRange($start, $end) : getIncidentsByDay();
@@ -58,9 +64,9 @@ try {
             break;
             
         case 'building_type_data':
-            $start = $_GET['start'] ?? '';
-            $end = $_GET['end'] ?? '';
-            $incidentType = $_GET['incident_type'] ?? '';
+            $start = sanitizeString($_GET['start'] ?? '');
+            $end = sanitizeString($_GET['end'] ?? '');
+            $incidentType = sanitizeString($_GET['incident_type'] ?? '');
             $data = getIncidentsByBuildingType('', $start, $end, $incidentType);
             error_log("Building type data response (start=" . $start . ", end=" . $end . ", incident_type=" . $incidentType . "): " . json_encode($data));
             echo json_encode($data);

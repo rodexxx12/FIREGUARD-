@@ -5,14 +5,16 @@ require_once __DIR__ . '/../../db/db.php';
 $pdo = getDatabaseConnection();
 
 // Check if there are any devices
-$stmt = $pdo->query("SELECT COUNT(*) as count FROM devices");
+$stmt = $pdo->prepare("SELECT COUNT(*) as count FROM devices");
+$stmt->execute();
 $deviceCount = $stmt->fetch()['count'];
 
 if ($deviceCount == 0) {
     echo "No devices found. Adding sample device...<br>";
     
     // Get a user_id to use (first user in the system)
-    $stmt = $pdo->query("SELECT user_id FROM users LIMIT 1");
+    $stmt = $pdo->prepare("SELECT user_id FROM users LIMIT 1");
+    $stmt->execute();
     $user = $stmt->fetch();
     
     if ($user) {
@@ -32,7 +34,8 @@ if ($deviceCount == 0) {
 }
 
 // Show current devices
-$stmt = $pdo->query("SELECT device_id, device_name, serial_number, user_id, status FROM devices LIMIT 5");
+$stmt = $pdo->prepare("SELECT device_id, device_name, serial_number, user_id, status FROM devices LIMIT 5");
+$stmt->execute();
 $devices = $stmt->fetchAll();
 
 echo "<h3>Current devices:</h3>";

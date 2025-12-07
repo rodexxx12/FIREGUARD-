@@ -94,9 +94,14 @@ class DeviceOperations {
         $device_number = trim($data['device_number']);
         $serial_number = trim($data['serial_number']);
         
-        // Check for individual duplicates
-        if ($this->checkDuplicateExcluding($device_number, $serial_number)) {
-            throw new Exception('Device number or serial number already exists');
+        // Check if device_number already exists
+        if ($this->checkDeviceExists($device_number)) {
+            throw new Exception('A device with this device number already exists. Please use a different device number.');
+        }
+        
+        // Check if serial_number already exists
+        if ($this->checkSerialExists($serial_number)) {
+            throw new Exception('A device with this serial number already exists. Please use a different serial number.');
         }
         
         // Check for combination duplicates (matches database UNIQUE constraint)

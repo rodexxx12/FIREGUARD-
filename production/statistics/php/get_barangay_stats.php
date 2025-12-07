@@ -1,8 +1,10 @@
 <?php
-// Suppress error output for JSON responses
-ini_set('display_errors', 0);
+// Environment-aware error handling for JSON responses
+$isProduction = (getenv('APP_ENV') === 'production');
+$debugMode = filter_var(getenv('APP_DEBUG') ?? '0', FILTER_VALIDATE_BOOLEAN);
 error_reporting(E_ALL);
-ini_set('log_errors', 1);
+ini_set('display_errors', ($isProduction && !$debugMode) ? '0' : '1');
+ini_set('log_errors', '1');
 
 // Start output buffering to catch any accidental output
 if (!ob_get_level()) {
@@ -101,7 +103,6 @@ try {
                 b.barangay_name,
                 b.latitude,
                 b.longitude,
-                b.ir_number,
                 AVG(CAST(fd.heat AS DECIMAL(10,2))) as avg_heat,
                 COUNT(fd.id) as total_readings,
                 MAX(CAST(fd.heat AS DECIMAL(10,2))) as max_heat,
@@ -131,7 +132,7 @@ try {
     }
     
     // Group by barangay - shows all barangays with fire_data for this user
-    $sql .= " GROUP BY b.id, b.barangay_name, b.latitude, b.longitude, b.ir_number 
+    $sql .= " GROUP BY b.id, b.barangay_name, b.latitude, b.longitude 
               ORDER BY avg_heat DESC, b.barangay_name ASC";
     
     if (DatabaseUtils::isDebugEnabled()) {
@@ -141,16 +142,27 @@ try {
     
     try {
         $results = DatabaseUtils::executeQuery($sql, $params);
+        
+        // Ensure results is an array
+        if (!is_array($results)) {
+            $results = [];
+        }
+        
         error_log("Barangay Stats Results Count: " . count($results));
         
-        // If no results, try a simpler query to see if any data exists
-        if (empty($results)) {
-            $testSql = "SELECT COUNT(*) as total FROM fire_data WHERE barangay_id IS NOT NULL";
-            $testResults = DatabaseUtils::executeQuery($testSql, []);
-            error_log("Total fire_data records with barangay_id: " . json_encode($testResults));
-        }
+        // If no results, that's okay - we'll show empty data
+        // Don't throw an error for empty results
     } catch (Exception $queryError) {
         error_log("Query execution error: " . $queryError->getMessage());
+        error_log("Query: " . $sql);
+        error_log("Params: " . json_encode($params));
+        error_log("Stack trace: " . $queryError->getTraceAsString());
+        throw $queryError;
+    } catch (Throwable $queryError) {
+        error_log("Query execution fatal error: " . $queryError->getMessage());
+        error_log("Query: " . $sql);
+        error_log("Params: " . json_encode($params));
+        error_log("Stack trace: " . $queryError->getTraceAsString());
         throw $queryError;
     }
     
@@ -165,16 +177,19 @@ try {
         'avg_smoke' => []
     ];
     
-    foreach ($results as $row) {
-        // Ensure we have valid data
-        if (!empty($row['barangay_name'])) {
-            $chartData['labels'][] = $row['barangay_name'];
-            $chartData['heat_data'][] = round((float)($row['avg_heat'] ?? 0), 1);
-            $chartData['total_readings'][] = (int)($row['total_readings'] ?? 0);
-            $chartData['max_heat'][] = round((float)($row['max_heat'] ?? 0), 1);
-            $chartData['min_heat'][] = round((float)($row['min_heat'] ?? 0), 1);
-            $chartData['avg_temp'][] = round((float)($row['avg_temp'] ?? 0), 1);
-            $chartData['avg_smoke'][] = round((float)($row['avg_smoke'] ?? 0), 1);
+    // Safely process results
+    if (is_array($results) && !empty($results)) {
+        foreach ($results as $row) {
+            // Ensure we have valid data
+            if (!empty($row['barangay_name'])) {
+                $chartData['labels'][] = $row['barangay_name'];
+                $chartData['heat_data'][] = round((float)($row['avg_heat'] ?? 0), 1);
+                $chartData['total_readings'][] = (int)($row['total_readings'] ?? 0);
+                $chartData['max_heat'][] = round((float)($row['max_heat'] ?? 0), 1);
+                $chartData['min_heat'][] = round((float)($row['min_heat'] ?? 0), 1);
+                $chartData['avg_temp'][] = round((float)($row['avg_temp'] ?? 0), 1);
+                $chartData['avg_smoke'][] = round((float)($row['avg_smoke'] ?? 0), 1);
+            }
         }
     }
     
@@ -209,5 +224,8 @@ try {
     error_log("Barangay Stats Error: " . $e->getMessage());
     error_log("Barangay Stats Trace: " . $e->getTraceAsString());
     DatabaseUtils::sendError('Failed to load barangay statistics', $e->getMessage());
+} catch (Throwable $e) {
+    error_log("Barangay Stats Fatal Error: " . $e->getMessage());
+    error_log("Barangay Stats Trace: " . $e->getTraceAsString());
+    DatabaseUtils::sendError('Failed to load barangay statistics', $e->getMessage());
 }
-?>

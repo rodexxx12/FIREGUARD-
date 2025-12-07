@@ -6,6 +6,10 @@ vendor/
 node_modules/
 .DS_Store
 
+# Test Coverage Reports
+coverage/
+.phpunit.result.cache
+
 # Security: Configuration files with secrets
 login/functions/config.env
 **/config.env

@@ -91,7 +91,7 @@ try {
 		padding: 0.75rem; 
 		border: 1px solid rgba(226, 232, 240, 0.8); 
 		border-radius: 16px; 
-		background: linear-gradient(145deg, #ffffff 0%, #f8fafc 50%, #f1f5f9 100%);
+		background: #ffffff;
 		box-shadow: 
 			0 10px 30px rgba(15, 23, 42, 0.12),
 			inset 0 1px 0 rgba(255, 255, 255, 0.8),
@@ -107,7 +107,7 @@ try {
 		left: 0;
 		right: 0;
 		height: 50%;
-		background: linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, transparent 100%);
+		background: transparent;
 		pointer-events: none;
 		z-index: 1;
 	}
@@ -118,12 +118,12 @@ try {
 		left: 0;
 		right: 0;
 		height: 30%;
-		background: linear-gradient(0deg, rgba(0, 0, 0, 0.03) 0%, transparent 100%);
+		background: transparent;
 		pointer-events: none;
 		z-index: 1;
 	}
 	.gauge-item:hover { 
-		background: linear-gradient(145deg, #ffffff 0%, #f5f7fb 50%, #eef2f7 100%);
+		background: #f8fafc;
 		transform: translateY(-3px);
 		box-shadow: 
 			0 20px 40px rgba(15, 23, 42, 0.18),

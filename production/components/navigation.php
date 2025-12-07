@@ -75,12 +75,13 @@ $is_emergency = false;
 if (isset($pdo) && $pdo) {
     // SIMPLIFIED: Check latest fire_data status for emergency
     try {
-        $stmt = $pdo->query("
+        $stmt = $pdo->prepare("
             SELECT id, status, timestamp, building_id, smoke, temp, heat, flame_detected 
             FROM fire_data 
             ORDER BY id DESC 
             LIMIT 1
         ");
+        $stmt->execute();
         $latest_record = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if ($latest_record && strtoupper(trim($latest_record['status'])) === 'EMERGENCY') {
@@ -453,7 +454,7 @@ if (isset($pdo) && $pdo) {
                 <?php if ($is_logged_in): ?>
                   <a class="menu-btn menu-btn--danger" href="javascript:;" id="logoutBtn">
                     <span class="menu-btn-left">
-                      <i class="fa fa-sign-out"></i>
+                      <i class="fa fa-sign-out-alt"></i>
                       <span class="menu-btn-text">Log Out</span>
                     </span>
                     <i class="fa fa-chevron-right menu-btn-chevron"></i>
@@ -753,6 +754,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 allowOutsideClick: false
             }).then((result) => {
                 if (result.isConfirmed) {
+                    // Stop TTS (text-to-speech) if active
+                    if ('speechSynthesis' in window) {
+                        window.speechSynthesis.cancel();
+                        console.log('TTS stopped on logout');
+                    }
+                    
                     // Show loading state
                     Swal.fire({
                         title: 'Logging out...',
@@ -2093,6 +2100,14 @@ document.addEventListener('DOMContentLoaded', function() {
     font-size: 18px;
 }
 
+/* Ensure logout icon is visible and properly positioned */
+.menu-btn--danger .menu-btn-left .fa {
+    display: inline-block !important;
+    visibility: visible !important;
+    margin-right: 0;
+    color: #dc3545;
+}
+
 .menu-btn-text {
     font-size: 14px;
     letter-spacing: 0.2px;
@@ -2122,6 +2137,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .menu-btn--danger {
     border-color: #f8d7da;
+}
+
+.menu-btn--danger .menu-btn-left .fa {
+    color: #dc3545;
 }
 
 .menu-btn--danger .fa:first-child {
@@ -2531,5 +2550,23 @@ document.addEventListener('DOMContentLoaded', function() {
     border-left-color: #ffffff !important;
     border-bottom-color: #ffffff !important;
     border-right-color: #ffffff !important;
+}
+
+/* Ensure logout icon is visible and positioned on the left */
+.menu-btn--danger .menu-btn-left .fa,
+.menu-btn--danger .menu-btn-left > .fa {
+    color: #dc3545 !important;
+    display: inline-block !important;
+    visibility: visible !important;
+    margin-right: 10px !important;
+    font-size: 18px !important;
+    order: -1 !important; /* Ensure icon comes before text */
+}
+
+.menu-btn--danger .menu-btn-left {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    flex-direction: row !important;
 }
 </style>

@@ -1,8 +1,4 @@
 <?php
-// Enable error reporting
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
 // Set Philippine timezone
 date_default_timezone_set('Asia/Manila');
 
@@ -11,41 +7,41 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST');
 header('Access-Control-Allow-Headers: Content-Type');
 
+// Load core configuration and database connection
+require_once __DIR__ . '/../core/config/config.php';
+require_once __DIR__ . '/../core/database/database.php';
+
 // Load configuration for SMS
 $config = require 'config.php';
 $apiKey = $config['api_key'];
 $device = $config['device'];
 $url = $config['url'];
 
-class Database {
-    private static $host = "localhost";
-    private static $dbname = "u520834156_DBBagofire";
-    private static $username = "u520834156_userBagofire";
-    private static $password = "i[#[GQ!+=C9";
+// Helper function to get mysqli connection from PDO
+function getMysqliConnection() {
+    static $conn = null;
     
-    public static function getConnection() {
-        static $conn = null;
+    if ($conn === null) {
+        $host = config('db.host', 'localhost');
+        $dbname = config('db.name', '');
+        $username = config('db.user', '');
+        $password = config('db.pass', '');
         
-        if ($conn === null) {
-            try {
-                $conn = new mysqli(
-                    self::$host, 
-                    self::$username, 
-                    self::$password, 
-                    self::$dbname
-                );
-                
-                if ($conn->connect_error) {
-                    throw new Exception("Database connection failed: " . $conn->connect_error);
-                }
-            } catch (Exception $e) {
-                error_log($e->getMessage());
-                return null;
+        try {
+            $conn = new mysqli($host, $username, $password, $dbname);
+            
+            if ($conn->connect_error) {
+                throw new Exception("Database connection failed: " . $conn->connect_error);
             }
+            
+            $conn->set_charset('utf8mb4');
+        } catch (Exception $e) {
+            error_log($e->getMessage());
+            return null;
         }
-        
-        return $conn;
     }
+    
+    return $conn;
 }
 
 class SmokeAPI {
@@ -157,7 +153,7 @@ class SmokeAPI {
     }
     
     private function getFirstActiveDeviceId() {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return null;
 
         $query = "SELECT device_id FROM devices WHERE is_active = 1 ORDER BY device_id LIMIT 1";
@@ -172,7 +168,7 @@ class SmokeAPI {
     }
     
     private function createDefaultDevice() {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return null;
 
         // Ensure user exists
@@ -197,7 +193,7 @@ class SmokeAPI {
     }
     
     private function isValidDeviceId($device_id) {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return false;
 
         $stmt = $conn->prepare("SELECT device_id FROM devices WHERE device_id = ? AND is_active = 1");
@@ -213,7 +209,7 @@ class SmokeAPI {
     }
     
     private function updateDeviceStatus($status = 'online') {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return false;
 
         $stmt = $conn->prepare("UPDATE devices SET status = ?, last_activity = NOW() WHERE device_id = ?");
@@ -253,7 +249,7 @@ class SmokeAPI {
     }
     
     private function insertSmokeReading() {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return 'failed';
 
         $stmt = $conn->prepare("INSERT INTO smoke_readings (device_id, sensor_value, detected) VALUES (?, ?, ?)");
@@ -272,7 +268,7 @@ class SmokeAPI {
     }
     
     private function insertFlameReading() {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return 'failed';
 
         $stmt = $conn->prepare("INSERT INTO flame_readings (device_id, detected) VALUES (?, ?)");
@@ -291,7 +287,7 @@ class SmokeAPI {
     }
     
     private function insertEnvironmentReading($heat_index) {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return 'failed';
 
         // Handle null values more gracefully
@@ -322,7 +318,7 @@ class SmokeAPI {
     }
 
     private function insertFireData($sensor_data, $smoke_reading_id, $flame_reading_id) {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return ['success' => false, 'id' => null];
 
         // Get device info to extract user_id and building_id
@@ -384,7 +380,7 @@ class SmokeAPI {
 
     private function getDeviceInfo($device_id = null) {
         $device_id = $device_id ?: $this->device_id;
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return null;
 
         $stmt = $conn->prepare("SELECT device_id, user_id, device_name, device_number, serial_number, building_id, status FROM devices WHERE device_id = ?");
@@ -403,7 +399,7 @@ class SmokeAPI {
     }
 
     private function updateDeviceLatestFireData($fire_data_id) {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return false;
 
         $stmt = $conn->prepare("UPDATE devices SET latest_fire_data_id = ? WHERE device_id = ?");
@@ -421,7 +417,7 @@ class SmokeAPI {
     }
 
     private function getLastInsertedId($table) {
-        $conn = Database::getConnection();
+        $conn = getMysqliConnection();
         if (!$conn) return null;
         
         return $conn->insert_id;

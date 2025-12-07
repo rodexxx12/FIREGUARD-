@@ -4,10 +4,12 @@
  * Reduces code duplication across all statistics files
  */
 
-// Suppress error output for JSON responses
-ini_set('display_errors', 0);
+// Environment-aware error handling for JSON responses
+$isProduction = (getenv('APP_ENV') === 'production');
+$debugMode = filter_var(getenv('APP_DEBUG') ?? '0', FILTER_VALIDATE_BOOLEAN);
 error_reporting(E_ALL);
-ini_set('log_errors', 1);
+ini_set('display_errors', ($isProduction && !$debugMode) ? '0' : '1');
+ini_set('log_errors', '1');
 
 require_once '../../../db/db.php';
 require_once dirname(__DIR__, 3) . '/components/cache.php';
@@ -145,7 +147,14 @@ class DatabaseUtils {
         if ($error) {
             error_log("API Error: {$message} - " . self::stringifyError($error));
         }
-        self::sendResponse(false, null, $message);
+        $debug = null;
+        if (self::isDebugEnabled() && $error) {
+            $debug = [
+                'error' => self::stringifyError($error),
+                'trace' => $error instanceof Throwable ? $error->getTraceAsString() : null
+            ];
+        }
+        self::sendResponse(false, null, $message, $debug);
     }
     
     /**

@@ -198,7 +198,8 @@ function getAcknowledgedIncidentsFiltered($status = '', $start_date = '', $end_d
 function migrateAllIncidentsToIncidentReports() {
     $conn = getDatabaseConnection();
     // Fetch all incidents from fire_data
-    $result = $conn->query("SELECT * FROM fire_data");
+    $result = $conn->prepare("SELECT * FROM fire_data");
+    $result->execute();
     if (!$result) {
         return ["success" => false, "error" => "Database query failed"];
     }

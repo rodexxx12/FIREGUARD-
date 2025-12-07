@@ -1,28 +1,19 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
 date_default_timezone_set('Asia/Manila');
 
-// Database connection
+// Load core configuration and database connection
+require_once __DIR__ . '/../core/config/config.php';
+require_once __DIR__ . '/../core/database/database.php';
+require_once __DIR__ . '/../core/security/input_sanitizer.php';
+
+// Database connection - use centralized connection
 function getDatabaseConnection() {
-    static $conn = null;
-    if ($conn === null) {
-        $host = "localhost";
-        $dbname = "u520834156_DBBagofire"; 
-        $username = "u520834156_userBagofire";
-        $password = "i[#[GQ!+=C9";
-        
-        try {
-            $conn = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
-            $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-            $conn->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
-            $conn->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-        } catch(PDOException $e) {
-            error_log("Database connection failed: " . $e->getMessage());
-            die(json_encode(['success' => false, 'message' => 'System temporarily unavailable']));
-        }
+    try {
+        return getDatabaseConnection();
+    } catch (Exception $e) {
+        error_log("Database connection failed: " . $e->getMessage());
+        die(json_encode(['success' => false, 'message' => 'System temporarily unavailable']));
     }
-    return $conn;
 }
 
 // Get dashboard data
@@ -132,19 +123,23 @@ function getDeviceDetails($device_id) {
 if (isset($_GET['action'])) {
     header('Content-Type: application/json');
     
-    switch ($_GET['action']) {
+    // Sanitize action parameter
+    $action = sanitizeString($_GET['action'] ?? '');
+    
+    switch ($action) {
         case 'get_dashboard_data':
             echo json_encode(getDashboardData());
             exit;
             
         case 'get_chart_data':
-            $hours = isset($_GET['hours']) ? intval($_GET['hours']) : 24;
+            $hours = sanitizeInt($_GET['hours'] ?? 24);
             echo json_encode(getChartData($hours));
             exit;
             
         case 'get_device_details':
-            if (isset($_GET['device_id'])) {
-                echo json_encode(getDeviceDetails($_GET['device_id']));
+            $deviceId = sanitizeInt($_GET['device_id'] ?? 0);
+            if ($deviceId > 0) {
+                echo json_encode(getDeviceDetails($deviceId));
             } else {
                 echo json_encode(['error' => 'Device ID required']);
             }

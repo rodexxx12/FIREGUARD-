@@ -23,15 +23,42 @@ require_once __DIR__ . '/profile_picture_handler.php';
 // --- INITIALIZATION ---
 
 $errors = [];
-$conn = getDBConnection();
+
+// Verify session and admin_id before proceeding
+if (!isset($_SESSION['admin_id']) || empty($_SESSION['admin_id'])) {
+    error_log("ERROR: admin_id not found in session. Session data: " . print_r($_SESSION, true));
+    if (!headers_sent()) {
+        header("Location: /DEFENDED/index.php");
+        exit;
+    } else {
+        die("Session error: Admin ID not found. Please log in again.");
+    }
+}
+
+// Get database connection
+try {
+    $conn = getDBConnection();
+    if (!$conn) {
+        throw new Exception("Database connection returned null");
+    }
+} catch (Exception $e) {
+    error_log("ERROR: Failed to get database connection: " . $e->getMessage());
+    die("Database connection error. Please contact administrator.");
+}
 
 // Fetch current admin data. auth.php handles redirection if not logged in.
 $admin = getAdminDataFromDB($conn, $_SESSION['admin_id']);
 
 // If getAdminData returns an error, it's a critical failure.
 if (isset($admin['error'])) {
+    error_log("ERROR: Failed to get admin data: " . $admin['error']);
     // A more user-friendly error page would be ideal in a production environment.
-    die("A critical error occurred: " . htmlspecialchars($admin['error']));
+    if (!headers_sent()) {
+        header("Location: /DEFENDED/index.php");
+        exit;
+    } else {
+        die("A critical error occurred: " . htmlspecialchars($admin['error']));
+    }
 }
 
 

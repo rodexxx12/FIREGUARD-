@@ -22,11 +22,13 @@ try {
 // First, let's check if we have any data at all
 try {
     // Check if buildings table has data
-    $stmt = $conn->query("SELECT COUNT(*) as count FROM buildings");
+    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM buildings");
+    $stmt->execute();
     $buildingCount = $stmt->fetch(PDO::FETCH_ASSOC);
     
     // Check if fire_data table has data
-    $stmt = $conn->query("SELECT COUNT(*) as count FROM fire_data");
+    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM fire_data");
+    $stmt->execute();
     $fireDataCount = $stmt->fetch(PDO::FETCH_ASSOC);
     
     // If no data in either table, return appropriate message
@@ -114,7 +116,8 @@ ORDER BY
 ";
 
 try {
-    $stmt = $conn->query($sql);
+    $stmt = $conn->prepare($sql);
+    $stmt->execute();
     $buildings = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     if (empty($buildings)) {
@@ -128,7 +131,8 @@ try {
         LEFT JOIN fire_data f ON b.id = f.building_id
         ";
         
-        $debugStmt = $conn->query($debugSql);
+        $debugStmt = $conn->prepare($debugSql);
+        $debugStmt->execute();
         $debugInfo = $debugStmt->fetch(PDO::FETCH_ASSOC);
         
         echo json_encode([

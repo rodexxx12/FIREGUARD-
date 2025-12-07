@@ -1,0 +1,212 @@
+/* Device Information Preview Styles */
+.device-preview-container {
+    min-height: 280px;
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    position: relative;
+    overflow: hidden;
+}
+
+.device-preview-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 240px;
+    color: #6c757d;
+    text-align: center;
+}
+
+.device-preview-empty i {
+    font-size: 48px;
+    margin-bottom: 15px;
+    opacity: 0.8;
+    animation: float 2s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+.device-preview-empty p {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.device-preview-empty small {
+    font-size: 13px;
+    opacity: 0.8;
+}
+
+.device-preview-content {
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 20px;
+    position: relative;
+    z-index: 1;
+}
+
+.device-preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.device-preview-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.device-preview-title i {
+    color: #667eea;
+    font-size: 20px;
+}
+
+.device-preview-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.device-preview-badge.approved {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(17, 153, 142, 0.3);
+}
+
+.device-preview-badge.pending {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(245, 87, 108, 0.3);
+}
+
+.device-preview-badge.deactivated {
+    background: linear-gradient(135deg, #434343 0%, #000000 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(67, 67, 67, 0.3);
+}
+
+.device-preview-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.device-preview-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.device-preview-item.full-width {
+    grid-column: 1 / -1;
+}
+
+.device-preview-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0;
+}
+
+.device-preview-value {
+    font-size: 15px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0;
+    word-break: break-all;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border-left: 3px solid #667eea;
+}
+
+.device-preview-value.code {
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    color: #667eea;
+    background: #f8f9fa;
+    border-left: 3px solid #667eea;
+}
+
+.device-preview-footer {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e9ecef;
+    text-align: center;
+}
+
+.device-preview-footer-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6c757d;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.device-preview-footer-text i {
+    color: #667eea;
+    font-size: 14px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .device-preview-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .device-preview-container {
+        padding: 15px;
+    }
+    
+    .device-preview-content {
+        padding: 15px;
+    }
+}
+
+/* Animation for preview appearance */
+.device-preview-content {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+

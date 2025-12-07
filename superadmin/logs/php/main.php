@@ -8,7 +8,8 @@ try {
     $pdo = getDatabaseConnection();
     
     // Get total logs
-    $stmt = $pdo->query("SELECT COUNT(*) as total FROM system_logs");
+    $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM system_logs");
+    $stmt->execute();
     $totalLogs = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
 
     // Get error logs
@@ -22,7 +23,8 @@ try {
     $recentLogs = $stmt->fetch(PDO::FETCH_ASSOC)['recent'];
 
     // Get fire detections
-    $stmt = $pdo->query("SELECT COUNT(*) as fire_count FROM system_logs WHERE fire_detected = 1");
+    $stmt = $pdo->prepare("SELECT COUNT(*) as fire_count FROM system_logs WHERE fire_detected = 1");
+    $stmt->execute();
     $fireDetections = $stmt->fetch(PDO::FETCH_ASSOC)['fire_count'];
     
 } catch (PDOException $e) {

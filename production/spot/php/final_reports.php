@@ -93,26 +93,46 @@ $baseQuery = "
     LEFT JOIN barangay br ON fd.barangay_id = br.id
 ";
 
-$result = $builder->build($baseQuery);
-$query = $result['query'] . " ORDER BY sir.date_completed DESC, sir.created_at DESC";
+try {
+    $result = $builder->build($baseQuery);
+    $query = $result['query'] . " ORDER BY sir.date_completed DESC, sir.created_at DESC";
 
-$stmt = $conn->prepare($query);
-$builder->bindToStatement($stmt);
-$stmt->execute();
-$finalReports = $stmt->fetchAll();
+    $stmt = $conn->prepare($query);
+    $builder->bindToStatement($stmt);
+    $stmt->execute();
+    $finalReports = $stmt->fetchAll();
 
-// Get filter options
-$barangayStmt = $conn->prepare("SELECT id, barangay_name FROM barangay ORDER BY barangay_name");
-$barangayStmt->execute();
-$barangays = $barangayStmt->fetchAll();
+    // Get filter options
+    $barangayStmt = $conn->prepare("SELECT id, barangay_name FROM barangay ORDER BY barangay_name");
+    $barangayStmt->execute();
+    $barangays = $barangayStmt->fetchAll();
 
-$buildingTypeStmt = $conn->prepare("SELECT DISTINCT building_type FROM buildings WHERE building_type IS NOT NULL ORDER BY building_type");
-$buildingTypeStmt->execute();
-$buildingTypes = $buildingTypeStmt->fetchAll();
+    $buildingTypeStmt = $conn->prepare("SELECT DISTINCT building_type FROM buildings WHERE building_type IS NOT NULL ORDER BY building_type");
+    $buildingTypeStmt->execute();
+    $buildingTypes = $buildingTypeStmt->fetchAll();
 
-$investigatorStmt = $conn->prepare("SELECT DISTINCT investigator_name FROM spot_investigation_reports WHERE investigator_name IS NOT NULL AND reports_status = 'final' ORDER BY investigator_name");
-$investigatorStmt->execute();
-$investigators = $investigatorStmt->fetchAll();
+    $investigatorStmt = $conn->prepare("SELECT DISTINCT investigator_name FROM spot_investigation_reports WHERE investigator_name IS NOT NULL AND reports_status = 'final' ORDER BY investigator_name");
+    $investigatorStmt->execute();
+    $investigators = $investigatorStmt->fetchAll();
+} catch (Exception $e) {
+    error_log("Error in final_reports.php: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
+    
+    // Initialize empty arrays to prevent undefined variable errors
+    $finalReports = [];
+    $barangays = [];
+    $buildingTypes = [];
+    $investigators = [];
+    
+    // In production, don't expose error details
+    if ($isProduction) {
+        // Error will be handled by ErrorHandler
+        throw $e;
+    } else {
+        // In development, show error
+        echo "<div class='alert alert-danger'>Error loading reports: " . htmlspecialchars($e->getMessage()) . "</div>";
+    }
+}
 
 // Function to shorten address
 function shortenAddress($address) {
@@ -510,7 +530,15 @@ function formatCurrency($amount) {
         });
 
 
+        // Store current report ID for print function
+        let currentReportId = null;
+        let currentReportData = null;
+
         function viewFinalReportDetails(report) {
+            // Store report data for print function
+            currentReportId = report.id;
+            currentReportData = report;
+            
             // Generate fire department form HTML
             const modalBody = document.getElementById('finalReportModalBody');
             modalBody.innerHTML = generateFinalReportHTML(report);
@@ -772,10 +800,14 @@ function formatCurrency($amount) {
             return new Intl.NumberFormat('en-US').format(number);
         }
 
-        function printFinalReport(reportId) {
-            // Get the current report data from the modal
-            const reportData = <?php echo json_encode($finalReports); ?>;
-            const currentReport = reportData.find(r => r.id == reportId) || reportData[0];
+        function printFinalReport() {
+            // Use the stored report data
+            if (!currentReportData) {
+                alert('No report data available. Please open a report first.');
+                return;
+            }
+            
+            const currentReport = currentReportData;
             
             // Create a new window for printing
             const printWindow = window.open('', '_blank');
@@ -1214,7 +1246,7 @@ function formatCurrency($amount) {
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
                         <i class="fas fa-times me-1"></i>Close
                     </button>
-                    <button type="button" class="btn btn-primary" onclick="printFinalReport(<?php echo $report['id']; ?>)">
+                    <button type="button" class="btn btn-primary" onclick="printFinalReport()">
                         <i class="fas fa-print me-1"></i>Print Report
                     </button>
                 </div>

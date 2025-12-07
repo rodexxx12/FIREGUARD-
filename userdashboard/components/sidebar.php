@@ -46,8 +46,13 @@ foreach ($nameCandidates as $candidate) {
           <li><a href="../../mapping/php/main.php">Locate Incident</a></li>
           <li><a href="../../sensordata/php/index.php">Sensor List</a></li>
           <li><a href="../../registerDevice/php/main.php">Devices</a></li>
-          <li><a href="../../building/php/main.php">Buildings</a></li>
           <li><a href="../../phone/php/UserPhone.php">Phone Number</a></li>
+        </ul>
+      </li>
+      <li><a class="home-menu-trigger"><i class="fa fa-building"></i> Building<span class="fa fa-chevron-down"></span></a>
+        <ul class="nav child_menu">
+          <li><a href="../../building/php/main.php">Register</a></li>
+          <li><a href="../../building/php/buildings-table.php">Building Lists</a></li>
         </ul>
       </li>
     </ul>

@@ -27,6 +27,9 @@ if (session_status() === PHP_SESSION_NONE) {
 // Secure session configuration (now safe to include)
 require_once __DIR__ . '/../../includes/session_config.php';
 
+// Include input sanitizer for secure input handling
+require_once __DIR__ . '/../../../core/security/input_sanitizer.php';
+
 header('Content-Type: application/json');
 
 // Check authentication
@@ -154,7 +157,7 @@ try {
     echo json_encode([
         'error' => 'Database Error',
         'message' => 'Unable to connect to database',
-        'draw' => isset($_GET['draw']) ? (int)$_GET['draw'] : 0,
+        'draw' => sanitizeInt($_GET['draw'] ?? 0),
         'recordsTotal' => 0,
         'recordsFiltered' => 0,
         'data' => []
@@ -162,14 +165,14 @@ try {
     exit;
 }
 
-// DataTables parameters
-$draw = isset($_GET['draw']) ? (int)$_GET['draw'] : 0;
-$start = isset($_GET['start']) ? (int)$_GET['start'] : 0;
-$length = isset($_GET['length']) ? (int)$_GET['length'] : 10;
+// DataTables parameters - sanitized for security
+$draw = sanitizeInt($_GET['draw'] ?? 0);
+$start = sanitizeInt($_GET['start'] ?? 0);
+$length = sanitizeInt($_GET['length'] ?? 10);
 
-// Ordering
-$orderColumnIndex = isset($_GET['order'][0]['column']) ? (int)$_GET['order'][0]['column'] : 1; // default timestamp
-$orderDir = isset($_GET['order'][0]['dir']) && in_array(strtolower($_GET['order'][0]['dir']), ['asc','desc']) ? $_GET['order'][0]['dir'] : 'desc';
+// Ordering - sanitized
+$orderColumnIndex = sanitizeInt($_GET['order'][0]['column'] ?? 1); // default timestamp
+$orderDir = isset($_GET['order'][0]['dir']) && in_array(strtolower($_GET['order'][0]['dir']), ['asc','desc']) ? sanitizeString($_GET['order'][0]['dir']) : 'desc';
 
 // Map columns to SQL fields
 $columns = [
@@ -190,12 +193,12 @@ $columns = [
 
 $orderBy = $columns[$orderColumnIndex] ?? 'f.timestamp';
 
-// Filters
-$status = isset($_GET['status']) ? trim($_GET['status']) : '';
-$buildingType = isset($_GET['building_type']) ? trim($_GET['building_type']) : '';
-$startDate = isset($_GET['start_date']) ? trim($_GET['start_date']) : '';
-$endDate = isset($_GET['end_date']) ? trim($_GET['end_date']) : '';
-$deviceId = isset($_GET['device_id']) && $_GET['device_id'] !== '' ? (int)$_GET['device_id'] : null;
+// Filters - sanitized for security
+$status = sanitizeString($_GET['status'] ?? '');
+$buildingType = sanitizeString($_GET['building_type'] ?? '');
+$startDate = sanitizeString($_GET['start_date'] ?? '');
+$endDate = sanitizeString($_GET['end_date'] ?? '');
+$deviceId = isset($_GET['device_id']) && $_GET['device_id'] !== '' ? sanitizeInt($_GET['device_id']) : null;
 
 $where = ['f.user_id = :user_id'];
 $params = ['user_id' => $userId];
@@ -376,8 +379,8 @@ try {
 
 } catch (Exception $e) {
     error_log("DataTables query error: " . $e->getMessage());
-    error_log("SQL: " . $sql);
-    error_log("Params: " . print_r($params, true));
+    // Log only essential info for production debugging
+    error_log("Query failed for user_id: " . $userId . ", draw: " . $draw);
     
     http_response_code(500);
     echo json_encode([

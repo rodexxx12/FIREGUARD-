@@ -21,9 +21,34 @@ $pageTitle = "Admin Management";
     <!-- Include header with all necessary libraries -->
     <?php include '../../components/header.php'; ?>
     
-    <!-- Custom CSS -->
-    <link href="../css/admin.css" rel="stylesheet">
     <style>
+        /* Remove extra spacing */
+        .page-title {
+            margin-bottom: 10px !important;
+            padding: 10px 0 !important;
+        }
+        
+        .x_panel {
+            margin-top: 10px !important;
+        }
+        
+        .x_content {
+            padding: 10px 15px !important;
+        }
+        
+        .x_content .row {
+            margin-bottom: 10px !important;
+        }
+        
+        .dataTables_wrapper {
+            margin-top: 10px !important;
+        }
+        
+        .dataTables_length,
+        .dataTables_filter {
+            margin-bottom: 10px !important;
+        }
+        
         /* Auto-refresh styles */
         .refreshing {
             opacity: 0.7;
@@ -276,120 +301,97 @@ $pageTitle = "Admin Management";
           </div>
         </div>
         <?php include('../../components/navigation.php')?>
-        <div class="right_col" role="main"> 
-    <div class="main-card">
-
-  <!-- Main Content -->
-  <div class="row">
-            <div class="col-12">
-                <div class="x_panel">
-                    <div class="x_title">
-                        <h2><i class="fas fa-list-alt"></i> Admin Records</h2>
-                        <div class="clearfix"></div>
-                    </div>
-            <div class="x_content">
-                <!-- Filter Panel -->
-                <div class="card">
-                    <div class="card-header">
-                        <h5><i class="fas fa-filter"></i> Filter & Search</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-3">
-                                <label class="form-label">Status Filter</label>
-                                <select id="statusFilter" class="form-select form-select-sm">
-                                    <option value="">All Status</option>
-                                    <option value="Active">Active</option>
-                                    <option value="Inactive">Inactive</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Search by Name</label>
-                                <div class="input-group">
-                                <input type="text" id="nameSearch" class="form-control form-control-sm" placeholder="Search by name...">
-                                    <div class="input-group-append">
-                                        <span class="input-group-text" id="nameSearchIndicator">
-                                            Search
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Search by Email</label>
-                                <div class="input-group">
-                                <input type="text" id="emailSearch" class="form-control form-control-sm" placeholder="Search by email...">
-                                    <div class="input-group-append">
-                                        <span class="input-group-text" id="emailSearchIndicator">
-                                            Search
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Actions</label>
-                                <div>
-                                    <button type="button" class="btn btn-primary btn-sm" id="addAdminBtn">
-                                        Add Admin
-                                    </button>
-                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="clearFiltersBtn">
-                                        Clear
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row mt-3">
-                            <div class="col-12">
-                                <div id="filterStatus">
-                                    <span class="badge badge-primary">Total: <span id="totalCount">0</span></span>
-                                    <span class="badge badge-success">Active: <span id="activeCount">0</span></span>
-                                    <span class="badge badge-warning">Inactive: <span id="inactiveCount">0</span></span>
-                                    <span class="badge badge-info" id="autoRefreshStatus" style="display: none;">
-                                        <i class="fas fa-sync-alt"></i> Auto-refresh: ON
-                                    </span>
-                                    <span class="badge badge-secondary" id="resultsCounter">
-                                        <i class="fas fa-list"></i> Showing: <span id="showingCount">0</span> results
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+        <div class="right_col" role="main">
+          <div class="">
+            <div class="page-title">
+              <div class="title_left">
+                <h3>Admin Records <small>List of Admins</small></h3>
+              </div>
+              <div class="title_right">
+                <div class="col-md-5 col-sm-5 col-xs-12 form-group pull-right top_search">
+                  <div class="input-group">
+                    <input type="text" class="form-control" placeholder="Search Admins...">
+                    <span class="input-group-btn">
+                      <button class="btn btn-default" type="button">Go!</button>
+                    </span>
+                  </div>
                 </div>
-
-                <!-- Data Table -->
-                <div class="table-responsive">
-                    <table id="adminTable" class="table table-striped table-hover">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Profile</th>
-                                <th>Username</th>
-                                <th>Full Name</th>
-                                <th>Email</th>
-                                <th>Contact</th>
-                                <th>Status</th>
-                                <th>Created</th>
-                                <th>Last Updated</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Data will be loaded via AJAX -->
-                        </tbody>
-                    </table>
-                </div>
+              </div>
             </div>
+            <div class="clearfix"></div>
+            <div class="row">
+              <div class="col-md-12 col-sm-12 col-xs-12">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2>Admin Records</h2>
+                    <ul class="nav navbar-right panel_toolbox">
+                      <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a></li>
+                      <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false"><i class="fa fa-wrench"></i></a>
+                        <ul class="dropdown-menu" role="menu">
+                          <li><a href="#">Settings 1</a></li>
+                          <li><a href="#">Settings 2</a></li>
+                        </ul>
+                      </li>
+                      <li><a class="close-link"><i class="fa fa-close"></i></a></li>
+                    </ul>
+                    <div class="clearfix"></div>
+                  </div>
+                  <div class="x_content">
+                    <div class="row" style="margin-bottom: 10px;">
+                      <div class="col-md-6">
+                        <button type="button" class="btn btn-success" id="addAdminBtn">
+                          <i class="fa fa-user-plus"></i> Add New Admin
+                        </button>
+                        <button type="button" class="btn btn-danger" id="clearFiltersBtn" style="margin-left: 5px;">
+                          <i class="fa fa-times"></i> Clear Filters
+                        </button>
+                      </div>
+                      <div class="col-md-6">
+                        <div id="filterStatus" class="text-right">
+                          <span class="badge badge-primary">All (<span id="totalCount">0</span>)</span>
+                          <span class="badge badge-success">Active (<span id="activeCount">0</span>)</span>
+                          <span class="badge badge-warning">Inactive (<span id="inactiveCount">0</span>)</span>
+                        </div>
+                      </div>
+                    </div>
+                    <table id="adminTable" class="table table-striped table-bordered">
+                      <thead>
+                        <tr>
+                          <th>ID</th>
+                          <th>Full Name</th>
+                          <th>Email</th>
+                          <th>Username</th>
+                          <th>Contact Number</th>
+                          <th>Role</th>
+                          <th>Status</th>
+                          <th>Created As</th>
+                          <th>Updated At</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <!-- Data will be loaded via AJAX -->
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-    </div>
 
     <!-- Add/Edit Admin Modal -->
-    <div class="modal fade" id="adminModal" tabindex="-1" aria-labelledby="adminModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
+    <div class="modal fade" id="adminModal" tabindex="-1" role="dialog" aria-labelledby="adminModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="adminModalLabel">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                    <h4 class="modal-title" id="adminModalLabel">
                         Add New Admin
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </h4>
                 </div>
                 <form id="adminForm">
                     <div class="modal-body">
@@ -463,7 +465,7 @@ $pageTitle = "Admin Management";
                         
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">
                             Cancel
                         </button>
                         <button type="submit" class="btn btn-primary">
@@ -481,7 +483,7 @@ $pageTitle = "Admin Management";
         $(document).ready(function() {
             let adminTable;
 
-            // Initialize DataTable
+            // Initialize DataTable - Gentelella style
             adminTable = $('#adminTable').DataTable({
                 processing: true,
                 serverSide: true,
@@ -490,33 +492,22 @@ $pageTitle = "Admin Management";
                     type: 'POST',
                     data: function(d) {
                         d.action = 'get_admins';
-                        d.status_filter = $('#statusFilter').val();
-                        d.name_search = $('#nameSearch').val();
-                        d.email_search = $('#emailSearch').val();
                     }
                 },
                 columns: [
                     { data: 'admin_id', name: 'admin_id', visible: false },
-                    { 
-                        data: 'profile_image', 
-                        name: 'profile_image',
-                        orderable: false,
-                        searchable: false,
-                        visible: false,
-                        render: function(data, type, row) {
-                            if (data && data !== '') {
-                                return `<img src="../../uploads/${data}" class="rounded-circle" width="40" height="40" alt="Profile">`;
-                            } else {
-                                return `<div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                                    <i class="fas fa-user"></i>
-                                </div>`;
-                            }
-                        }
-                    },
-                    { data: 'username', name: 'username' },
                     { data: 'full_name', name: 'full_name' },
                     { data: 'email', name: 'email' },
+                    { data: 'username', name: 'username' },
                     { data: 'contact_number', name: 'contact_number' },
+                    { 
+                        data: 'role', 
+                        name: 'role',
+                        defaultContent: 'Admin',
+                        render: function(data, type, row) {
+                            return data ? data.charAt(0).toUpperCase() + data.slice(1) : 'Admin';
+                        }
+                    },
                     { 
                         data: 'status', 
                         name: 'status',
@@ -529,36 +520,39 @@ $pageTitle = "Admin Management";
                         data: 'created_at', 
                         name: 'created_at',
                         render: function(data, type, row) {
-                            return new Date(data).toLocaleDateString();
+                            return data ? new Date(data).toLocaleDateString() : '-';
                         }
                     },
                     { 
                         data: 'updated_at', 
                         name: 'updated_at',
                         render: function(data, type, row) {
-                            return new Date(data).toLocaleDateString();
+                            return data ? new Date(data).toLocaleDateString() : '-';
                         }
                     },
                     { 
                         data: null, 
                         orderable: false, 
                         searchable: false,
-                        width: '120px',
+                        width: '100px',
                         render: function(data, type, row) {
+                            const editBtn = `<button type="button" class="btn btn-sm btn-primary" onclick="editAdmin(${row.admin_id})" title="Edit" style="margin-right: 5px;">
+                                <i class="fa fa-edit"></i>
+                               </button>`;
                             const statusButton = row.status === 'Active' 
                                 ? `<button type="button" class="btn btn-sm btn-outline-warning" onclick="toggleAdminStatus(${row.admin_id}, '${row.full_name}', 'Inactive')" title="Deactivate">
-                                    <i class="fas fa-user-times"></i>
+                                    <i class="fa fa-user-times"></i>
                                    </button>`
                                 : `<button type="button" class="btn btn-sm btn-outline-success" onclick="toggleAdminStatus(${row.admin_id}, '${row.full_name}', 'Active')" title="Activate">
-                                    <i class="fas fa-user-check"></i>
+                                    <i class="fa fa-user-check"></i>
                                    </button>`;
                             
-                            return statusButton;
+                            return editBtn + statusButton;
                         }
                     }
                 ],
                 order: [[0, 'desc']],
-                pageLength: 25,
+                pageLength: 10,
                 lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
                 responsive: true,
                 language: {
@@ -568,122 +562,16 @@ $pageTitle = "Admin Management";
                 }
             });
 
-            // Real-time filter events with debouncing and visual feedback
-            let searchTimeout;
-            let nameSearchTimeout;
-            let emailSearchTimeout;
-            
-            // Status filter - immediate update with visual feedback
-            $('#statusFilter').on('change', function() {
-                const $this = $(this);
-                $this.addClass('filter-active');
-                
-                adminTable.draw();
-                updateFilterCounts();
-                
-                // Remove visual feedback after a short delay
-                setTimeout(() => $this.removeClass('filter-active'), 1000);
-            });
-            
-            // Name search - debounced for performance with visual feedback
-            $('#nameSearch').on('input', function() {
-                const $this = $(this);
-                const $indicator = $('#nameSearchIndicator');
-                
-                // Clear previous timeout
-                clearTimeout(nameSearchTimeout);
-                
-                // Show searching indicator
-                $indicator.text('Searching...');
-                $this.addClass('search-loading');
-                
-                // Debounced search
-                nameSearchTimeout = setTimeout(function() {
-                    adminTable.draw();
-                    updateFilterCounts();
-                    
-                    // Update indicator based on results
-                    setTimeout(function() {
-                        const recordsFiltered = adminTable.page.info().recordsDisplay;
-                        
-                        if (recordsFiltered > 0) {
-                            $indicator.text('Found');
-                        } else {
-                            $indicator.text('No results');
-                        }
-                        
-                        $this.removeClass('search-loading');
-                        
-                        // Reset indicator after 2 seconds
-                        setTimeout(function() {
-                            $indicator.text('Search');
-                        }, 2000);
-                    }, 500);
-                }, 300); // 300ms delay
-            });
-            
-            // Email search - debounced for performance with visual feedback
-            $('#emailSearch').on('input', function() {
-                const $this = $(this);
-                const $indicator = $('#emailSearchIndicator');
-                
-                // Clear previous timeout
-                clearTimeout(emailSearchTimeout);
-                
-                // Show searching indicator
-                $indicator.text('Searching...');
-                $this.addClass('search-loading');
-                
-                // Debounced search
-                emailSearchTimeout = setTimeout(function() {
-                    adminTable.draw();
-                    updateFilterCounts();
-                    
-                    // Update indicator based on results
-                    setTimeout(function() {
-                        const recordsFiltered = adminTable.page.info().recordsDisplay;
-                        
-                        if (recordsFiltered > 0) {
-                            $indicator.text('Found');
-                        } else {
-                            $indicator.text('No results');
-                        }
-                        
-                        $this.removeClass('search-loading');
-                        
-                        // Reset indicator after 2 seconds
-                        setTimeout(function() {
-                            $indicator.text('Search');
-                        }, 2000);
-                    }, 500);
-                }, 300); // 300ms delay
-            });
-
-            // Clear filters with visual reset
-            $('#clearFiltersBtn').on('click', function() {
-                // Clear all timeouts
-                clearTimeout(nameSearchTimeout);
-                clearTimeout(emailSearchTimeout);
-                
-                // Reset form values
-                $('#statusFilter').val('').removeClass('filter-active');
-                $('#nameSearch').val('').removeClass('search-loading');
-                $('#emailSearch').val('').removeClass('search-loading');
-                
-                // Reset indicators
-                $('#nameSearchIndicator').text('Search');
-                $('#emailSearchIndicator').text('Search');
-                
-                // Refresh table
-                adminTable.draw();
-                updateFilterCounts();
-            });
-
             // Add admin button
             $('#addAdminBtn').on('click', function() {
                 resetForm();
                 $('#adminModalLabel').html('Add New Admin');
                 $('#adminModal').modal('show');
+            });
+            
+            // Close modal on cancel
+            $('#adminModal').on('hidden.bs.modal', function() {
+                resetForm();
             });
 
             // Form submission with enhanced validation
@@ -733,6 +621,7 @@ $pageTitle = "Admin Management";
                                 showConfirmButton: false
                             });
                             $('#adminModal').modal('hide');
+                            resetForm();
                             
                             // Use refresh function instead of direct draw
                             refreshTableData();
@@ -765,10 +654,7 @@ $pageTitle = "Admin Management";
                     url: 'admin_api.php',
                     type: 'POST',
                     data: {
-                        action: 'get_counts',
-                        status_filter: $('#statusFilter').val(),
-                        name_search: $('#nameSearch').val(),
-                        email_search: $('#emailSearch').val()
+                        action: 'get_counts'
                     },
                     dataType: 'json',
                     success: function(response) {
@@ -1236,33 +1122,6 @@ $pageTitle = "Admin Management";
                 $('#generatePassword').removeClass('btn-success').addClass('btn-outline-info').text('Generate');
             }
 
-            // Initial count update
-            updateFilterCounts();
-            
-            // Auto-refresh functionality
-            let autoRefreshInterval;
-            let lastUpdateTime = new Date();
-            
-            // Start auto-refresh
-            function startAutoRefresh() {
-                // Refresh every 30 seconds
-                autoRefreshInterval = setInterval(function() {
-                    refreshTableData();
-                }, 30000);
-                
-                // Status indicator is hidden, no need to update
-            }
-            
-            // Stop auto-refresh
-            function stopAutoRefresh() {
-                if (autoRefreshInterval) {
-                    clearInterval(autoRefreshInterval);
-                    autoRefreshInterval = null;
-                }
-                
-                // Status indicator is hidden, no need to update
-            }
-            
             // Refresh table data
             function refreshTableData() {
                 // Show subtle loading indicator
@@ -1271,48 +1130,81 @@ $pageTitle = "Admin Management";
                 adminTable.ajax.reload(function() {
                     $('#adminTable tbody').removeClass('refreshing');
                     updateFilterCounts();
-                    lastUpdateTime = new Date();
                 }, false); // false = keep current page and filters
             }
             
-            // Refresh buttons are hidden but functionality remains
-            // Auto-refresh continues to work in the background
-            
-            // Manual refresh and toggle buttons are hidden
-            // Auto-refresh functionality continues to work automatically
-            
-            // Start auto-refresh when page loads
-            startAutoRefresh();
-            
-            // Stop auto-refresh when user is interacting with the page
-            $(document).on('click keypress', function() {
-                stopAutoRefresh();
-                // Restart after 2 minutes of inactivity
-                setTimeout(startAutoRefresh, 120000);
+            // Top search bar functionality
+            $('.top_search .form-control').on('keyup', function(e) {
+                if (e.keyCode === 13) {
+                    adminTable.search($(this).val()).draw();
+                    updateFilterCounts();
+                }
             });
             
-            // Show last update time
-            function updateLastRefreshTime() {
-                const timeString = lastUpdateTime.toLocaleTimeString();
-                if (!$('#lastUpdateTime').length) {
-                    $('#filterStatus').append(`<span class="badge badge-info">Last Update: <span id="lastUpdateTime">${timeString}</span></span>`);
-                } else {
-                    $('#lastUpdateTime').text(timeString);
-                }
-            }
+            $('.top_search button').on('click', function() {
+                adminTable.search($('.top_search .form-control').val()).draw();
+                updateFilterCounts();
+            });
             
-            // Update last refresh time initially and after each refresh
-            updateLastRefreshTime();
+            // Clear filters button
+            $('#clearFiltersBtn').on('click', function() {
+                $('.top_search .form-control').val('');
+                adminTable.search('').draw();
+                updateFilterCounts();
+            });
             
-            // Override the original updateFilterCounts to include time update
-            const originalUpdateFilterCounts = updateFilterCounts;
-            updateFilterCounts = function() {
-                originalUpdateFilterCounts();
-                updateLastRefreshTime();
-            };
+            // Initial count update
+            updateFilterCounts();
+            
+            // Initial count update
+            updateFilterCounts();
         });
 
 
+        // Edit admin function
+        function editAdmin(adminId) {
+            $.ajax({
+                url: 'admin_api.php',
+                type: 'POST',
+                data: {
+                    action: 'get_admin',
+                    admin_id: adminId
+                },
+                dataType: 'json',
+                success: function(response) {
+                    if (response.success) {
+                        const admin = response.data;
+                        $('#adminId').val(admin.admin_id);
+                        $('#username').val(admin.username);
+                        $('#fullName').val(admin.full_name);
+                        $('#email').val(admin.email);
+                        $('#contactNumber').val(admin.contact_number);
+                        $('#status').val(admin.status);
+                        
+                        // Hide password field for edit mode
+                        $('#password').closest('.form-group').hide();
+                        $('#status').closest('.form-group').hide();
+                        
+                        $('#adminModalLabel').html('Edit Admin');
+                        $('#adminModal').modal('show');
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: response.message || 'Admin not found.'
+                        });
+                    }
+                },
+                error: function() {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: 'An error occurred while fetching admin data.'
+                    });
+                }
+            });
+        }
+        
         // Toggle admin status function
         function toggleAdminStatus(adminId, adminName, newStatus) {
             const action = newStatus === 'Active' ? 'activate' : 'deactivate';
@@ -1379,5 +1271,7 @@ $pageTitle = "Admin Management";
             });
         }
     </script>
+    
+    <?php include('../../components/footer.php'); ?>
 </body>
 </html>

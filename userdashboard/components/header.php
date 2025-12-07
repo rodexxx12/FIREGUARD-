@@ -6,9 +6,9 @@ if (!headers_sent()) {
     // Content Security Policy (adjust as needed for your CDNs)
     $csp = "default-src 'self'; " .
            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://cdn.datatables.net; " .
-           "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdn.datatables.net https://unpkg.com; " .
+           "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdn.datatables.net https://unpkg.com https://cdnjs.cloudflare.com https://use.fontawesome.com; " .
            "img-src 'self' data: https: blob:; " .
-           "font-src 'self' https://fonts.gstatic.com; " .
+           "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com https://use.fontawesome.com; " .
            "connect-src 'self' https://sms.pagenet.info; " .
            "frame-ancestors 'none';";
     

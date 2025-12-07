@@ -1,7 +1,11 @@
 </div>
 </div>
 <?php
-include('../../../components/scripts.php');
+// Include common scripts if file exists
+$commonScriptsPath = __DIR__ . '/../../../components/scripts.php';
+if (file_exists($commonScriptsPath)) {
+    include($commonScriptsPath);
+}
 ?>
 <!-- jQuery (load first) -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -54,6 +58,20 @@ include('../../../components/scripts.php');
 <!-- bootstrap-daterangepicker -->
 <script src="../../../vendors/moment/min/moment.min.js"></script>
 <script src="../../../vendors/bootstrap-daterangepicker/daterangepicker.js"></script>
+
+<!-- DataTables JS -->
+<script src="../../../vendors/datatables.net/js/jquery.dataTables.min.js"></script>
+<script src="../../../vendors/datatables.net-bs/js/dataTables.bootstrap.min.js"></script>
+<script src="../../../vendors/datatables.net-buttons/js/dataTables.buttons.min.js"></script>
+<script src="../../../vendors/datatables.net-buttons-bs/js/buttons.bootstrap.min.js"></script>
+<script src="../../../vendors/datatables.net-buttons/js/buttons.flash.min.js"></script>
+<script src="../../../vendors/datatables.net-buttons/js/buttons.html5.min.js"></script>
+<script src="../../../vendors/datatables.net-buttons/js/buttons.print.min.js"></script>
+<script src="../../../vendors/datatables.net-fixedheader/js/dataTables.fixedHeader.min.js"></script>
+<script src="../../../vendors/datatables.net-keytable/js/dataTables.keyTable.min.js"></script>
+<script src="../../../vendors/datatables.net-responsive/js/dataTables.responsive.min.js"></script>
+<script src="../../../vendors/datatables.net-responsive-bs/js/responsive.bootstrap.js"></script>
+<script src="../../../vendors/datatables.net-scroller/js/dataTables.scroller.min.js"></script>
 
 <!-- Custom Theme Scripts -->
 <script src="../../../build/js/custom.min.js"></script>

@@ -1,8 +1,4 @@
 <?php
-// Enable error reporting
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
 // Set Philippine timezone
 date_default_timezone_set('Asia/Manila');
 
@@ -17,41 +13,9 @@ $apiKey = $config['api_key'];
 $device = $config['device'];
 $url = $config['url'];
 
-class Database {
-    private static $host = "localhost";
-    private static $dbname = "u520834156_DBBagofire";
-    private static $username = "u520834156_userBagofire";
-    private static $password = "i[#[GQ!+=C9";
-    
-    public static function getConnection() {
-        static $conn = null;
-        
-        if ($conn === null) {
-            try {
-                $conn = new mysqli(
-                    self::$host, 
-                    self::$username, 
-                    self::$password, 
-                    self::$dbname
-                );
-                
-                if ($conn->connect_error) {
-                    throw new Exception("Database connection failed: " . $conn->connect_error);
-                }
-                
-                // Ensure MySQL uses Philippine timezone (UTC+08:00) for NOW() and TIMESTAMP fields
-                if (!$conn->query("SET time_zone = '+08:00'")) {
-                    error_log("Failed to set MySQL time_zone: " . $conn->error);
-                }
-            } catch (Exception $e) {
-                error_log($e->getMessage());
-                return null;
-            }
-        }
-        
-        return $conn;
-    }
-}
+// Load centralized database connection (uses environment variables from .env)
+require_once __DIR__ . '/../core/config/config.php';
+require_once __DIR__ . '/../core/database/database.php';
 
 class SmokeAPI {
     private $device_id;
@@ -184,77 +148,84 @@ class SmokeAPI {
     }
     
     private function getFirstActiveDeviceId() {
-        $conn = Database::getConnection();
-        if (!$conn) return null;
-
-        $query = "SELECT device_id FROM devices WHERE is_active = 1 ORDER BY device_id LIMIT 1";
-        $result = $conn->query($query);
-
-        if ($result && $result->num_rows > 0) {
-            $row = $result->fetch_assoc();
-            return $row['device_id'];
+        try {
+            $conn = getDatabaseConnection();
+            $stmt = $conn->prepare("SELECT device_id FROM devices WHERE is_active = 1 ORDER BY device_id LIMIT 1");
+            $stmt->execute();
+            $row = $stmt->fetch();
+            
+            if ($row) {
+                return $row['device_id'];
+            }
+            
+            return null;
+        } catch (Exception $e) {
+            error_log("Error getting first active device: " . $e->getMessage());
+            return null;
         }
-
-        return null;
     }
     
     private function createDefaultDevice() {
-        $conn = Database::getConnection();
-        if (!$conn) return null;
-
-        // Ensure user exists
-        $conn->query("INSERT INTO users (user_id, username, email, password, first_name, last_name, phone) 
+        try {
+            $conn = getDatabaseConnection();
+            
+            // Ensure user exists
+            $stmt = $conn->prepare("INSERT INTO users (user_id, username, email, password, first_name, last_name, phone) 
                       VALUES (1, 'arduino_user', 'arduino@firedetection.com', 'password', 'Arduino', 'User', '+639318261972')
                       ON DUPLICATE KEY UPDATE user_id = user_id");
+            $stmt->execute();
 
-        // Ensure building exists
-        $conn->query("INSERT INTO buildings (building_id, building_name, building_type, address, user_id) 
+            // Ensure building exists
+            $stmt = $conn->prepare("INSERT INTO buildings (building_id, building_name, building_type, address, user_id) 
                       VALUES (1, 'Arduino Test Building', 'Residential', 'Test Address', 1)
                       ON DUPLICATE KEY UPDATE building_id = building_id");
+            $stmt->execute();
 
-        // Create device
-        $conn->query("INSERT INTO devices (device_id, user_id, device_name, device_number, serial_number, building_id, status, is_active) 
+            // Create device
+            $stmt = $conn->prepare("INSERT INTO devices (device_id, user_id, device_name, device_number, serial_number, building_id, status, is_active) 
                       VALUES (1, 1, 'Arduino Fire Sensor', 'ARD001', 'ESP32-FIRE-001', 1, 'online', 1)
                       ON DUPLICATE KEY UPDATE 
                           status = 'online',
                           is_active = 1,
                           last_activity = CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+08:00')");
+            $stmt->execute();
 
-        return 1;
+            return 1;
+        } catch (Exception $e) {
+            error_log("Error creating default device: " . $e->getMessage());
+            return null;
+        }
     }
     
     private function isValidDeviceId($device_id) {
-        $conn = Database::getConnection();
-        if (!$conn) return false;
-
-        $stmt = $conn->prepare("SELECT device_id FROM devices WHERE device_id = ? AND is_active = 1");
-        $stmt->bind_param("i", $device_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        $valid = $result && $result->num_rows > 0;
-        
-        $stmt->close();
-        
-        return $valid;
+        try {
+            $conn = getDatabaseConnection();
+            $stmt = $conn->prepare("SELECT device_id FROM devices WHERE device_id = ? AND is_active = 1");
+            $stmt->execute([$device_id]);
+            $row = $stmt->fetch();
+            
+            return $row !== false;
+        } catch (Exception $e) {
+            error_log("Error validating device ID: " . $e->getMessage());
+            return false;
+        }
     }
     
     private function updateDeviceStatus($status = 'online') {
-        $conn = Database::getConnection();
-        if (!$conn) return false;
-
-        $stmt = $conn->prepare("UPDATE devices SET status = ?, last_activity = CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+08:00') WHERE device_id = ?");
-        $stmt->bind_param("si", $status, $this->device_id);
-        
-        $success = $stmt->execute();
-        
-        if (!$success) {
-            error_log("Error updating device status: " . $stmt->error);
+        try {
+            $conn = getDatabaseConnection();
+            $stmt = $conn->prepare("UPDATE devices SET status = ?, last_activity = CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+08:00') WHERE device_id = ?");
+            $success = $stmt->execute([$status, $this->device_id]);
+            
+            if (!$success) {
+                error_log("Error updating device status");
+            }
+            
+            return $success;
+        } catch (Exception $e) {
+            error_log("Error updating device status: " . $e->getMessage());
+            return false;
         }
-        
-        $stmt->close();
-        
-        return $success;
     }
     
     private function calculateHeatIndex() {
@@ -280,220 +251,212 @@ class SmokeAPI {
     }
     
     private function insertSmokeReading() {
-        $conn = Database::getConnection();
-        if (!$conn) return 'failed';
-
-        $stmt = $conn->prepare("INSERT INTO smoke_readings (device_id, sensor_value, detected) VALUES (?, ?, ?)");
-        $stmt->bind_param("iii", $this->device_id, $this->value, $this->detected);
-        
-        $success = $stmt->execute();
-        
-        if (!$success) {
-            error_log("Error inserting smoke reading: " . $stmt->error);
+        try {
+            $conn = getDatabaseConnection();
+            $stmt = $conn->prepare("INSERT INTO smoke_readings (device_id, sensor_value, detected) VALUES (?, ?, ?)");
+            $success = $stmt->execute([$this->device_id, $this->value, $this->detected]);
+            
+            if (!$success) {
+                error_log("Error inserting smoke reading");
+                return 'failed';
+            }
+            
+            return 'success';
+        } catch (Exception $e) {
+            error_log("Error inserting smoke reading: " . $e->getMessage());
             return 'failed';
         }
-        
-        $stmt->close();
-        
-        return 'success';
     }
     
     private function insertFlameReading() {
-        $conn = Database::getConnection();
-        if (!$conn) return 'failed';
-
-        $stmt = $conn->prepare("INSERT INTO flame_readings (device_id, detected) VALUES (?, ?)");
-        $stmt->bind_param("ii", $this->device_id, $this->flame_detected);
-        
-        $success = $stmt->execute();
-        
-        if (!$success) {
-            error_log("Error inserting flame reading: " . $stmt->error);
+        try {
+            $conn = getDatabaseConnection();
+            $stmt = $conn->prepare("INSERT INTO flame_readings (device_id, detected) VALUES (?, ?)");
+            $success = $stmt->execute([$this->device_id, $this->flame_detected]);
+            
+            if (!$success) {
+                error_log("Error inserting flame reading");
+                return 'failed';
+            }
+            
+            return 'success';
+        } catch (Exception $e) {
+            error_log("Error inserting flame reading: " . $e->getMessage());
             return 'failed';
         }
-        
-        $stmt->close();
-        
-        return 'success';
     }
     
     private function insertEnvironmentReading($heat_index) {
-        $conn = Database::getConnection();
-        if (!$conn) return 'failed';
+        try {
+            $conn = getDatabaseConnection();
+            
+            // Handle null values more gracefully
+            $temperature = $this->temperature !== null ? $this->temperature : 0;
+            $humidity = $this->humidity !== null ? $this->humidity : 0;
+            $heat_index_value = $heat_index !== null ? $heat_index : $temperature;
 
-        // Handle null values more gracefully
-        $temperature = $this->temperature !== null ? $this->temperature : 0;
-        $humidity = $this->humidity !== null ? $this->humidity : 0;
-        $heat_index_value = $heat_index !== null ? $heat_index : $temperature;
+            // REMOVED THE RESTRICTIVE VALIDATION - Accept all sensor readings
+            // The Arduino already validates the readings, so we trust the device
 
-        // REMOVED THE RESTRICTIVE VALIDATION - Accept all sensor readings
-        // The Arduino already validates the readings, so we trust the device
-
-        // Insert with the processed values
-        $stmt = $conn->prepare("INSERT INTO environment_readings 
-                                (device_id, temperature, humidity, heat_index) 
-                                VALUES (?, ?, ?, ?)");
-        $stmt->bind_param("iddd", $this->device_id, $temperature, 
-                          $humidity, $heat_index_value);
-        
-        $success = $stmt->execute();
-        
-        if (!$success) {
-            error_log("Error inserting environment reading: " . $stmt->error);
+            // Insert with the processed values
+            $stmt = $conn->prepare("INSERT INTO environment_readings 
+                                    (device_id, temperature, humidity, heat_index) 
+                                    VALUES (?, ?, ?, ?)");
+            $success = $stmt->execute([$this->device_id, $temperature, $humidity, $heat_index_value]);
+            
+            if (!$success) {
+                error_log("Error inserting environment reading");
+                return 'failed';
+            }
+            
+            return 'success';
+        } catch (Exception $e) {
+            error_log("Error inserting environment reading: " . $e->getMessage());
             return 'failed';
         }
-        
-        $stmt->close();
-        
-        return 'success';
     }
 
     private function insertGPSReading() {
-        $conn = Database::getConnection();
-        if (!$conn) return 'failed';
+        try {
+            // Only insert GPS data if it's valid
+            if (!$this->gps_valid) {
+                return 'skipped (invalid GPS data)';
+            }
 
-        // Only insert GPS data if it's valid
-        if (!$this->gps_valid) {
-            return 'skipped (invalid GPS data)';
-        }
-
-        $stmt = $conn->prepare("INSERT INTO gps_readings 
-                                (device_id, latitude, longitude, altitude, satellites) 
-                                VALUES (?, ?, ?, ?, ?)");
-        $stmt->bind_param("idddi", $this->device_id, $this->gps_latitude, 
-                          $this->gps_longitude, $this->gps_altitude, $this->gps_satellites);
-        
-        $success = $stmt->execute();
-        
-        if (!$success) {
-            error_log("Error inserting GPS reading: " . $stmt->error);
+            $conn = getDatabaseConnection();
+            $stmt = $conn->prepare("INSERT INTO gps_readings 
+                                    (device_id, latitude, longitude, altitude, satellites) 
+                                    VALUES (?, ?, ?, ?, ?)");
+            $success = $stmt->execute([$this->device_id, $this->gps_latitude, 
+                                      $this->gps_longitude, $this->gps_altitude, $this->gps_satellites]);
+            
+            if (!$success) {
+                error_log("Error inserting GPS reading");
+                return 'failed';
+            }
+            
+            return 'success';
+        } catch (Exception $e) {
+            error_log("Error inserting GPS reading: " . $e->getMessage());
             return 'failed';
         }
-        
-        $stmt->close();
-        
-        return 'success';
     }
 
     private function insertFireData($sensor_data, $smoke_reading_id, $flame_reading_id) {
-        $conn = Database::getConnection();
-        if (!$conn) return ['success' => false, 'id' => null];
+        try {
+            $conn = getDatabaseConnection();
 
-        // Ensure MySQL session timezone is set to Philippine Time before inserting
-        if (!$conn->query("SET time_zone = '+08:00'")) {
-            error_log("Failed to set MySQL time_zone before fire_data insert: " . $conn->error);
-        }
+            // Get device info to extract user_id and building_id
+            $device_info = $this->getDeviceInfo();
+            if (!$device_info) {
+                error_log("Device info not found for device_id: " . $this->device_id);
+                return ['success' => false, 'id' => null];
+            }
 
-        // Get device info to extract user_id and building_id
-        $device_info = $this->getDeviceInfo();
-        if (!$device_info) {
-            error_log("Device info not found for device_id: " . $this->device_id);
+            $user_id = $device_info['user_id'];
+            $building_id = $device_info['building_id'];
+            $barangay_id = isset($device_info['barangay_id']) ? $device_info['barangay_id'] : null;
+
+            // Get current Philippine time as string for timestamp field
+            $philippine_timestamp = date('Y-m-d H:i:s');
+
+            // Insert with status NORMAL and include timestamp field
+            $stmt = $conn->prepare("INSERT INTO fire_data (
+                status, building_type, smoke, temp, heat, flame_detected, timestamp,
+                user_id, building_id, barangay_id, smoke_reading_id, flame_reading_id, device_id,
+                gps_latitude, gps_longitude, gps_altitude
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
+            $building_type = "Residential";
+            $status = "NORMAL";
+            $temp = intval($sensor_data['temp']); // Convert to int as per table schema
+            $heat = intval($sensor_data['heat']); // Convert to int as per table schema
+
+            $success = $stmt->execute([
+                $status,
+                $building_type,
+                $sensor_data['smoke'],
+                $temp,
+                $heat,
+                $sensor_data['flame_detected'],
+                $philippine_timestamp,
+                $user_id,
+                $building_id,
+                $barangay_id,
+                $smoke_reading_id,
+                $flame_reading_id,
+                $this->device_id,
+                $this->gps_latitude,
+                $this->gps_longitude,
+                $this->gps_altitude
+            ]);
+
+            if (!$success) {
+                error_log("Execute failed for fire_data insert");
+                return ['success' => false, 'id' => null];
+            }
+
+            $fire_data_id = $conn->lastInsertId();
+            
+            // Update device's latest_fire_data_id
+            if ($success && $fire_data_id) {
+                $this->updateDeviceLatestFireData($fire_data_id);
+            }
+
+            return ['success' => $success, 'id' => $fire_data_id];
+        } catch (Exception $e) {
+            error_log("Error inserting fire data: " . $e->getMessage());
             return ['success' => false, 'id' => null];
         }
-
-        $user_id = $device_info['user_id'];
-        $building_id = $device_info['building_id'];
-        $barangay_id = isset($device_info['barangay_id']) ? $device_info['barangay_id'] : null;
-
-        // Get current Philippine time as string for timestamp field
-        $philippine_timestamp = date('Y-m-d H:i:s');
-
-        // Insert with status NORMAL and include timestamp field
-        $stmt = $conn->prepare("INSERT INTO fire_data (
-            status, building_type, smoke, temp, heat, flame_detected, timestamp,
-            user_id, building_id, barangay_id, smoke_reading_id, flame_reading_id, device_id,
-            gps_latitude, gps_longitude, gps_altitude
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-
-        if (!$stmt) {
-            error_log("Prepare failed: " . $conn->error);
-            return ['success' => false, 'id' => null];
-        }
-
-        $building_type = "Residential";
-        $status = "NORMAL";
-        $temp = intval($sensor_data['temp']); // Convert to int as per table schema
-        $heat = intval($sensor_data['heat']); // Convert to int as per table schema
-
-        $stmt->bind_param(
-            "ssiiisssiiiiiddd",
-            $status,
-            $building_type,
-            $sensor_data['smoke'],
-            $temp,
-            $heat,
-            $sensor_data['flame_detected'],
-            $philippine_timestamp,
-            $user_id,
-            $building_id,
-            $barangay_id,
-            $smoke_reading_id,
-            $flame_reading_id,
-            $this->device_id,
-            $this->gps_latitude,
-            $this->gps_longitude,
-            $this->gps_altitude
-        );
-
-        $success = $stmt->execute();
-        if (!$success) {
-            error_log("Execute failed: " . $stmt->error);
-        }
-
-        $fire_data_id = $conn->insert_id;
-        
-        // Update device's latest_fire_data_id
-        if ($success && $fire_data_id) {
-            $this->updateDeviceLatestFireData($fire_data_id);
-        }
-
-        $stmt->close();
-        return ['success' => $success, 'id' => $fire_data_id];
     }
 
     private function getDeviceInfo($device_id = null) {
-        $device_id = $device_id ?: $this->device_id;
-        $conn = Database::getConnection();
-        if (!$conn) return null;
+        try {
+            $device_id = $device_id ?: $this->device_id;
+            $conn = getDatabaseConnection();
 
-        $stmt = $conn->prepare("SELECT device_id, user_id, device_name, device_number, serial_number, building_id, barangay_id, status FROM devices WHERE device_id = ?");
-        $stmt->bind_param("i", $device_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
+            $stmt = $conn->prepare("SELECT device_id, user_id, device_name, device_number, serial_number, building_id, barangay_id, status FROM devices WHERE device_id = ?");
+            $stmt->execute([$device_id]);
+            $device_info = $stmt->fetch();
 
-        if ($result && $result->num_rows > 0) {
-            $device_info = $result->fetch_assoc();
-            $stmt->close();
-            return $device_info;
+            if ($device_info) {
+                return $device_info;
+            }
+
+            return null;
+        } catch (Exception $e) {
+            error_log("Error getting device info: " . $e->getMessage());
+            return null;
         }
-
-        $stmt->close();
-        return null;
     }
 
     private function updateDeviceLatestFireData($fire_data_id) {
-        $conn = Database::getConnection();
-        if (!$conn) return false;
+        try {
+            $conn = getDatabaseConnection();
+            $stmt = $conn->prepare("UPDATE devices SET latest_fire_data_id = ? WHERE device_id = ?");
+            $success = $stmt->execute([$fire_data_id, $this->device_id]);
+            
+            if (!$success) {
+                error_log("Failed to update device latest_fire_data_id");
+            } else {
+                error_log("Updated device {$this->device_id} with latest_fire_data_id: $fire_data_id");
+            }
 
-        $stmt = $conn->prepare("UPDATE devices SET latest_fire_data_id = ? WHERE device_id = ?");
-        $stmt->bind_param("ii", $fire_data_id, $this->device_id);
-        $success = $stmt->execute();
-        
-        if (!$success) {
-            error_log("Failed to update device latest_fire_data_id: " . $stmt->error);
-        } else {
-            error_log("Updated device {$this->device_id} with latest_fire_data_id: $fire_data_id");
+            return $success;
+        } catch (Exception $e) {
+            error_log("Error updating device latest_fire_data_id: " . $e->getMessage());
+            return false;
         }
-
-        $stmt->close();
-        return $success;
     }
 
     private function getLastInsertedId($table) {
-        $conn = Database::getConnection();
-        if (!$conn) return null;
-        
-        return $conn->insert_id;
+        try {
+            $conn = getDatabaseConnection();
+            return $conn->lastInsertId();
+        } catch (Exception $e) {
+            error_log("Error getting last inserted ID: " . $e->getMessage());
+            return null;
+        }
     }
 
     private function handleError(Exception $e) {

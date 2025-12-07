@@ -5,7 +5,8 @@ header('Content-Type: application/json');
 
 try {
     // Get total users
-    $stmt = $pdo->query("SELECT COUNT(*) as total FROM users");
+    $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM users");
+    $stmt->execute();
     $totalUsers = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
 
     // Get active users
@@ -19,11 +20,12 @@ try {
     $recentUsers = $stmt->fetch(PDO::FETCH_ASSOC)['recent'];
 
     // Get average age
-    $stmt = $pdo->query("SELECT AVG(age) as avg_age FROM users WHERE age IS NOT NULL AND age > 0");
+    $stmt = $pdo->prepare("SELECT AVG(age) as avg_age FROM users WHERE age IS NOT NULL AND age > 0");
+    $stmt->execute();
     $avgAge = round($stmt->fetch(PDO::FETCH_ASSOC)['avg_age']);
 
     // Get age distribution
-    $stmt = $pdo->query("
+    $stmt = $pdo->prepare("
         SELECT 
             CASE 
                 WHEN age BETWEEN 18 AND 25 THEN '18-25'
@@ -38,18 +40,20 @@ try {
         GROUP BY age_group
         ORDER BY age_group
     ");
+    $stmt->execute();
     $ageDistribution = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Get status distribution
-    $stmt = $pdo->query("
+    $stmt = $pdo->prepare("
         SELECT status, COUNT(*) as count 
         FROM users 
         GROUP BY status
     ");
+    $stmt->execute();
     $statusDistribution = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Get registration trend (last 6 months)
-    $stmt = $pdo->query("
+    $stmt = $pdo->prepare("
         SELECT 
             DATE_FORMAT(registration_date, '%Y-%m') as month,
             COUNT(*) as count
@@ -58,6 +62,7 @@ try {
         GROUP BY month
         ORDER BY month
     ");
+    $stmt->execute();
     $registrationTrend = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     echo json_encode([
