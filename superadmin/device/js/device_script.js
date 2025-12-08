@@ -70,17 +70,71 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Function to update device information preview
-    function updateDeviceInfoPreview() {
+    async function updateDeviceInfoPreview() {
         const deviceNumber = document.getElementById('device_number').value.trim();
         const serialNumber = document.getElementById('serial_number').value.trim();
         const status = document.getElementById('status').value;
         const deviceInfoContainer = document.getElementById('deviceInfoContainer');
         
-        if (deviceNumber && serialNumber && validateDeviceNumber(deviceNumber) && validateSerialNumber(serialNumber)) {
-            // Show device information preview
-            const statusClass = status === 'approved' ? 'approved' : status === 'pending' ? 'pending' : 'deactivated';
-            const statusIcon = status === 'approved' ? 'fa-check-circle' : status === 'pending' ? 'fa-clock' : 'fa-ban';
+        // Show preview if at least one field has a value (for generated numbers)
+        const hasDeviceNumber = deviceNumber && validateDeviceNumber(deviceNumber);
+        const hasSerialNumber = serialNumber && validateSerialNumber(serialNumber);
+        
+        if (hasDeviceNumber || hasSerialNumber) {
+            // If only one field is filled, show partial preview
+            if (!hasDeviceNumber || !hasSerialNumber) {
+                const statusClass = status === 'approved' ? 'approved' : status === 'pending' ? 'pending' : 'deactivated';
+                const statusIcon = status === 'approved' ? 'fa-check-circle' : status === 'pending' ? 'fa-clock' : 'fa-ban';
+                
+                deviceInfoContainer.innerHTML = `
+                    <div class="device-preview-content">
+                        <div class="device-preview-header">
+                            <h6 class="device-preview-title">
+                                <i class="fa fa-microchip"></i>
+                                Device Information
+                            </h6>
+                            <span class="device-preview-badge ${statusClass}">
+                                <i class="fa ${statusIcon}"></i>
+                                ${status.charAt(0).toUpperCase() + status.slice(1)}
+                            </span>
+                        </div>
+                        <div class="device-preview-grid">
+                            ${hasDeviceNumber ? `
+                                <div class="device-preview-item">
+                                    <p class="device-preview-label">
+                                        <i class="fa fa-hashtag"></i> Device Number
+                                    </p>
+                                    <p class="device-preview-value code">${deviceNumber}</p>
+                                </div>
+                            ` : ''}
+                            ${hasSerialNumber ? `
+                                <div class="device-preview-item">
+                                    <p class="device-preview-label">
+                                        <i class="fa fa-barcode"></i> Serial Number
+                                    </p>
+                                    <p class="device-preview-value code">${serialNumber}</p>
+                                </div>
+                            ` : ''}
+                            <div class="device-preview-item full-width">
+                                <p class="device-preview-label">
+                                    <i class="fa fa-cog"></i> Device Type
+                                </p>
+                                <p class="device-preview-value">Fire Detection Device</p>
+                            </div>
+                        </div>
+                        <div class="device-preview-footer">
+                            <p class="device-preview-footer-text">
+                                <i class="fa fa-info-circle"></i>
+                                ${hasDeviceNumber && hasSerialNumber ? 'Click "Add Device" to save to database' : 'Enter ' + (hasDeviceNumber ? 'serial number' : 'device number') + ' to complete'}
+                            </p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
             
+            // Both fields are filled and valid - proceed with full preview
+            // Show loading state
             deviceInfoContainer.innerHTML = `
                 <div class="device-preview-content">
                     <div class="device-preview-header">
@@ -88,9 +142,9 @@ document.addEventListener('DOMContentLoaded', function() {
                             <i class="fa fa-microchip"></i>
                             Device Information
                         </h6>
-                        <span class="device-preview-badge ${statusClass}">
-                            <i class="fa ${statusIcon}"></i>
-                            ${status.charAt(0).toUpperCase() + status.slice(1)}
+                        <span class="device-preview-badge">
+                            <i class="fa fa-spinner fa-spin"></i>
+                            Loading...
                         </span>
                     </div>
                     <div class="device-preview-grid">
@@ -106,21 +160,190 @@ document.addEventListener('DOMContentLoaded', function() {
                             </p>
                             <p class="device-preview-value code">${serialNumber}</p>
                         </div>
-                        <div class="device-preview-item full-width">
-                            <p class="device-preview-label">
-                                <i class="fa fa-cog"></i> Device Type
-                            </p>
-                            <p class="device-preview-value">Fire Detection Device</p>
-                        </div>
-                    </div>
-                    <div class="device-preview-footer">
-                        <p class="device-preview-footer-text">
-                            <i class="fa fa-info-circle"></i>
-                            Click "Add Device" to save to database
-                        </p>
                     </div>
                 </div>
             `;
+            
+            // Fetch device details from database
+            try {
+                const formData = new FormData();
+                formData.append('action', 'get_device_details');
+                formData.append('device_number', deviceNumber);
+                formData.append('serial_number', serialNumber);
+                
+                const response = await fetch('../functions/ajax_handler.php', {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.device) {
+                    // Device found in database - show device details
+                    const device = data.device;
+                    // Always use database status, not form status
+                    const deviceStatus = device.status;
+                    const statusClass = deviceStatus === 'approved' ? 'approved' : deviceStatus === 'pending' ? 'pending' : 'deactivated';
+                    const statusIcon = deviceStatus === 'approved' ? 'fa-check-circle' : deviceStatus === 'pending' ? 'fa-clock' : 'fa-ban';
+                    const deviceType = device.device_type || 'Fire Detection Device';
+                    const createdDate = device.created_at ? new Date(device.created_at).toLocaleDateString() : 'N/A';
+                    const updatedDate = device.updated_at ? new Date(device.updated_at).toLocaleDateString() : 'N/A';
+                    
+                    // Update status dropdown to match database status
+                    const statusSelect = document.getElementById('status');
+                    if (statusSelect && deviceStatus) {
+                        statusSelect.value = deviceStatus;
+                    }
+                    
+                    // Use the values from form inputs (what user typed), not database values
+                    deviceInfoContainer.innerHTML = `
+                        <div class="device-preview-content">
+                            <div class="device-preview-header">
+                                <h6 class="device-preview-title">
+                                    <i class="fa fa-microchip"></i>
+                                    Device Information
+                                </h6>
+                                <span class="device-preview-badge ${statusClass}">
+                                    <i class="fa ${statusIcon}"></i>
+                                    ${deviceStatus.charAt(0).toUpperCase() + deviceStatus.slice(1)}
+                                </span>
+                            </div>
+                            <div class="device-preview-grid">
+                                <div class="device-preview-item">
+                                    <p class="device-preview-label">
+                                        <i class="fa fa-hashtag"></i> Device Number
+                                    </p>
+                                    <p class="device-preview-value code">${deviceNumber}</p>
+                                </div>
+                                <div class="device-preview-item">
+                                    <p class="device-preview-label">
+                                        <i class="fa fa-barcode"></i> Serial Number
+                                    </p>
+                                    <p class="device-preview-value code">${serialNumber}</p>
+                                </div>
+                                <div class="device-preview-item full-width">
+                                    <p class="device-preview-label">
+                                        <i class="fa fa-cog"></i> Device Type
+                                    </p>
+                                    <p class="device-preview-value">${deviceType}</p>
+                                </div>
+                                <div class="device-preview-item">
+                                    <p class="device-preview-label">
+                                        <i class="fa fa-calendar"></i> Created Date
+                                    </p>
+                                    <p class="device-preview-value">${createdDate}</p>
+                                </div>
+                                <div class="device-preview-item">
+                                    <p class="device-preview-label">
+                                        <i class="fa fa-edit"></i> Updated Date
+                                    </p>
+                                    <p class="device-preview-value">${updatedDate}</p>
+                                </div>
+                            </div>
+                            <div class="device-preview-footer">
+                                <p class="device-preview-footer-text">
+                                    <i class="fa fa-check-circle"></i>
+                                    Device found in database
+                                </p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Device not found - show preview with entered values
+                    const statusClass = status === 'approved' ? 'approved' : status === 'pending' ? 'pending' : 'deactivated';
+                    const statusIcon = status === 'approved' ? 'fa-check-circle' : status === 'pending' ? 'fa-clock' : 'fa-ban';
+                    
+                    deviceInfoContainer.innerHTML = `
+                        <div class="device-preview-content">
+                            <div class="device-preview-header">
+                                <h6 class="device-preview-title">
+                                    <i class="fa fa-microchip"></i>
+                                    Device Information
+                                </h6>
+                                <span class="device-preview-badge ${statusClass}">
+                                    <i class="fa ${statusIcon}"></i>
+                                    ${status.charAt(0).toUpperCase() + status.slice(1)}
+                                </span>
+                            </div>
+                            <div class="device-preview-grid">
+                                <div class="device-preview-item">
+                                    <p class="device-preview-label">
+                                        <i class="fa fa-hashtag"></i> Device Number
+                                    </p>
+                                    <p class="device-preview-value code">${deviceNumber}</p>
+                                </div>
+                                <div class="device-preview-item">
+                                    <p class="device-preview-label">
+                                        <i class="fa fa-barcode"></i> Serial Number
+                                    </p>
+                                    <p class="device-preview-value code">${serialNumber}</p>
+                                </div>
+                                <div class="device-preview-item full-width">
+                                    <p class="device-preview-label">
+                                        <i class="fa fa-cog"></i> Device Type
+                                    </p>
+                                    <p class="device-preview-value">Fire Detection Device</p>
+                                </div>
+                            </div>
+                            <div class="device-preview-footer">
+                                <p class="device-preview-footer-text">
+                                    <i class="fa fa-info-circle"></i>
+                                    Click "Add Device" to save to database
+                                </p>
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error fetching device details:', error);
+                // On error, show preview with entered values
+                const statusClass = status === 'approved' ? 'approved' : status === 'pending' ? 'pending' : 'deactivated';
+                const statusIcon = status === 'approved' ? 'fa-check-circle' : status === 'pending' ? 'fa-clock' : 'fa-ban';
+                
+                deviceInfoContainer.innerHTML = `
+                    <div class="device-preview-content">
+                        <div class="device-preview-header">
+                            <h6 class="device-preview-title">
+                                <i class="fa fa-microchip"></i>
+                                Device Information
+                            </h6>
+                            <span class="device-preview-badge ${statusClass}">
+                                <i class="fa ${statusIcon}"></i>
+                                ${status.charAt(0).toUpperCase() + status.slice(1)}
+                            </span>
+                        </div>
+                        <div class="device-preview-grid">
+                            <div class="device-preview-item">
+                                <p class="device-preview-label">
+                                    <i class="fa fa-hashtag"></i> Device Number
+                                </p>
+                                <p class="device-preview-value code">${deviceNumber}</p>
+                            </div>
+                            <div class="device-preview-item">
+                                <p class="device-preview-label">
+                                    <i class="fa fa-barcode"></i> Serial Number
+                                </p>
+                                <p class="device-preview-value code">${serialNumber}</p>
+                            </div>
+                            <div class="device-preview-item full-width">
+                                <p class="device-preview-label">
+                                    <i class="fa fa-cog"></i> Device Type
+                                </p>
+                                <p class="device-preview-value">Fire Detection Device</p>
+                            </div>
+                        </div>
+                        <div class="device-preview-footer">
+                            <p class="device-preview-footer-text">
+                                <i class="fa fa-info-circle"></i>
+                                Click "Add Device" to save to database
+                            </p>
+                        </div>
+                    </div>
+                `;
+            }
         } else {
             // Reset to default state
             deviceInfoContainer.innerHTML = `
@@ -213,6 +436,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 deviceInput.classList.remove('is-invalid');
                 deviceInput.classList.add('is-valid');
                 document.getElementById('device_number_feedback').style.display = 'none';
+                // Clear debounce and update preview immediately
+                clearTimeout(deviceInfoPreviewTimeout);
                 updateDeviceInfoPreview();
             } else {
                 console.error('Error getting next device number:', data.message);
@@ -223,6 +448,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 deviceInput.classList.remove('is-invalid');
                 deviceInput.classList.add('is-valid');
                 document.getElementById('device_number_feedback').style.display = 'none';
+                // Clear debounce and update preview immediately
+                clearTimeout(deviceInfoPreviewTimeout);
                 updateDeviceInfoPreview();
             }
         })
@@ -235,6 +462,8 @@ document.addEventListener('DOMContentLoaded', function() {
             deviceInput.classList.remove('is-invalid');
             deviceInput.classList.add('is-valid');
             document.getElementById('device_number_feedback').style.display = 'none';
+            // Clear debounce and update preview immediately
+            clearTimeout(deviceInfoPreviewTimeout);
             updateDeviceInfoPreview();
         });
     }
@@ -256,6 +485,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 serialInput.classList.remove('is-invalid');
                 serialInput.classList.add('is-valid');
                 document.getElementById('serial_number_feedback').style.display = 'none';
+                // Clear debounce and update preview immediately
+                clearTimeout(deviceInfoPreviewTimeout);
                 updateDeviceInfoPreview();
             } else {
                 console.error('Error getting next serial number:', data.message);
@@ -269,6 +500,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 serialInput.classList.remove('is-invalid');
                 serialInput.classList.add('is-valid');
                 document.getElementById('serial_number_feedback').style.display = 'none';
+                // Clear debounce and update preview immediately
+                clearTimeout(deviceInfoPreviewTimeout);
                 updateDeviceInfoPreview();
             }
         })
@@ -284,6 +517,8 @@ document.addEventListener('DOMContentLoaded', function() {
             serialInput.classList.remove('is-invalid');
             serialInput.classList.add('is-valid');
             document.getElementById('serial_number_feedback').style.display = 'none';
+            // Clear debounce and update preview immediately
+            clearTimeout(deviceInfoPreviewTimeout);
             updateDeviceInfoPreview();
         });
     }
@@ -314,6 +549,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 serialInput.classList.add('is-valid');
                 document.getElementById('serial_number_feedback').style.display = 'none';
                 
+                // Clear debounce and update preview immediately
+                clearTimeout(deviceInfoPreviewTimeout);
                 updateDeviceInfoPreview();
             } else {
                 console.error('Error getting next numbers:', data.message);
@@ -356,12 +593,16 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Debounce timer for device info preview
+    let deviceInfoPreviewTimeout;
+    
     // Real-time validation for device number (Add form)
     const deviceNumberInput = document.getElementById('device_number');
     if (deviceNumberInput) {
         let deviceNumberTimeout;
         deviceNumberInput.addEventListener('input', function() {
             clearTimeout(deviceNumberTimeout);
+            clearTimeout(deviceInfoPreviewTimeout);
             let deviceNumber = this.value.trim().toUpperCase();
             
             // Auto-format device number to ensure proper format
@@ -421,7 +662,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // For now, just mark as valid if format is correct
                 // In a real application, you might want to check against a database
                 deviceNumberInput.classList.add('is-valid');
-                updateDeviceInfoPreview();
+                // Debounce device info preview update
+                deviceInfoPreviewTimeout = setTimeout(() => {
+                    updateDeviceInfoPreview();
+                }, 800);
             }, 500);
         });
     }
@@ -432,6 +676,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let serialNumberTimeout;
         serialNumberInput.addEventListener('input', function() {
             clearTimeout(serialNumberTimeout);
+            clearTimeout(deviceInfoPreviewTimeout);
             let serialNumber = this.value.trim().toUpperCase();
             
             // Auto-format serial number to ensure proper format
@@ -482,7 +727,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // For now, just mark as valid if format is correct
                 // In a real application, you might want to check against a database
                 serialNumberInput.classList.add('is-valid');
-                updateDeviceInfoPreview();
+                // Debounce device info preview update
+                deviceInfoPreviewTimeout = setTimeout(() => {
+                    updateDeviceInfoPreview();
+                }, 800);
             }, 500);
         });
     }
@@ -688,11 +936,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize DataTables
     if ($.fn.DataTable && $('#datatable').length) {
+        // Check if DataTable is already initialized and destroy it if it exists
+        if ($.fn.DataTable.isDataTable('#datatable')) {
+            $('#datatable').DataTable().destroy();
+        }
+        
         deviceTable = $('#datatable').DataTable({
-            dom: 'Bfrtip',
-            buttons: [
-                'copy', 'csv', 'excel', 'pdf', 'print'
-            ],
+            dom: 'frtip',
             responsive: true,
             pageLength: 10,
             order: [[0, 'desc']],
@@ -715,24 +965,89 @@ document.addEventListener('DOMContentLoaded', function() {
             info: true
         });
         
-        // Custom search input integration
-        if (searchInput) {
-            searchInput.addEventListener('keyup', function() {
-                deviceTable.search(this.value).draw();
-            });
+        // Custom filter functions using data attributes
+        function applyDeviceFilters() {
+            var filters = [];
+            var tableNode = $('#datatable')[0];
+            
+            // Clear all existing custom filters first
+            $.fn.dataTable.ext.search = [];
+            
+            // Device number search
+            var deviceNumber = $('#device-search').val().trim().toLowerCase();
+            if (deviceNumber) {
+                $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                    if (settings.nTable !== tableNode) {
+                        return true;
+                    }
+                    var row = deviceTable.row(dataIndex).node();
+                    var deviceNum = $(row).attr('data-device-number') || '';
+                    return deviceNum.indexOf(deviceNumber) !== -1;
+                });
+                filters.push('Device: ' + $('#device-search').val());
+            }
+            
+            // Serial number search
+            var serialNumber = $('#serial-search').val().trim().toLowerCase();
+            if (serialNumber) {
+                $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                    if (settings.nTable !== tableNode) {
+                        return true;
+                    }
+                    var row = deviceTable.row(dataIndex).node();
+                    var serialNum = $(row).attr('data-serial-number') || '';
+                    return serialNum.indexOf(serialNumber) !== -1;
+                });
+                filters.push('Serial: ' + $('#serial-search').val());
+            }
+            
+            // Status filter
+            var status = $('#device-status').val();
+            if (status) {
+                $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                    if (settings.nTable !== tableNode) {
+                        return true;
+                    }
+                    var row = deviceTable.row(dataIndex).node();
+                    return $(row).attr('data-device-status') === status.toLowerCase();
+                });
+                filters.push('Status: ' + $('#device-status option:selected').text());
+            }
+            
+            // Update filter count
+            $('#filterCount').text(filters.length);
+            
+            // Draw the table with real-time updates
+            deviceTable.draw();
+            
+            // Update result count after draw
+            setTimeout(function() {
+                var visibleRows = deviceTable.rows({search: 'applied'}).count();
+                $('#resultCount').text(visibleRows);
+            }, 100);
         }
         
-        // Custom status filter integration
-        if (statusSelectFilter) {
-            statusSelectFilter.addEventListener('change', function() {
-                const status = this.value;
-                if (status === '') {
-                    deviceTable.column(3).search('').draw();
-                } else {
-                    deviceTable.column(3).search('^' + status + '$', true, false).draw();
-                }
-            });
-        }
+        // Real-time event listeners for instant filtering
+        $('#device-search, #serial-search').on('input', function() {
+            var self = this;
+            clearTimeout(self.searchTimeout);
+            self.searchTimeout = setTimeout(applyDeviceFilters, 300);
+        });
+        
+        // Instant filtering for dropdowns
+        $('#device-status').on('change', function() {
+            applyDeviceFilters();
+        });
+        
+        // Update counts on table draw
+        deviceTable.on('draw', function() {
+            var visibleRows = deviceTable.rows({search: 'applied'}).count();
+            $('#resultCount').text(visibleRows);
+        });
+        
+        // Initialize counts
+        $('#filterCount').text('0');
+        $('#resultCount').text(deviceTable.rows().count());
     }
 
     // Add event listeners for device status actions
@@ -1008,5 +1323,352 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 2000);
         });
     }
+
+    // Filter Panel Toggle Function - Must be defined globally for onclick handlers
+    window.toggleFilterPanel = function() {
+        const filterPanel = document.getElementById('filterPanel');
+        const filterOverlay = document.getElementById('filterOverlay');
+        const filterToggleBtn = document.getElementById('filterToggleBtn');
+        
+        if (filterPanel && filterOverlay && filterToggleBtn) {
+            filterPanel.classList.toggle('active');
+            filterOverlay.classList.toggle('active');
+            filterToggleBtn.classList.toggle('active');
+        }
+    };
+    
+    // Filter Panel Toggle Functionality for Side Panel
+    const filterToggleBtn = document.getElementById('filterToggleBtn');
+    if (filterToggleBtn) {
+        filterToggleBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleFilterPanel();
+        });
+        
+        // Close filter panel when clicking overlay
+        document.addEventListener('click', function(event) {
+            const filterPanel = document.getElementById('filterPanel');
+            const filterOverlay = document.getElementById('filterOverlay');
+            const filterToggleBtn = document.getElementById('filterToggleBtn');
+            
+            // If clicking outside the panel and overlay is active, close it
+            if (filterOverlay && filterOverlay.classList.contains('active') && 
+                filterPanel && !filterPanel.contains(event.target) && 
+                filterToggleBtn && !filterToggleBtn.contains(event.target)) {
+                toggleFilterPanel();
+            }
+        });
+    }
+
+    // Refresh Table Button
+    const refreshTableBtn = document.getElementById('refreshTableBtn');
+    if (refreshTableBtn) {
+        refreshTableBtn.addEventListener('click', function() {
+            // Show loading state
+            const btn = this;
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Refreshing...';
+            
+            // Since DataTable is not using AJAX, we'll reload the page
+            // This ensures we get fresh data from the server
+            Swal.fire({
+                title: 'Refreshing...',
+                text: 'Please wait while we refresh the device data.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            // Reload the page after a short delay
+            setTimeout(function() {
+                window.location.reload();
+            }, 300);
+        });
+    }
+
+    // Export CSV Button
+    const exportCSVBtn = document.getElementById('exportCSVBtn');
+    if (exportCSVBtn && deviceTable) {
+        exportCSVBtn.addEventListener('click', function() {
+            // Show loading
+            Swal.fire({
+                title: 'Exporting...',
+                text: 'Please wait while we prepare your CSV file.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            try {
+                // Get filtered/visible data from DataTable
+                var filteredData = deviceTable.rows({search: 'applied'}).data();
+                var csvContent = "data:text/csv;charset=utf-8,";
+                
+                // Add headers
+                csvContent += "Device Number,Serial Number,Device Type,Status\n";
+                
+                // Get filtered rows from DataTable and extract data
+                var filteredRows = deviceTable.rows({search: 'applied'}).nodes();
+                $(filteredRows).each(function() {
+                    var $row = $(this);
+                    var cells = $row.find('td');
+                    
+                    // Extract text content directly from cells
+                    var deviceNumber = cells.eq(0).text().trim() || $row.attr('data-device-number') || '';
+                    var serialNumber = cells.eq(1).text().trim() || $row.attr('data-serial-number') || '';
+                    var deviceType = cells.eq(2).text().trim() || 'Fire Detection Device';
+                    var statusCell = cells.eq(3);
+                    var status = statusCell.text().trim() || statusCell.find('.status-badge').text().trim() || $row.attr('data-device-status') || '';
+                    
+                    if (status) {
+                        status = status.replace(/\s+/g, ' ').trim();
+                    }
+                    
+                    if (deviceNumber || serialNumber) {
+                        csvContent += "\"" + deviceNumber + "\",\"" + 
+                                    serialNumber + "\",\"" + 
+                                    deviceType + "\",\"" + 
+                                    status + "\"\n";
+                    }
+                });
+                
+                // Create download link
+                var encodedUri = encodeURI(csvContent);
+                var link = document.createElement("a");
+                var fileName = "devices_export_" + new Date().toISOString().split('T')[0] + ".csv";
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", fileName);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Export Successful!',
+                    text: `Device data has been exported successfully as ${fileName}`,
+                    timer: 3000,
+                    showConfirmButton: true,
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#28a745'
+                });
+            } catch (error) {
+                console.error('Export error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Export Failed',
+                    text: 'An error occurred while exporting the data. Please try again.'
+                });
+            }
+        });
+    }
+
+    // Export PDF Button
+    const exportPDFBtn = document.getElementById('exportPDFBtn');
+    if (exportPDFBtn && deviceTable) {
+        exportPDFBtn.addEventListener('click', function() {
+            Swal.fire({
+                title: 'PDF Export',
+                text: 'PDF export will open a print dialog. You can save as PDF from there.',
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonText: 'Continue',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Get filtered rows from DataTable
+                    var filteredRows = deviceTable.rows({search: 'applied'}).nodes();
+                    var tableHtml = '<html><head><title>Device Export</title>';
+                    tableHtml += '<style>body{font-family:Arial,sans-serif;padding:20px;}';
+                    tableHtml += '@media print{@page{margin:1cm;}}';
+                    tableHtml += 'table{border-collapse:collapse;width:100%;margin-top:20px;font-size:12px;}';
+                    tableHtml += 'th,td{border:1px solid #333;padding:10px;text-align:left;}';
+                    tableHtml += 'th{background-color:#26B99A;color:white;font-weight:bold;}';
+                    tableHtml += 'tr:nth-child(even){background-color:#f2f2f2;}';
+                    tableHtml += 'td{font-family:"Courier New",monospace;font-weight:bold;color:#000;}';
+                    tableHtml += 'h1{color:#26B99A;margin-bottom:10px;}</style></head><body>';
+                    tableHtml += '<h1>Device Management Export</h1>';
+                    tableHtml += '<p><strong>Generated:</strong> ' + new Date().toLocaleString() + '</p>';
+                    tableHtml += '<p><strong>Total Records:</strong> ' + deviceTable.rows({search: 'applied'}).count() + '</p>';
+                    tableHtml += '<table>';
+                    
+                    // Add headers
+                    tableHtml += '<thead><tr>';
+                    tableHtml += '<th>Device Number</th>';
+                    tableHtml += '<th>Serial Number</th>';
+                    tableHtml += '<th>Type</th>';
+                    tableHtml += '<th>Status</th>';
+                    tableHtml += '</tr></thead><tbody>';
+                    
+                    // Iterate through filtered rows and extract text content
+                    $(filteredRows).each(function() {
+                        var $row = $(this);
+                        var cells = $row.find('td');
+                        
+                        // Extract text content directly from cells, handling nested elements
+                        var deviceNumber = cells.eq(0).text().trim() || cells.eq(0).find('*').text().trim() || '';
+                        var serialNumber = cells.eq(1).text().trim() || cells.eq(1).find('*').text().trim() || '';
+                        var deviceType = cells.eq(2).text().trim() || 'Fire Detection Device';
+                        var statusCell = cells.eq(3);
+                        var status = statusCell.text().trim() || statusCell.find('.status-badge').text().trim() || '';
+                        
+                        // Also try getting from data attributes as fallback
+                        if (!deviceNumber) {
+                            deviceNumber = $row.attr('data-device-number') || '';
+                        }
+                        if (!serialNumber) {
+                            serialNumber = $row.attr('data-serial-number') || '';
+                        }
+                        if (!status) {
+                            status = $row.attr('data-device-status') || '';
+                            status = status.charAt(0).toUpperCase() + status.slice(1);
+                        }
+                        
+                        if (deviceNumber || serialNumber) {
+                            tableHtml += '<tr>';
+                            tableHtml += '<td style="font-weight:bold;color:#000;">' + (deviceNumber || 'N/A') + '</td>';
+                            tableHtml += '<td style="font-weight:bold;color:#000;">' + (serialNumber || 'N/A') + '</td>';
+                            tableHtml += '<td>' + (deviceType || 'Fire Detection Device') + '</td>';
+                            tableHtml += '<td>' + (status || 'N/A') + '</td>';
+                            tableHtml += '</tr>';
+                        }
+                    });
+                    
+                    tableHtml += '</tbody></table></body></html>';
+                    
+                    var printWindow = window.open('', '_blank');
+                    printWindow.document.write(tableHtml);
+                    printWindow.document.close();
+                    
+                    // Wait for content to load, then print
+                    setTimeout(function() {
+                        printWindow.print();
+                    }, 500);
+                }
+            });
+        });
+    }
+
+    // Print Table Button
+    const printTableBtn = document.getElementById('printTableBtn');
+    if (printTableBtn && deviceTable) {
+        printTableBtn.addEventListener('click', function() {
+            // Get filtered rows from DataTable
+            var filteredRows = deviceTable.rows({search: 'applied'}).nodes();
+            var tableHtml = '<html><head><title>Device Management - Print</title>';
+            tableHtml += '<style>body{font-family:Arial,sans-serif;padding:20px;}';
+            tableHtml += '@media print{@page{margin:1cm;} body{padding:10px;}}';
+            tableHtml += 'table{border-collapse:collapse;width:100%;margin-top:20px;font-size:12px;}';
+            tableHtml += 'th,td{border:1px solid #333;padding:10px;text-align:left;}';
+            tableHtml += 'th{background-color:#26B99A;color:white;font-weight:bold;}';
+            tableHtml += 'tr:nth-child(even){background-color:#f2f2f2;}';
+            tableHtml += 'td{font-family:"Courier New",monospace;font-weight:bold;color:#000;}';
+            tableHtml += 'h1{color:#26B99A;margin-bottom:10px;}</style></head><body>';
+            tableHtml += '<h1>Device Management</h1>';
+            tableHtml += '<p><strong>Generated:</strong> ' + new Date().toLocaleString() + '</p>';
+            tableHtml += '<p><strong>Total Records:</strong> ' + deviceTable.rows({search: 'applied'}).count() + '</p>';
+            tableHtml += '<table>';
+            
+            // Add headers
+            tableHtml += '<thead><tr>';
+            tableHtml += '<th>Device Number</th>';
+            tableHtml += '<th>Serial Number</th>';
+            tableHtml += '<th>Type</th>';
+            tableHtml += '<th>Status</th>';
+            tableHtml += '</tr></thead><tbody>';
+            
+            // Iterate through filtered rows and extract text content
+            $(filteredRows).each(function() {
+                var $row = $(this);
+                var cells = $row.find('td');
+                
+                // Extract text content directly from cells, handling nested elements
+                var deviceNumber = cells.eq(0).text().trim() || cells.eq(0).find('*').text().trim() || '';
+                var serialNumber = cells.eq(1).text().trim() || cells.eq(1).find('*').text().trim() || '';
+                var deviceType = cells.eq(2).text().trim() || 'Fire Detection Device';
+                var statusCell = cells.eq(3);
+                var status = statusCell.text().trim() || statusCell.find('.status-badge').text().trim() || '';
+                
+                // Also try getting from data attributes as fallback
+                if (!deviceNumber) {
+                    deviceNumber = $row.attr('data-device-number') || '';
+                }
+                if (!serialNumber) {
+                    serialNumber = $row.attr('data-serial-number') || '';
+                }
+                if (!status) {
+                    status = $row.attr('data-device-status') || '';
+                    status = status.charAt(0).toUpperCase() + status.slice(1);
+                }
+                
+                if (deviceNumber || serialNumber) {
+                    tableHtml += '<tr>';
+                    tableHtml += '<td style="font-weight:bold;color:#000;font-size:13px;">' + (deviceNumber || 'N/A') + '</td>';
+                    tableHtml += '<td style="font-weight:bold;color:#000;font-size:13px;">' + (serialNumber || 'N/A') + '</td>';
+                    tableHtml += '<td>' + (deviceType || 'Fire Detection Device') + '</td>';
+                    tableHtml += '<td>' + (status || 'N/A') + '</td>';
+                    tableHtml += '</tr>';
+                }
+            });
+            
+            tableHtml += '</tbody></table></body></html>';
+            
+            var printWindow = window.open('', '_blank');
+            printWindow.document.write(tableHtml);
+            printWindow.document.close();
+            
+            // Wait for content to load, then print
+            setTimeout(function() {
+                printWindow.print();
+            }, 500);
+        });
+    }
+
+    // Clear Filters Button
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', function() {
+            // Clear all filter inputs
+            $('#device-search, #serial-search, #device-status').val('');
+            
+            // Clear all custom filters
+            $.fn.dataTable.ext.search = [];
+            
+            // Redraw table
+            if (deviceTable) {
+                deviceTable.draw();
+            }
+            
+            // Update counts
+            $('#filterCount').text('0');
+            setTimeout(function() {
+                var visibleRows = deviceTable ? deviceTable.rows({search: 'applied'}).count() : 0;
+                $('#resultCount').text(visibleRows);
+            }, 100);
+            
+            Swal.fire({
+                icon: 'success',
+                title: 'Filters Reset!',
+                text: 'All filters have been cleared successfully.',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        });
+    }
+    
+    // Keyboard shortcuts
+    $(document).on('keydown', function(e) {
+        if (e.ctrlKey && e.key === 'r') {
+            e.preventDefault();
+            $('#clearFiltersBtn').click();
+        }
+        if (e.ctrlKey && e.key === 'f') {
+            e.preventDefault();
+            $('#device-search').focus();
+        }
+    });
 
 }); 

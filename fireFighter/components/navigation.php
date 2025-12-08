@@ -94,18 +94,51 @@
 }
 
 .profile-btn {
-    background: transparent;
-    color: #ff7a18 !important;
-    border: 1px solid #ff7a18;
+    background: #007bff !important;
+    color: #ffffff !important;
+    border: 1px solid #007bff;
     text-shadow: none;
+    border-radius: 5px !important;
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3), 0 1px 2px rgba(0, 0, 0, 0.1);
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .profile-btn i {
-    color: #ff7a18 !important;
+    color: #ffffff !important;
 }
 .profile-btn:hover {
-    background: rgba(255, 122, 24, 0.1);
-    border-color: #ff6a00;
-    color: #ff6a00 !important;
+    background: #0056b3 !important;
+    border-color: #0056b3;
+    color: #ffffff !important;
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.4), 0 2px 4px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+.logout-btn {
+    background: #28a745 !important;
+    border: 1px solid #28a745;
+    color: #ffffff !important;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 5px !important;
+    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.35), 0 1px 2px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.logout-btn i {
+    color: #ffffff !important;
+}
+.logout-btn:hover {
+    background: #1e7e34 !important;
+    border-color: #1e7e34;
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.45), 0 2px 4px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
 }
 
 /* Hide dropdown arrow */
@@ -174,9 +207,8 @@
 
         <!-- Logout Button -->
         <li class="nav-item">
-          <a href="javascript:;" class="user-profile" id="logoutBtn" aria-label="Logout" title="Logout">
-            <i class="bi bi-door-closed-fill" aria-hidden="true"></i>
-            <span class="logout-label">Logout</span>
+          <a href="javascript:;" class="user-profile logout-btn" id="logoutBtn" aria-label="Logout" title="Logout">
+            <i class="bi bi-arrow-right-circle" aria-hidden="true"></i>
           </a>
         </li>
 

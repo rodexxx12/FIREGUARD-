@@ -1,4 +1,48 @@
+// Global function for burger menu toggle - accessible from inline onclick
+function toggleFiltersMenu() {
+    const menuContent = document.getElementById('burgerMenuContent');
+    const toggleBtn = document.getElementById('burgerMenuToggle');
+    
+    if (!menuContent || !toggleBtn) {
+        console.error('Menu elements not found');
+        return false;
+    }
+    
+    const icon = toggleBtn.querySelector('i');
+    const isVisible = menuContent.style.display !== 'none' && !menuContent.classList.contains('hidden');
+    
+    if (isVisible) {
+        // Hide menu
+        menuContent.style.display = 'none';
+        menuContent.classList.add('hidden');
+        toggleBtn.classList.remove('active');
+        if (icon) {
+            icon.classList.remove('fa-times');
+            icon.classList.add('fa-bars');
+        }
+    } else {
+        // Show menu
+        menuContent.classList.remove('hidden');
+        menuContent.style.display = 'block';
+        toggleBtn.classList.add('active');
+        if (icon) {
+            icon.classList.remove('fa-bars');
+            icon.classList.add('fa-times');
+        }
+    }
+    
+    return false;
+}
+
 $(document).ready(function () {
+    // Also bind with jQuery as backup
+    $(document).on('click', '#burgerMenuToggle', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleFiltersMenu();
+        return false;
+    });
+    
     // Initialize search and filter functionality
     initializeSearchAndFilter();
     

@@ -5,48 +5,9 @@ if (!isset($_SESSION['superadmin_id'])) {
     exit();
 }
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FIREGUARD</title>
-    <link rel="icon" type="image/png" sizes="32x32" href="fireguard.png?v=1">
-    <link rel="icon" type="image/png" sizes="16x16" href="fireguard.png?v=1">
-    <link rel="shortcut icon" type="image/png" href="fireguard.png?v=1">
-    <link rel="apple-touch-icon" sizes="180x180" href="fireguard.png?v=1">
-    <link rel="apple-touch-icon" href="fireguard.png?v=1">
-    
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+<?php include('../../components/header.php'); ?>
     <style>
-        :root {
-            --primary-color: #2563eb;
-            --primary-hover: #1d4ed8;
-            --success-color: #059669;
-            --warning-color: #d97706;
-            --danger-color: #dc2626;
-            --secondary-color: #6b7280;
-            --light-bg: #f8fafc;
-            --border-color: #e5e7eb;
-            --text-primary: #111827;
-            --text-secondary: #6b7280;
-            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        }
 
-        body {
-            background-color: var(--light-bg);
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
 
         #map {
             height: 120vh;
@@ -55,23 +16,7 @@ if (!isset($_SESSION['superadmin_id'])) {
             border: 1px solid var(--border-color);
         }
 
-        .header {
-            background-color: var(--primary-color);
-            color: white;
-            padding: 20px 0;
-            margin-bottom: 24px;
-            border-radius: 0 0 12px 12px;
-        }
 
-        .sidebar {
-            background-color: #fff;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: var(--shadow-md);
-            height: 70vh;
-            overflow-y: auto;
-            border: 1px solid var(--border-color);
-        }
 
         .fence-item {
             border-left: 4px solid var(--primary-color);

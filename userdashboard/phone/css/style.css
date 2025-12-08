@@ -835,17 +835,114 @@ border-color: transparent #f6c23e transparent transparent;
 
 /* DataTables Customization for Gentelella */
 .dataTables_wrapper .dataTables_filter input {
-    margin-left: 0.5em;
-    border: 1px solid #ddd;
+    margin: 0 5px;
     padding: 5px 10px;
+    padding-right: 25px;
+    border: 1px solid #ddd;
     border-radius: 4px;
+    display: inline-block;
+    width: auto;
+}
+
+/* Enhanced Styling for "Show X entries" Label and Dropdown */
+.dataTables_wrapper .dataTables_length {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding: 0.5rem 0;
+}
+
+.dataTables_wrapper .dataTables_length label {
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+    color: var(--dark-color);
+    margin-bottom: 0;
+    font-size: 14px;
+    gap: 0.5rem;
+    white-space: nowrap;
+}
+
+.dataTables_wrapper .dataTables_length label::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    background-color: var(--primary-color);
+    border-radius: 50%;
+    margin-right: 0.25rem;
 }
 
 .dataTables_wrapper .dataTables_length select {
-    border: 1px solid #ddd;
-    padding: 5px 10px;
-    border-radius: 4px;
-    margin: 0 5px;
+    border: 1px solid #e3e6f0;
+    padding: 6px 12px;
+    border-radius: 6px;
+    margin: 0 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--dark-color);
+    background-color: #fff;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235a5c69' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 12px;
+    padding-right: 32px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 70px;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.dataTables_wrapper .dataTables_length select:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 6px rgba(78, 115, 223, 0.15);
+    transform: translateY(-1px);
+}
+
+.dataTables_wrapper .dataTables_length select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.25rem rgba(78, 115, 223, 0.25);
+    outline: none;
+    background-color: #fff;
+}
+
+.dataTables_wrapper .dataTables_length select option {
+    padding: 8px 12px;
+    font-weight: 500;
+    color: var(--dark-color);
+    background-color: #fff;
+}
+
+.dataTables_wrapper .dataTables_length select option:hover {
+    background-color: rgba(78, 115, 223, 0.1);
+}
+
+.dataTables_wrapper .dataTables_length select option:checked {
+    background-color: var(--primary-color);
+    color: #fff;
+}
+
+/* Responsive styling for "Show entries" */
+@media (max-width: 768px) {
+    .dataTables_wrapper .dataTables_length {
+        flex-direction: column;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+    
+    .dataTables_wrapper .dataTables_length label {
+        margin-bottom: 0.5rem;
+        font-size: 13px;
+    }
+    
+    .dataTables_wrapper .dataTables_length select {
+        width: 100%;
+        max-width: 120px;
+        margin: 0;
+    }
 }
 
 .dataTables_wrapper .dataTables_paginate .paginate_button {

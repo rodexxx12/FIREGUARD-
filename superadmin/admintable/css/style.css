@@ -4,10 +4,13 @@
     display: flex;
     align-items: center;
     gap: 20px;
+    justify-content: space-between;
 }
 
 .x_title--flex > ul.panel_toolbox {
-    margin-left: 0;
+    margin-left: auto;
+    margin-right: 0 !important;
+    padding-right: 0 !important;
     order: 3;
 }
 
@@ -309,4 +312,90 @@
 
 .input-group .btn-outline-secondary:focus {
     box-shadow: 0 0 0 0.2rem rgba(108, 117, 125, 0.25);
+}
+
+/* Burger Menu Styles */
+.burger-menu-toggle {
+    border-radius: 30px;
+    padding: 10px 20px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 15px;
+    cursor: pointer !important;
+    z-index: 1000;
+    position: relative;
+    pointer-events: auto !important;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    border: 2px solid #337ab7;
+    background-color: #337ab7;
+    color: white;
+}
+
+.burger-menu-toggle:hover {
+    background-color: #286090;
+    border-color: #286090;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.burger-menu-toggle:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.burger-menu-toggle:focus {
+    outline: 2px solid #337ab7;
+    outline-offset: 2px;
+}
+
+.burger-menu-toggle:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.burger-menu-toggle.active {
+    background-color: #26B99A;
+    border-color: #26B99A;
+}
+
+.burger-menu-toggle i {
+    transition: all 0.3s ease;
+    margin-right: 8px;
+}
+
+.burger-menu-content {
+    animation: slideDown 0.3s ease-out;
+    margin-top: 10px;
+    position: relative;
+    z-index: 999;
+    display: block;
+}
+
+.burger-menu-content.hidden {
+    display: none !important;
+    visibility: hidden;
+    height: 0;
+    overflow: hidden;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.datatable-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-bottom: 10px;
 }

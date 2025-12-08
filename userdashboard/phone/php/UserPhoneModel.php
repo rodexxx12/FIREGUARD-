@@ -21,6 +21,12 @@ class UserPhoneModel {
 
     // Add a new phone number for a user
     public function addPhoneNumber($userId, $phoneNumber, $isPrimary = false) {
+        // Check if user already has maximum allowed phone numbers (10)
+        $phoneCount = count($this->getPhoneNumbers($userId));
+        if ($phoneCount >= 10) {
+            return false; // Maximum limit reached
+        }
+        
         // If setting as primary, first unset any existing primary
         if ($isPrimary) {
             $this->clearPrimaryPhone($userId);

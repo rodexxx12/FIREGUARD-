@@ -12,33 +12,81 @@
 
 .dataTables_length label,
 .dataTables_filter label {
-    font-weight: 400;
-    color: #555;
+    font-weight: 500;
+    color: var(--dark-color);
     margin-bottom: 0.5rem;
     font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dataTables_length label {
+    margin-bottom: 0;
+    white-space: nowrap;
 }
 
 .dataTables_length select,
 .dataTables_filter input {
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    padding: 5px 10px;
+    border: 1px solid #e3e6f0;
+    border-radius: 6px;
+    padding: 6px 12px;
     font-size: 14px;
+    font-weight: 500;
+    color: var(--dark-color);
     transition: all 0.3s ease;
-    margin: 0 5px;
+    margin: 0 8px;
+    background-color: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.dataTables_length select {
+    padding-right: 32px;
+    min-width: 70px;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235a5c69' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 12px;
+}
+
+.dataTables_length select:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 6px rgba(78, 115, 223, 0.15);
+    transform: translateY(-1px);
 }
 
 .dataTables_length select:focus,
 .dataTables_filter input:focus {
-    border-color: #26B99A;
-    box-shadow: 0 0 0 0.2rem rgba(38, 185, 154, 0.25);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.25rem rgba(78, 115, 223, 0.25);
     outline: none;
+    background-color: #fff;
+}
+
+.dataTables_length select option {
+    padding: 8px 12px;
+    font-weight: 500;
+    color: var(--dark-color);
+}
+
+.dataTables_length select option:checked {
+    background-color: var(--primary-color);
+    color: #fff;
 }
 
 .dataTables_filter input {
-    width: 250px;
+    margin: 0 5px;
+    padding: 5px 10px;
+    padding-right: 25px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    display: inline-block;
+    width: auto;
     background-color: #fff;
-    margin-left: 0.5em;
 }
 
 .dataTables_filter input:focus {
@@ -135,21 +183,79 @@
     padding-top: 0.755em;
 }
 
-/* Length Selector Styling - Gentelella Style */
+/* Length Selector Styling - Enhanced Gentelella Style */
+.dataTables_length {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding: 0.5rem 0;
+}
+
+.dataTables_length label {
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+    color: var(--dark-color);
+    margin-bottom: 0;
+    font-size: 14px;
+    gap: 0.5rem;
+    white-space: nowrap;
+}
+
+.dataTables_length label::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    background-color: var(--primary-color);
+    border-radius: 50%;
+    margin-right: 0.25rem;
+}
+
 .dataTables_length select {
     background-color: #fff;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    padding: 5px 10px;
+    border: 1px solid #e3e6f0;
+    border-radius: 6px;
+    padding: 6px 32px 6px 12px;
     font-size: 14px;
-    color: #555;
+    font-weight: 500;
+    color: var(--dark-color);
     transition: all 0.3s ease;
+    margin: 0 8px;
+    min-width: 70px;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235a5c69' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 12px;
+}
+
+.dataTables_length select:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 6px rgba(78, 115, 223, 0.15);
+    transform: translateY(-1px);
 }
 
 .dataTables_length select:focus {
     background-color: #fff;
-    border-color: #26B99A;
-    box-shadow: 0 0 0 0.2rem rgba(38, 185, 154, 0.25);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.25rem rgba(78, 115, 223, 0.25);
+    outline: none;
+}
+
+.dataTables_length select option {
+    padding: 8px 12px;
+    font-weight: 500;
+    color: var(--dark-color);
+}
+
+.dataTables_length select option:checked {
+    background-color: var(--primary-color);
+    color: #fff;
 }
 
 /* Processing Indicator */

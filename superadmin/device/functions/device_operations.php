@@ -308,6 +308,18 @@ class DeviceOperations {
     }
     
     /**
+     * Get device by device number and serial number
+     * @param string $device_number
+     * @param string $serial_number
+     * @return array|null
+     */
+    public function getDeviceByNumberAndSerial($device_number, $serial_number) {
+        $stmt = $this->pdo->prepare("SELECT * FROM admin_devices WHERE device_number = ? AND serial_number = ?");
+        $stmt->execute([$device_number, $serial_number]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+    
+    /**
      * Get all devices
      * @return array
      */

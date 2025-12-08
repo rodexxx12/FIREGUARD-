@@ -236,7 +236,17 @@ include('../../components/header.php');
 
     /* Align DataTables length menu and search controls in one row */
     .dataTables_wrapper {
-        padding: 0;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Ensure parent container doesn't add padding */
+    .x_content .dataTables_wrapper {
+        padding-right: 0 !important;
+    }
+
+    .table-responsive .dataTables_wrapper {
+        padding-right: 0 !important;
     }
 
     .dataTables_wrapper .row:first-child,
@@ -245,11 +255,14 @@ include('../../components/header.php');
         display: flex !important;
         flex-direction: row !important;
         align-items: center !important;
-        justify-content: space-between !important;
+        justify-content: flex-end !important;
         margin: 0 0 15px 0 !important;
+        margin-right: 0 !important;
         padding: 0 !important;
+        padding-right: 0 !important;
         flex-wrap: nowrap !important;
         width: 100% !important;
+        gap: 15px !important;
     }
     
 
@@ -267,22 +280,29 @@ include('../../components/header.php');
         padding-right: 0 !important;
     }
 
-    /* Position search filter container at the right corner */
+    /* Position both length and filter containers to the right corner */
     .dataTables_wrapper .row:first-child > div:last-child,
     .dataTables_wrapper .dt-buttons + .row > div:last-child,
     .dataTables_wrapper > .row:first-of-type > div:last-child {
         margin-left: auto !important;
-        flex: 0 0 auto !important;
-        width: auto !important;
-        max-width: none !important;
-        order: 999 !important;
+        margin-right: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    /* Ensure buttons container doesn't interfere */
+    .dataTables_wrapper .dt-buttons {
+        order: 0 !important;
+        margin-right: auto !important;
     }
 
     .dataTables_wrapper .dataTables_length {
         float: none !important;
-        text-align: left !important;
+        text-align: right !important;
         margin-bottom: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
         padding: 0 !important;
+        padding-right: 0 !important;
         order: 1;
         display: inline-block !important;
         vertical-align: middle !important;
@@ -292,52 +312,114 @@ include('../../components/header.php');
         float: none !important;
         text-align: right !important;
         margin-bottom: 0 !important;
-        margin-left: auto !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
         padding: 0 !important;
-        order: 999 !important;
+        padding-right: 0 !important;
+        order: 2;
         display: inline-block !important;
         vertical-align: middle !important;
         width: auto !important;
         flex: 0 0 auto !important;
     }
 
+    /* Enhanced styling for "Show X entries" label and select */
     .dataTables_wrapper .dataTables_length label {
         margin-bottom: 0 !important;
         display: inline-flex !important;
         align-items: center !important;
+        justify-content: flex-end !important;
         gap: 8px;
-        font-weight: normal;
+        font-weight: 500 !important;
+        font-size: 14px !important;
+        color: #495057 !important;
         white-space: nowrap;
         width: auto !important;
         vertical-align: middle !important;
+        text-align: right !important;
     }
 
+    .dataTables_wrapper .dataTables_length select {
+        margin: 0 5px;
+        padding: 6px 12px;
+        padding-right: 30px;
+        border-radius: 6px;
+        border: 1px solid #ced4da;
+        background-color: #fff;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+        background-size: 16px 12px;
+        display: inline-block;
+        font-size: 14px;
+        color: #495057;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-width: 70px;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+    }
+
+    .dataTables_wrapper .dataTables_length select:hover {
+        border-color: #adb5bd;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.1);
+    }
+
+    .dataTables_wrapper .dataTables_length select:focus {
+        border-color: #80bdff;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+
+    /* Enhanced styling for "Search" label and input */
     .dataTables_wrapper .dataTables_filter label {
         margin-bottom: 0 !important;
         display: inline-flex !important;
         align-items: center !important;
         justify-content: flex-end !important;
         gap: 8px;
-        font-weight: normal;
+        font-weight: 500 !important;
+        font-size: 14px !important;
+        color: #495057 !important;
         white-space: nowrap;
         width: auto !important;
         vertical-align: middle !important;
     }
 
-    .dataTables_wrapper .dataTables_length select {
-        margin: 0 5px;
-        padding: 5px 8px;
-        border-radius: 4px;
-        border: 1px solid #ced4da;
-        display: inline-block;
-    }
-
     .dataTables_wrapper .dataTables_filter input {
         margin-left: 10px;
-        padding: 5px 10px;
-        border-radius: 4px;
+        padding: 6px 12px;
+        padding-left: 35px;
+        border-radius: 6px;
         border: 1px solid #ced4da;
+        background-color: #fff;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%236c757d' viewBox='0 0 16 16'%3e%3cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: left 10px center;
+        background-size: 16px 16px;
         display: inline-block;
+        font-size: 14px;
+        color: #495057;
+        transition: all 0.2s ease;
+        min-width: 200px;
+    }
+
+    .dataTables_wrapper .dataTables_filter input::placeholder {
+        color: #6c757d;
+        opacity: 0.6;
+    }
+
+    .dataTables_wrapper .dataTables_filter input:hover {
+        border-color: #adb5bd;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.1);
+    }
+
+    .dataTables_wrapper .dataTables_filter input:focus {
+        border-color: #80bdff;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23007bff' viewBox='0 0 16 16'%3e%3cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'/%3e%3c/svg%3e");
     }
 
     /* Align DataTables info and pagination in one row */

@@ -1097,6 +1097,61 @@ $csrf_token = generateCsrfToken();
             margin-top: 0;
         }
     }
+    /* DataTables Length Menu - Show X entries */
+    .dataTables_length {
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .dataTables_length label {
+        margin: 0;
+        font-weight: 500;
+        color: #555;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .dataTables_length select {
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 6px 30px 6px 10px;
+        font-size: 13px;
+        color: #555;
+        background-color: #fff;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23555' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+        background-size: 12px;
+        appearance: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        min-width: 70px;
+        height: 34px;
+    }
+    .dataTables_length select:hover {
+        border-color: #26B99A;
+    }
+    .dataTables_length select:focus {
+        border-color: #26B99A;
+        outline: none;
+        box-shadow: 0 0 0 0.2rem rgba(38, 185, 154, 0.25);
+    }
+    @media (max-width: 768px) {
+        .dataTables_length {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .dataTables_length label {
+            width: 100%;
+        }
+        .dataTables_length select {
+            width: 100%;
+            max-width: 150px;
+        }
+    }
 </style>
 <body class="nav-md">
     <div class="container body">

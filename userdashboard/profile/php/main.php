@@ -228,6 +228,7 @@ require_once __DIR__ . '/../../includes/escape.php';
                                 
                                 <form method="POST" id="passwordForm">
                                     <input type="hidden" name="form_type" value="password_change">
+                                    <input type="hidden" name="csrf_token" value="<?php echo escapeHtml(generateCSRFToken()); ?>">
                                     
                                     <div class="info-card mb-4">
                                         <h6><i class="bi bi-key me-2"></i>Change Password</h6>
@@ -664,6 +665,7 @@ require_once __DIR__ . '/../../includes/escape.php';
             <div class="modal-body">
                 <form method="POST" enctype="multipart/form-data" id="profilePictureForm">
                     <input type="hidden" name="form_type" value="profile_picture">
+                    <input type="hidden" name="csrf_token" value="<?php echo escapeHtml(generateCSRFToken()); ?>">
                     
                     <!-- Image Preview Section -->
                     <div class="text-center mb-4">

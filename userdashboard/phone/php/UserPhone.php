@@ -58,6 +58,13 @@ class UserPhoneModel {
         $this->db->beginTransaction();
         
         try {
+            // Check if user already has maximum allowed phone numbers (10)
+            $currentCount = $this->countUserPhones($userId);
+            if ($currentCount >= 10) {
+                $this->db->rollBack();
+                return ['success' => false, 'error' => 'Maximum limit of 10 phone numbers reached. Please delete a phone number before adding a new one.'];
+            }
+            
             // If setting as primary, remove primary status from other numbers
             if ($isPrimary) {
                 $this->clearPrimaryStatus($userId);
@@ -312,7 +319,7 @@ class UserPhoneModel {
         return $stmt->execute();
     }
 
-    private function countUserPhones($userId) {
+    public function countUserPhones($userId) {
         $stmt = $this->db->prepare("SELECT COUNT(*) FROM user_phone_numbers WHERE user_id = :user_id");
         $stmt->bindParam(':user_id', $userId, PDO::PARAM_INT);
         $stmt->execute();
@@ -924,6 +931,8 @@ try {
                 $_SESSION['error'] = "Invalid label format. Label must be 100 characters or less.";
             } elseif ($phoneModel->phoneNumberExists($phoneNumber)) {
                 $_SESSION['error'] = "This phone number is already registered.";
+            } elseif ($phoneModel->countUserPhones($userId) >= 10) {
+                $_SESSION['error'] = "Maximum limit of 10 phone numbers reached. Please delete a phone number before adding a new one.";
             } else {
                 $result = $phoneModel->addPhoneNumber($userId, $phoneNumber, $isPrimary, $label);
                 if ($result['success']) {

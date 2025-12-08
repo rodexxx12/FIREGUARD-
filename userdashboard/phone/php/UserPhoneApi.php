@@ -84,6 +84,14 @@ try {
                 break;
             }
             
+            // Check if user already has maximum allowed phone numbers (10)
+            $phoneCount = count($phoneModel->getPhoneNumbers($userId));
+            if ($phoneCount >= 10) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Maximum limit of 10 phone numbers reached. Please delete a phone number before adding a new one.']);
+                break;
+            }
+            
             $result = $phoneModel->addPhoneNumber($userId, $phoneNumber, $isPrimary, $label);
             
             if ($result && isset($result['success']) && $result['success']) {

@@ -60,11 +60,15 @@
 .panel_toolbox {
     float: right;
     min-width: 70px;
+    position: relative;
+    z-index: 1000;
 }
 
 .panel_toolbox > li {
     float: left;
     cursor: pointer;
+    position: relative;
+    z-index: 1001;
 }
 
 .panel_toolbox > li > a {
@@ -75,6 +79,12 @@
 
 .panel_toolbox > li > a:hover {
     color: #23527c;
+}
+
+.panel_toolbox > li > button {
+    position: relative;
+    z-index: 1002;
+    pointer-events: auto !important;
 }
 
 .card {
@@ -397,6 +407,124 @@ h1 {
     }
     .table .action-btns .btn {
         width: 30px;
+    }
+}
+
+/* Burger Menu Toggle Styles */
+.burger-toggle-btn {
+    background: #26B99A !important;
+    color: #fff !important;
+    border: none !important;
+    padding: 8px 12px !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease;
+    position: relative !important;
+    z-index: 1003 !important;
+    pointer-events: auto !important;
+    display: inline-block !important;
+    margin: 0 !important;
+    line-height: 1.5 !important;
+}
+
+.burger-toggle-btn:hover {
+    background: #20A085 !important;
+    transform: scale(1.05);
+    z-index: 1004 !important;
+}
+
+.burger-toggle-btn:active {
+    transform: scale(0.95);
+}
+
+.burger-toggle-btn.active {
+    background: #d9534f !important;
+}
+
+.burger-toggle-btn.active:hover {
+    background: #c9302c !important;
+}
+
+.burger-toggle-btn i {
+    pointer-events: none;
+}
+
+.burger-menu-container {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    animation: slideDown 0.3s ease;
+}
+
+.burger-menu-container.show {
+    display: block !important;
+}
+
+.burger-menu-content h5 {
+    color: #2c3e50;
+    font-weight: 600;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #26B99A;
+}
+
+.burger-menu-content .card {
+    margin-bottom: 0;
+    box-shadow: none;
+}
+
+.burger-menu-content .card-title {
+    color: #495057;
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 15px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.burger-menu-content .btn-block {
+    width: 100%;
+    margin-bottom: 0;
+}
+
+.burger-menu-content .btn {
+    transition: all 0.3s ease;
+}
+
+.burger-menu-content .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.burger-menu-content .form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 5px;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 768px) {
+    .burger-menu-content .col-md-6 {
+        margin-bottom: 15px;
+    }
+    
+    .burger-toggle-btn {
+        padding: 6px 10px;
+        font-size: 14px;
+    }
         height: 30px;
         padding: 0.4rem;
     }

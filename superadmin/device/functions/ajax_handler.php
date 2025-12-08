@@ -124,6 +124,19 @@ class AjaxHandler {
                     case 'get_status_summary':
                         $response = ['success' => true, 'summary' => $this->deviceOperations->getDeviceStatusSummary()];
                         break;
+                        
+                    case 'get_device_details':
+                        if (isset($_POST['device_number']) && isset($_POST['serial_number'])) {
+                            $device = $this->deviceOperations->getDeviceByNumberAndSerial($_POST['device_number'], $_POST['serial_number']);
+                            if ($device) {
+                                $response = ['success' => true, 'device' => $device];
+                            } else {
+                                $response = ['success' => false, 'message' => 'Device not found'];
+                            }
+                        } else {
+                            $response = ['success' => false, 'message' => 'Device number and serial number are required'];
+                        }
+                        break;
 
                     case 'search_devices_realtime':
                         $term = isset($_POST['search_term']) ? trim($_POST['search_term']) : '';

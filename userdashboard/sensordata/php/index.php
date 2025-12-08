@@ -39,16 +39,12 @@ try {
 		height: 44px; 
 		border-radius: 12px; 
 		display: inline-block; 
-		box-shadow: 
-			0 4px 12px rgba(0, 0, 0, 0.15),
-			inset 0 1px 0 rgba(255, 255, 255, 0.4);
+		box-shadow: none;
 		transition: all 0.3s ease;
 	}
 	.gauge-item:hover .gauge-icon {
 		transform: scale(1.05);
-		box-shadow: 
-			0 6px 16px rgba(0, 0, 0, 0.2),
-			inset 0 1px 0 rgba(255, 255, 255, 0.5);
+		box-shadow: none;
 	}
 	.gauge-legend { font-weight: 600; color: #495057; }
 	.legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: .5rem; }
@@ -61,20 +57,20 @@ try {
 	.gauge-svg { 
 		width: 100%; 
 		height: auto; 
-		filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+		filter: none;
 	}
 	.gauge-arc-track { 
 		stroke: #e2e8f0; 
 		stroke-width: 16; 
 		fill: none; 
-		filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+		filter: none;
 	}
 	.gauge-arc-value { 
 		stroke-width: 16; 
 		fill: none; 
 		stroke-linecap: round; 
 		transition: stroke-dashoffset .4s ease;
-		filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.2));
+		filter: none;
 	}
 	/* 3D Background track */
 	.gauge-arc-background {
@@ -92,10 +88,7 @@ try {
 		border: 1px solid rgba(226, 232, 240, 0.8); 
 		border-radius: 16px; 
 		background: #ffffff;
-		box-shadow: 
-			0 10px 30px rgba(15, 23, 42, 0.12),
-			inset 0 1px 0 rgba(255, 255, 255, 0.8),
-			inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+		box-shadow: none;
 		position: relative;
 		overflow: hidden;
 		transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
@@ -125,10 +118,7 @@ try {
 	.gauge-item:hover { 
 		background: #f8fafc;
 		transform: translateY(-3px);
-		box-shadow: 
-			0 20px 40px rgba(15, 23, 42, 0.18),
-			inset 0 1px 0 rgba(255, 255, 255, 0.9),
-			inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+		box-shadow: none;
 		border-color: rgba(59, 130, 246, 0.3);
 	}
 	.gauge-item > * {
@@ -137,9 +127,9 @@ try {
 	}
 
 	/* Modern white card & layout polish - compact version */
-	.card-modern { border: 1px solid #eef1f5; border-radius: 0; box-shadow: 0 1px 4px rgba(16,24,40,.04); }
+	.card-modern { border: 1px solid #eef1f5; border-radius: 0; box-shadow: none; }
 	.card-modern .card-body { padding: 0.75rem; }
-	.card-modern:hover { box-shadow: 0 2px 8px rgba(16,24,40,.06); }
+	.card-modern:hover { box-shadow: none; }
 	.section-title { font-weight: 700; color: #101828; }
 	.filters-wrap .form-label { font-size: .85rem; color: #6b7280; font-weight: 600; }
 	.filters-wrap .form-select, .filters-wrap .form-control { border-radius: 0; border-color: #e5e7eb; }
@@ -179,11 +169,47 @@ try {
 		border-radius: 0.5rem;
 		box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
 	}
+	/* DataTables Length (Show X entries) */
+	.dataTables_wrapper .dataTables_length {
+		margin-bottom: 1rem;
+		display: flex !important;
+		align-items: center;
+		gap: 0.5rem;
+		visibility: visible !important;
+	}
+	.dataTables_wrapper .dataTables_length label {
+		display: flex !important;
+		align-items: center;
+		gap: 0.5rem;
+		margin: 0;
+		font-weight: 500;
+		color: #495057;
+		font-size: 0.875rem;
+		white-space: nowrap;
+	}
 	.dataTables_wrapper .dataTables_length select { 
 		border-radius: 0.375rem; 
 		border: 1px solid #dee2e6;
-		padding: 0.375rem 0.75rem;
+		padding: 0.375rem 2rem 0.375rem 0.75rem;
 		font-size: 0.875rem;
+		background-color: #fff;
+		color: #495057;
+		cursor: pointer;
+		transition: all 0.15s ease-in-out;
+		min-width: 70px;
+		appearance: none;
+		background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+		background-repeat: no-repeat;
+		background-position: right 0.5rem center;
+		background-size: 16px 12px;
+	}
+	.dataTables_wrapper .dataTables_length select:hover {
+		border-color: #0d6efd;
+	}
+	.dataTables_wrapper .dataTables_length select:focus {
+		border-color: #86b7fe;
+		box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+		outline: 0;
 	}
 	.dataTables_wrapper .dataTables_filter input { 
 		border-radius: 0.375rem; 
@@ -380,6 +406,196 @@ try {
 		background-color: #dc3545;
 		box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.2);
 	}
+	
+	/* Burger Menu Toggle Button - Simple Green Style */
+	.filter-toggle-btn {
+		display: flex !important;
+		flex-direction: column;
+		justify-content: space-around;
+		align-items: center;
+		width: 35px;
+		height: 35px;
+		background: transparent;
+		border: none;
+		cursor: pointer;
+		padding: 8px 5px;
+		margin: 0;
+		transition: all 0.3s ease;
+		visibility: visible !important;
+		opacity: 1 !important;
+	}
+	.filter-toggle-btn:hover {
+		opacity: 0.8;
+	}
+	.burger-line {
+		width: 25px;
+		height: 3px;
+		background-color: #28a745;
+		border-radius: 3px;
+		transition: all 0.3s ease;
+		display: block;
+		margin: 2px 0;
+	}
+	.filter-toggle-btn:hover .burger-line {
+		background-color: #218838;
+	}
+	.filter-toggle-btn.active .burger-line:nth-child(1) {
+		transform: rotate(45deg) translate(7px, 7px);
+		background-color: #28a745;
+	}
+	.filter-toggle-btn.active .burger-line:nth-child(2) {
+		opacity: 0;
+	}
+	.filter-toggle-btn.active .burger-line:nth-child(3) {
+		transform: rotate(-45deg) translate(7px, -7px);
+		background-color: #28a745;
+	}
+	/* Filter Overlay */
+	.filter-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		background-color: rgba(0, 0, 0, 0.5);
+		z-index: 999;
+		opacity: 0;
+		visibility: hidden;
+		transition: all 0.3s ease;
+	}
+	.filter-overlay.active {
+		opacity: 1;
+		visibility: visible;
+	}
+	/* Filter Panel - Side Panel Style */
+	.filter-panel {
+		position: fixed;
+		top: 0;
+		right: -400px;
+		width: 380px;
+		height: 100%;
+		background-color: #fff;
+		box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
+		z-index: 1000;
+		transition: right 0.3s ease;
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+		padding: 1rem;
+	}
+	.filter-panel.active {
+		right: 0;
+	}
+	.filter-panel-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 0.75rem;
+		padding-bottom: 0.5rem;
+		border-bottom: 2px solid #e0e0e0;
+		flex-shrink: 0;
+	}
+	.filter-panel-header h3 {
+		margin: 0;
+		font-size: 1.15rem;
+		font-weight: 700;
+		color: #333;
+	}
+	.filter-panel-body {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		overflow-y: auto;
+		overflow-x: hidden;
+		flex: 1;
+		padding-right: 0.5rem;
+		margin-right: -0.5rem;
+	}
+	/* Custom scrollbar styling */
+	.filter-panel-body::-webkit-scrollbar {
+		width: 8px;
+	}
+	.filter-panel-body::-webkit-scrollbar-track {
+		background: #f1f1f1;
+		border-radius: 4px;
+	}
+	.filter-panel-body::-webkit-scrollbar-thumb {
+		background: #888;
+		border-radius: 4px;
+	}
+	.filter-panel-body::-webkit-scrollbar-thumb:hover {
+		background: #555;
+	}
+	.filter-group {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+	}
+	.filter-group label {
+		font-weight: 600;
+		color: #555;
+		font-size: 0.8rem;
+		margin-bottom: 0;
+	}
+	.filter-group .form-control,
+	.filter-group .form-select {
+		width: 100%;
+		padding: 0.35rem 0.5rem;
+		font-size: 0.85rem;
+		line-height: 1.4;
+	}
+	.filter-group .btn {
+		width: 100%;
+		padding: 0.4rem 0.75rem;
+		font-size: 0.85rem;
+	}
+	@media (max-width: 768px) {
+		.filter-panel {
+			width: 100%;
+			right: -100%;
+		}
+	}
+	.panel_toolbox {
+		float: right;
+		margin: 0;
+		list-style: none;
+		padding: 0;
+		min-width: 70px;
+	}
+	.panel_toolbox li {
+		float: left;
+		cursor: pointer;
+		margin-left: 5px;
+	}
+	.panel_toolbox li a {
+		padding: 5px;
+		color: #C5C7CB;
+		font-size: 14px;
+		display: block;
+	}
+	.panel_toolbox li a:hover {
+		color: #26B99A;
+	}
+	/* Ensure burger toggle is always visible */
+	#filterToggleBtn {
+		display: flex !important;
+		visibility: visible !important;
+		opacity: 1 !important;
+		position: relative;
+		z-index: 10;
+	}
+	.panel_toolbox #filterToggleBtn {
+		display: flex !important;
+	}
+	/* Make sure the burger lines are visible and green */
+	#filterToggleBtn .burger-line {
+		background-color: #28a745 !important;
+		display: block !important;
+		visibility: visible !important;
+	}
+	#filterToggleBtn:hover .burger-line {
+		background-color: #218838 !important;
+	}
 </style>
 <body class="nav-md">
     <div class="container body">
@@ -491,90 +707,76 @@ try {
 					</div>
 				</div>
 
-				<!-- Data Filters Section -->
-				<div class="card shadow-sm border-0 mb-4">
-					<div class="card-body">
-						<h6 class="text-muted mb-3 fw-semibold text-uppercase" style="letter-spacing: 0.5px;">
-							<i class="bi bi-funnel me-2"></i>Data Filters
-						</h6>
-						<div class="d-flex align-items-center justify-content-between mb-2">
-							<div class="d-flex gap-2">
-						
-							</div>
+				<!-- Filter Overlay -->
+				<div class="filter-overlay" id="filterOverlay" onclick="toggleFilterPanel()"></div>
+
+				<!-- Filter Panel - Side Panel -->
+				<div class="filter-panel" id="filterPanel">
+					<div class="filter-panel-header">
+						<h3><i class="fa fa-filter" style="margin-right: 6px;"></i> Filters</h3>
+						<button class="btn btn-sm btn-outline-secondary" onclick="toggleFilterPanel()" title="Close Filters" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+							<i class="fa fa-times"></i>
+						</button>
+					</div>
+					<div class="filter-panel-body">
+						<div class="filter-group">
+							<label>Device</label>
+							<select id="filterDevice" class="form-control">
+								<option value="">All Devices</option>
+								<?php foreach ($userDevices as $d): ?>
+									<option value="<?php echo htmlspecialchars($d['device_id']); ?>">
+										<?php echo htmlspecialchars($d['device_name'] !== '' ? $d['device_name'] : ('Device #' . $d['device_id'])); ?>
+									</option>
+								<?php endforeach; ?>
+							</select>
 						</div>
-						<div class="row g-3">
-							<!-- First Column -->
-							<div class="col-md-6">
-								<div class="row g-2">
-									<div class="col-12">
-										<div class="filter-field">
-											<label for="filterDevice" class="form-label small fw-semibold text-muted mb-1">Device</label>
-											<select id="filterDevice" class="form-select form-select-sm">
-												<option value="">All devices</option>
-												<?php foreach ($userDevices as $d): ?>
-													<option value="<?php echo htmlspecialchars($d['device_id']); ?>">
-														<?php echo htmlspecialchars($d['device_name'] !== '' ? $d['device_name'] : ('Device #' . $d['device_id'])); ?>
-													</option>
-												<?php endforeach; ?>
-											</select>
-										</div>
-									</div>
-									<div class="col-12">
-										<div class="filter-field">
-											<label for="filterStatus" class="form-label small fw-semibold text-muted mb-1">Status</label>
-											<select id="filterStatus" class="form-select form-select-sm">
-												<option value="">All</option>
-												<option value="normal">Normal</option>
-												<option value="warning">Warning</option>
-												<option value="critical">Critical</option>
-											</select>
-										</div>
-									</div>
-									<div class="col-12">
-										<div class="filter-field">
-											<label for="filterType" class="form-label small fw-semibold text-muted mb-1">Building Type</label>
-											<select id="filterType" class="form-select form-select-sm">
-												<option value="">All types</option>
-												<?php foreach ($buildingTypes as $t): ?>
-													<option value="<?php echo htmlspecialchars($t); ?>"><?php echo htmlspecialchars($t); ?></option>
-												<?php endforeach; ?>
-											</select>
-										</div>
-									</div>
-								</div>
-							</div>
-							<!-- Second Column -->
-							<div class="col-md-6">
-								<div class="row g-2">
-									<div class="col-12">
-										<div class="filter-field">
-											<label for="startDate" class="form-label small fw-semibold text-muted mb-1">Start Date</label>
-											<input type="date" id="startDate" class="form-control form-control-sm">
-										</div>
-									</div>
-									<div class="col-12">
-										<div class="filter-field">
-											<label for="endDate" class="form-label small fw-semibold text-muted mb-1">End Date</label>
-											<input type="date" id="endDate" class="form-control form-control-sm">
-										</div>
-									</div>
-									<div class="col-12 mt-3">
-										<button id="resetFilters" class="btn btn-danger btn-sm px-3 py-2" style="border-radius: 8px; font-weight: 600; letter-spacing: 0.5px; transition: all 0.3s ease;">
-											<i class="bi bi-arrow-clockwise me-1"></i>Reset
-										</button>
-									</div>
-								</div>
-							</div>
-							
+						<div class="filter-group">
+							<label>Status</label>
+							<select id="filterStatus" class="form-control">
+								<option value="">All Statuses</option>
+								<option value="normal">Normal</option>
+								<option value="warning">Warning</option>
+								<option value="critical">Critical</option>
+							</select>
+						</div>
+						<div class="filter-group">
+							<label>Building Type</label>
+							<select id="filterType" class="form-control">
+								<option value="">All Building Types</option>
+								<?php foreach ($buildingTypes as $t): ?>
+									<option value="<?php echo htmlspecialchars($t); ?>"><?php echo htmlspecialchars($t); ?></option>
+								<?php endforeach; ?>
+							</select>
+						</div>
+						<div class="filter-group">
+							<label>Start Date</label>
+							<input id="startDate" type="date" class="form-control" title="Filter records from this date">
+						</div>
+						<div class="filter-group">
+							<label>End Date</label>
+							<input id="endDate" type="date" class="form-control" title="Filter records until this date">
+						</div>
+						<div class="filter-group">
+							<button id="resetFilters" class="btn btn-default">
+								<i class="fa fa-refresh"></i> Reset Filters
+							</button>
 						</div>
 					</div>
 				</div>
-
 
 				<!-- Data Table Section -->
 				<div class="x_panel">
 					<div class="x_title">
 						<h2>Sensor Data <small>Live Feed</small></h2>
+						<ul class="nav navbar-right panel_toolbox">
+							<li>
+								<a class="filter-toggle-btn" id="filterToggleBtn" title="Toggle Filters" onclick="toggleFilterPanel()">
+									<span class="burger-line"></span>
+									<span class="burger-line"></span>
+									<span class="burger-line"></span>
+								</a>
+							</li>
+						</ul>
 						<div class="clearfix"></div>
 					</div>
 					<div class="x_content">
@@ -615,6 +817,12 @@ try {
 
 <script>
 $(function() {
+	// Burger Menu Toggle
+	$('#filterMenuToggle').on('click', function() {
+		$('#filterMenuContent').toggleClass('show');
+		$('#burgerIcon').toggleClass('active');
+	});
+	
 	const table = $('#fireDataTable').DataTable({
 		processing: true,
 		serverSide: true,
@@ -882,6 +1090,12 @@ $(function() {
 			refreshGauges();
 	});
 
+	// Filter change handlers - auto-reload table when filters change
+	$('#filterDevice, #filterStatus, #filterType, #startDate, #endDate').on('change', function() {
+		table.ajax.reload();
+		refreshGauges();
+	});
+
 	$('#resetFilters').on('click', function() {
 		$('#filterDevice').val('');
 		$('#filterStatus').val('');
@@ -901,7 +1115,42 @@ $(function() {
 	});
 });
 </script>
- <?php include('../../components/scripts.php'); ?>
+<?php include('../../components/scripts.php'); ?>
+<!-- Global Filter Panel Toggle Function -->
+<script>
+	// Filter Panel Toggle Function - Defined globally for onclick handlers
+	function toggleFilterPanel() {
+		const filterPanel = document.getElementById('filterPanel');
+		const filterOverlay = document.getElementById('filterOverlay');
+		const filterToggleBtn = document.getElementById('filterToggleBtn');
+
+		if (filterPanel && filterOverlay && filterToggleBtn) {
+			filterPanel.classList.toggle('active');
+			filterOverlay.classList.toggle('active');
+			filterToggleBtn.classList.toggle('active');
+		}
+	}
+
+	// Make sure function is available on window object as well
+	window.toggleFilterPanel = toggleFilterPanel;
+
+	// Close filter panel when clicking outside (after DOM is ready)
+	document.addEventListener('DOMContentLoaded', function() {
+		document.addEventListener('click', function(event) {
+			const filterPanel = document.getElementById('filterPanel');
+			const filterOverlay = document.getElementById('filterOverlay');
+			const filterToggleBtn = document.getElementById('filterToggleBtn');
+
+			// If clicking outside the panel and overlay is active, close it
+			if (filterOverlay && filterOverlay.classList.contains('active') &&
+				filterPanel && !filterPanel.contains(event.target) &&
+				filterToggleBtn && !filterToggleBtn.contains(event.target) &&
+				!filterOverlay.contains(event.target)) {
+				toggleFilterPanel();
+			}
+		});
+	});
+</script>
 </body>
 </html>
 

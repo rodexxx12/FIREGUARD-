@@ -586,6 +586,11 @@
             margin-top: 70px !important;
         }
         
+        /* Add breathing room for the default Leaflet zoom control */
+        .leaflet-control-zoom {
+            margin-top: 70px !important;
+        }
+        
         /* Burger Icon Button for Legend */
         .legend-toggle-btn {
             position: absolute;
@@ -913,7 +918,7 @@
                 <!-- Main Map Column Full-Width -->
                 <div class="col-12">
                     <div class="card shadow-sm mb-3 p-3">
-                        <h5 style="text-align: center; font-weight: 900; font-family: Arial, sans-serif; margin-top: 10px; margin-bottom: 20px; color: #ff7a18;">Locate Fire Incidents in Bago City - <?php echo date('F Y'); ?></h5>
+                        <h5 style="text-align: center; font-weight: 900; font-family: Arial, sans-serif; margin-top: 10px; margin-bottom: 20px; color: #000000;">Locate Fire Incidents in Bago City - December 2025</h5>
                         <div class="card-body p-0">
                             <div class="control-panel">
                                 <div id="map">

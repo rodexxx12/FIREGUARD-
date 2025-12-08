@@ -482,7 +482,7 @@ function fetchFireData() {
         })
         .catch(error => {
             console.error("Error fetching fire data:", error);
-            showAlert('danger', 'Failed to fetch fire data. Please try again.');
+            // showAlert('danger', 'Failed to fetch fire data. Please try again.');
         });
 }
     
