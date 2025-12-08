@@ -359,4 +359,82 @@ table.table tbody tr:hover {
 
 /* Device, Date, and Time information - using original Bootstrap small and text-muted styles */
 
+/* Burger Menu Toggle Button */
+#filterToggleBtn {
+	padding: 0.5rem 1rem;
+	border-radius: 0.375rem;
+	transition: all 0.3s ease;
+	font-weight: 500;
+	border: 1px solid var(--ring);
+	color: var(--ring);
+	background: #fff;
+}
+
+#filterToggleBtn:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 8px rgba(59, 130, 246, 0.2);
+	background: var(--ring);
+	color: #fff;
+}
+
+#filterToggleBtn.active {
+	background: var(--ring);
+	color: #fff;
+	border-color: var(--ring);
+}
+
+/* Burger Icon */
+.burger-icon {
+	width: 20px;
+	height: 16px;
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+}
+
+.burger-icon span {
+	display: block;
+	height: 2px;
+	width: 100%;
+	background-color: currentColor;
+	border-radius: 2px;
+	transition: all 0.3s ease;
+}
+
+#filterToggleBtn.active .burger-icon span:nth-child(1) {
+	transform: rotate(45deg) translate(6px, 6px);
+}
+
+#filterToggleBtn.active .burger-icon span:nth-child(2) {
+	opacity: 0;
+}
+
+#filterToggleBtn.active .burger-icon span:nth-child(3) {
+	transform: rotate(-45deg) translate(6px, -6px);
+}
+
+/* Filter Panel Animation */
+#filterPanel {
+	animation: slideDown 0.3s ease-out;
+	overflow: hidden;
+}
+
+#filterPanel.hidden {
+	display: none !important;
+}
+
+@keyframes slideDown {
+	from {
+		opacity: 0;
+		transform: translateY(-10px);
+		max-height: 0;
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+		max-height: 1000px;
+	}
+}
+
 

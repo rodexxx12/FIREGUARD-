@@ -1577,7 +1577,6 @@ $stats = getBarangayStats($barangayId, $filters);
             </div>
         </div>
     </div>
-    <?php include '../../components/scripts.php'; ?>
     <script>
         // Define viewReport function globally so it can be accessed by onclick attributes
         function handleViewReport(reportId, reportStatus) {

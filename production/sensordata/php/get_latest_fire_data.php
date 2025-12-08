@@ -12,6 +12,7 @@ try {
 }
 
 // Optional filters via GET
+$status = isset($_GET['status']) ? trim($_GET['status']) : '';
 $buildingType = isset($_GET['building_type']) ? trim($_GET['building_type']) : '';
 $barangay = isset($_GET['barangay']) ? trim($_GET['barangay']) : '';
 $user = isset($_GET['user']) ? trim($_GET['user']) : '';
@@ -22,6 +23,10 @@ $dateTo = isset($_GET['date_to']) ? trim($_GET['date_to']) : '';
 $where = [];
 $params = [];
 
+if ($status !== '') {
+    $where[] = 'fd.status = :status';
+    $params['status'] = $status;
+}
 if ($buildingType !== '') {
     $where[] = 'fd.building_type = :building_type';
     $params['building_type'] = $buildingType;

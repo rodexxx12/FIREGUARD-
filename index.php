@@ -97,14 +97,14 @@ $csrf_token = generateCsrfToken('login_form');
             top: 55%;
             transform: translateY(-50%) scale(0.8);
             opacity: 0;
-            max-width: 520px;
+            max-width: 420px;
             width: 92vw;
             background: rgba(255, 255, 255, 0.10);
             backdrop-filter: blur(18px);
             border: 1px solid rgba(255, 255, 255, 0.14);
             border-radius: 18px;
             box-shadow: 0 12px 50px rgba(0, 0, 0, 0.35);
-            padding: 2rem;
+            padding: 1.25rem;
             z-index: 5;
             transition: transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 400ms ease-out;
             will-change: transform, opacity;
@@ -259,11 +259,11 @@ $csrf_token = generateCsrfToken('login_form');
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 2rem;
+            margin-bottom: 1.25rem;
         }
 
         .inline-login-title {
-            font-size: 1.6rem;
+            font-size: 1.3rem;
             font-weight: 700;
             background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
             -webkit-background-clip: text;
@@ -275,14 +275,14 @@ $csrf_token = generateCsrfToken('login_form');
             background: rgba(255, 255, 255, 0.1);
             border: none;
             color: var(--light-text);
-            width: 36px;
-            height: 36px;
+            width: 30px;
+            height: 30px;
             border-radius: 50%;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.1rem;
+            font-size: 0.95rem;
             transition: all 0.2s ease;
         }
 
@@ -294,7 +294,7 @@ $csrf_token = generateCsrfToken('login_form');
         .inline-login-form {
             display: flex;
             flex-direction: column;
-            gap: 0.75rem;
+            gap: 0.5rem;
             margin-top: 0;
             margin-bottom: 0.5rem;
         }
@@ -332,10 +332,10 @@ $csrf_token = generateCsrfToken('login_form');
 
         .inline-login-form label {
             position: absolute;
-            left: 1.1rem;
+            left: 0.95rem;
             top: 50%;
             transform: translateY(-50%);
-            font-size: 1rem;
+            font-size: 0.9rem;
             color: rgba(255, 255, 255, 0.65);
             font-weight: 400;
             pointer-events: none;
@@ -352,10 +352,10 @@ $csrf_token = generateCsrfToken('login_form');
             background: rgba(255, 255, 255, 0.12);
             border: 1px solid rgba(255, 255, 255, 0.18);
             color: var(--light-text);
-            padding: 0.95rem 1.1rem;
+            padding: 0.75rem 0.95rem;
             border-radius: 10px;
             outline: none;
-            font-size: 1rem;
+            font-size: 0.9rem;
             transition: all 0.2s ease;
             width: 100%;
         }
@@ -375,8 +375,8 @@ $csrf_token = generateCsrfToken('login_form');
         .inline-login-form input.has-value,
         .inline-login-form textarea:focus,
         .inline-login-form textarea.has-value {
-            padding-top: 1rem;
-            padding-bottom: 0.65rem;
+            padding-top: 0.85rem;
+            padding-bottom: 0.55rem;
             border-top-color: transparent;
         }
 
@@ -384,12 +384,12 @@ $csrf_token = generateCsrfToken('login_form');
         .inline-login-form input.has-value + label,
         .inline-login-form textarea:focus + label,
         .inline-login-form textarea.has-value + label {
-            top: -0.6rem;
+            top: -0.5rem;
             transform: none;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: var(--primary-color);
             font-weight: 500;
-            left: 1.1rem;
+            left: 0.95rem;
         }
 
         .inline-login-form textarea + label {
@@ -410,9 +410,9 @@ $csrf_token = generateCsrfToken('login_form');
 
         .validation-feedback {
             display: none;
-            margin-top: 0.25rem;
+            margin-top: 0.2rem;
             margin-left: 0;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             line-height: 1.3;
             color: var(--gray-text);
             text-align: left;
@@ -436,16 +436,16 @@ $csrf_token = generateCsrfToken('login_form');
 
         /* Captcha Container Styles */
         .captcha-container {
-            margin: 0.5rem auto;
+            margin: 0.4rem auto;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 80px;
+            min-height: 70px;
             width: 100%;
         }
 
         .captcha-container .g-recaptcha {
-            transform: scale(0.9);
+            transform: scale(0.85);
             transform-origin: center center;
             width: auto;
             margin: 0 auto;
@@ -559,9 +559,9 @@ $csrf_token = generateCsrfToken('login_form');
             background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
             color: white;
             border: none;
-            padding: 0.75rem 1.4rem;
+            padding: 0.65rem 1.2rem;
             border-radius: 10px;
-            font-size: 0.95rem;
+            font-size: 0.85rem;
             font-weight: 600;
             cursor: pointer;
             margin-top: 0.25rem;
@@ -577,7 +577,7 @@ $csrf_token = generateCsrfToken('login_form');
         .inline-login-register {
             margin-top: 0.5rem;
             margin-bottom: -0.3rem;
-            font-size: 0.85rem;
+            font-size: 0.75rem;
             color: var(--gray-text);
             text-align: center;
         }
@@ -2055,12 +2055,12 @@ $csrf_token = generateCsrfToken('login_form');
 
 
             .inline-login-form {
-                gap: 1rem;
+                gap: 0.6rem;
             }
 
             .inline-login-form-group label {
                 left: 0.95rem;
-                font-size: 0.9rem;
+                font-size: 0.85rem;
             }
 
             .inline-login-form input[type="text"],
@@ -2068,12 +2068,12 @@ $csrf_token = generateCsrfToken('login_form');
             .inline-login-form input[type="email"],
             .inline-login-form input[type="number"],
             .inline-login-form textarea {
-                font-size: 0.95rem;
-                padding: 0.85rem 1rem;
+                font-size: 0.9rem;
+                padding: 0.75rem 0.95rem;
             }
 
             .validation-feedback {
-                font-size: 0.8rem;
+                font-size: 0.75rem;
                 margin-left: 0;
             }
 
@@ -2081,7 +2081,7 @@ $csrf_token = generateCsrfToken('login_form');
             .inline-login-form input.has-value + label,
             .inline-login-form textarea:focus + label,
             .inline-login-form textarea.has-value + label {
-                font-size: 0.7rem;
+                font-size: 0.65rem;
             }
 
 
@@ -2186,13 +2186,13 @@ $csrf_token = generateCsrfToken('login_form');
             .inline-login-form input[type="email"],
             .inline-login-form input[type="number"],
             .inline-login-form textarea {
-                font-size: 0.9rem;
-                padding: 0.8rem 0.95rem;
+                font-size: 0.85rem;
+                padding: 0.7rem 0.9rem;
             }
 
             .inline-login-submit {
-                font-size: 0.95rem;
-                padding: 0.9rem 1.2rem;
+                font-size: 0.85rem;
+                padding: 0.65rem 1.1rem;
             }
 
             .floating-buttons-container {
@@ -2488,8 +2488,8 @@ $csrf_token = generateCsrfToken('login_form');
                 <button type="submit" class="inline-login-submit" id="loginButton">
                     <span id="loginButtonText">Log In</span>
                 </button>
-                <div style="text-align: center; margin-top: 0.5rem; margin-bottom: 0.25rem;">
-                    <a href="#" id="forgotPasswordLink" style="color: var(--primary-color); text-decoration: none; font-size: 0.85rem;">Forgot password?</a>
+                <div style="text-align: center; margin-top: 0.4rem; margin-bottom: 0.2rem;">
+                    <a href="#" id="forgotPasswordLink" style="color: var(--primary-color); text-decoration: none; font-size: 0.75rem;">Forgot password?</a>
                 </div>
                 <h6 class="inline-login-register">
                     Don't have an account? <a href="../reg/registration.php">Register</a>

@@ -158,6 +158,44 @@ function getFireData($startDate = null, $endDate = null, $barangayId = null) {
     }
 }
 
+// Fetch latest fire incidents for marquee display
+function getLatestFireIncidents($limit = 15) {
+    $conn = getDatabaseConnection();
+    
+    $query = "
+        SELECT 
+            fd.id, 
+            fd.status, 
+            fd.building_type, 
+            fd.temp, 
+            fd.smoke,
+            fd.heat,
+            fd.flame_detected,
+            fd.timestamp,
+            fd.device_id,
+            d.device_name,
+            br.barangay_name,
+            COALESCE(fd.gps_latitude, fd.geo_lat) as display_lat,
+            COALESCE(fd.gps_longitude, fd.geo_long) as display_long
+        FROM fire_data fd
+        LEFT JOIN devices d ON fd.device_id = d.device_id
+        LEFT JOIN barangay br ON COALESCE(d.barangay_id, fd.barangay_id) = br.id
+        WHERE fd.status IN ('EMERGENCY', 'ACKNOWLEDGED', 'NORMAL')
+        ORDER BY fd.timestamp DESC
+        LIMIT :limit
+    ";
+    
+    try {
+        $stmt = $conn->prepare($query);
+        $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    } catch(PDOException $e) {
+        error_log("Error fetching latest fire incidents: " . $e->getMessage());
+        return [];
+    }
+}
+
 // Fetch devices with coordinates from fire_data (prioritize GPS coordinates)
 function getDevicesWithCoordinates() {
     $conn = getDatabaseConnection();
@@ -602,6 +640,7 @@ if (isset($_GET['barangay_id']) && ctype_digit((string)$_GET['barangay_id'])) {
     }
 }
 $incidents = getFireData($startDate, $endDate, $preselectBarangayId);
+$latestIncidents = getLatestFireIncidents(15); // Get latest 15 incidents for marquee
 $barangays = getBarangays($preselectBarangayId);
 // Get comprehensive data for all barangays
 $barangayHeatData = getBarangayHeatData();
@@ -760,12 +799,82 @@ function getUserBarangayId($userId) {
             overflow: hidden;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             border: 1px solid #e8e8e8;
-           
+            position: relative;
+        }
+        
+        /* Fire Incidents Marquee Styles */
+        .fire-incidents-marquee {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            color: #1f2937;
+            padding: 6px 0;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            opacity: 1;
+        }
+        
+        .marquee-wrapper {
+            display: flex;
+            width: fit-content;
+        }
+        
+        .marquee-content {
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+            animation: scroll 60s linear infinite;
+            font-size: 12px;
+            font-weight: 500;
+            flex-shrink: 0;
+        }
+        
+        .fire-incidents-marquee:hover .marquee-content {
+            animation-play-state: paused;
+        }
+        
+        @keyframes scroll {
+            0% {
+                transform: translateX(0);
+            }
+            100% {
+                transform: translateX(-50%);
+            }
+        }
+        
+        .marquee-label {
+            font-weight: 700;
+            color: #f59e0b;
+            margin-right: 15px;
+        }
+        
+        .marquee-item {
+            display: inline-block;
+            margin-right: 20px;
+            padding: 2px 8px;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 4px;
+        }
+        
+        .incident-status {
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+        
+        .marquee-separator {
+            color: #64748b;
+            margin: 0 8px;
         }
         
         #map {
             width: 100%;
-            height: 100%;
+            height: calc(100% - 35px); /* Subtract marquee height */
+            margin-top: 35px; /* Add space for marquee */
         }
         
         
@@ -1070,6 +1179,15 @@ function getUserBarangayId($userId) {
         .device-hover-tooltip::before,
         .leaflet-tooltip.device-hover-tooltip::before {
             border-top-color: #3b82f6 !important;
+        }
+        
+        /* Add margin-top to zoom and map layer controls */
+        .leaflet-control-zoom {
+            margin-top: 50px !important;
+        }
+        
+        .leaflet-control-layers {
+            margin-top: 50px !important;
         }
         
         .legend {
@@ -1471,9 +1589,9 @@ function getUserBarangayId($userId) {
         <div class="right_col" role="main"> 
                 
                     <div class="card" style="background:#ffffff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);padding:16px;">
-                    <div class="header-row" style="display:flex;align-items:center;justify-content:space-between;padding:16px;border-radius:8px;margin-bottom:12px;">
+                    <div class="header-row" style="display:flex;align-items:center;justify-content:center;padding:16px;border-radius:8px;margin-bottom:12px;">
                         <div class="controls-left">
-                            <p id="monthTitle" style="margin:0;font-size:20px;font-weight:800;letter-spacing:0.2px;color:#111111;">ALL FIRE INCIDENTS IN BAGO CITY</p>
+                            <p id="monthTitle" style="margin:0;font-size:20px;font-weight:800;letter-spacing:0.2px;color:#111111;text-align:center;">ALL FIRE INCIDENTS IN BAGO CITY</p>
                         </div>
                         <div class="right-controls" style="display:none;gap:12px;align-items:end;">
                             <button id="resetBtn" type="button" class="btn btn-outline-danger d-inline-flex align-items-center" style="font-weight:600;display:none;"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset</button>
@@ -1512,6 +1630,88 @@ function getUserBarangayId($userId) {
                     <div class="card-body p-0">
                         
                         <div class="map-container">
+                            <!-- Latest Fire Incidents Marquee -->
+                            <div class="fire-incidents-marquee">
+                                <div class="marquee-wrapper">
+                                    <div class="marquee-content">
+                                        <span class="marquee-label">🔥 Latest Fire Incidents:</span>
+                                        <?php if (!empty($latestIncidents)): ?>
+                                            <?php foreach ($latestIncidents as $incident): ?>
+                                                <span class="marquee-item">
+                                                    <?php 
+                                                        $statusColor = '';
+                                                        $statusIcon = '';
+                                                        if ($incident['status'] == 'EMERGENCY') {
+                                                            $statusColor = '#dc2626';
+                                                            $statusIcon = '🚨';
+                                                        } elseif ($incident['status'] == 'ACKNOWLEDGED') {
+                                                            $statusColor = '#f59e0b';
+                                                            $statusIcon = '⚠️';
+                                                        } else {
+                                                            $statusColor = '#10b981';
+                                                            $statusIcon = '✅';
+                                                        }
+                                                        $timestamp = !empty($incident['timestamp']) ? date('M d, Y H:i', strtotime($incident['timestamp'])) : 'N/A';
+                                                        $deviceName = !empty($incident['device_name']) ? e($incident['device_name']) : 'Device #' . e($incident['device_id']);
+                                                        $barangay = !empty($incident['barangay_name']) ? e($incident['barangay_name']) : 'Unknown';
+                                                        $buildingType = !empty($incident['building_type']) ? e($incident['building_type']) : 'N/A';
+                                                    ?>
+                                                    <span class="incident-status" style="color: <?php echo $statusColor; ?>;">
+                                                        <?php echo $statusIcon; ?> <?php echo e($incident['status']); ?>
+                                                    </span>
+                                                    - <?php echo $deviceName; ?> | 
+                                                    <?php echo $barangay; ?> | 
+                                                    <?php echo $buildingType; ?> | 
+                                                    Temp: <?php echo e($incident['temp']); ?>°C | 
+                                                    <?php echo $timestamp; ?>
+                                                    <span class="marquee-separator"> • </span>
+                                                </span>
+                                            <?php endforeach; ?>
+                                        <?php else: ?>
+                                            <span class="marquee-item">No recent fire incidents to display</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <!-- Duplicate content for seamless loop -->
+                                    <div class="marquee-content" aria-hidden="true">
+                                        <span class="marquee-label">🔥 Latest Fire Incidents:</span>
+                                        <?php if (!empty($latestIncidents)): ?>
+                                            <?php foreach ($latestIncidents as $incident): ?>
+                                                <span class="marquee-item">
+                                                    <?php 
+                                                        $statusColor = '';
+                                                        $statusIcon = '';
+                                                        if ($incident['status'] == 'EMERGENCY') {
+                                                            $statusColor = '#dc2626';
+                                                            $statusIcon = '🚨';
+                                                        } elseif ($incident['status'] == 'ACKNOWLEDGED') {
+                                                            $statusColor = '#f59e0b';
+                                                            $statusIcon = '⚠️';
+                                                        } else {
+                                                            $statusColor = '#10b981';
+                                                            $statusIcon = '✅';
+                                                        }
+                                                        $timestamp = !empty($incident['timestamp']) ? date('M d, Y H:i', strtotime($incident['timestamp'])) : 'N/A';
+                                                        $deviceName = !empty($incident['device_name']) ? e($incident['device_name']) : 'Device #' . e($incident['device_id']);
+                                                        $barangay = !empty($incident['barangay_name']) ? e($incident['barangay_name']) : 'Unknown';
+                                                        $buildingType = !empty($incident['building_type']) ? e($incident['building_type']) : 'N/A';
+                                                    ?>
+                                                    <span class="incident-status" style="color: <?php echo $statusColor; ?>;">
+                                                        <?php echo $statusIcon; ?> <?php echo e($incident['status']); ?>
+                                                    </span>
+                                                    - <?php echo $deviceName; ?> | 
+                                                    <?php echo $barangay; ?> | 
+                                                    <?php echo $buildingType; ?> | 
+                                                    Temp: <?php echo e($incident['temp']); ?>°C | 
+                                                    <?php echo $timestamp; ?>
+                                                    <span class="marquee-separator"> • </span>
+                                                </span>
+                                            <?php endforeach; ?>
+                                        <?php else: ?>
+                                            <span class="marquee-item">No recent fire incidents to display</span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
                             <div id="map"></div>
                         </div>
                     </div>

@@ -26,7 +26,7 @@ $conn = getDatabaseConnection();
 // Get filter parameters and validate
 $startDate = isset($_GET['start_date']) && $_GET['start_date'] !== '' ? InputValidator::validateDate($_GET['start_date']) : '';
 $endDate = isset($_GET['end_date']) && $_GET['end_date'] !== '' ? InputValidator::validateDate($_GET['end_date']) : '';
-$reportStatus = isset($_GET['report_status']) && $_GET['report_status'] !== '' ? InputValidator::validateWhitelist($_GET['report_status'], ['draft', 'pending_review']) : '';
+$reportStatus = isset($_GET['report_status']) && $_GET['report_status'] !== '' ? InputValidator::validateWhitelist($_GET['report_status'], ['draft', 'pending_review', 'no_report']) : '';
 $barangayId = isset($_GET['barangay_id']) && $_GET['barangay_id'] !== '' ? InputValidator::validateInt($_GET['barangay_id'], 1) : 0;
 $buildingType = isset($_GET['building_type']) && $_GET['building_type'] !== '' ? InputValidator::validateString($_GET['building_type'], 100) : '';
 
@@ -63,8 +63,8 @@ if ($endDate) {
 
 // Add report status filter
 if ($reportStatus === 'no_report') {
-    // Show no_report (NULL), draft, and pending/pending_review reports
-    $whereConditions[] = "(sir.reports_status IS NULL OR UPPER(TRIM(sir.reports_status)) = UPPER('draft') OR UPPER(TRIM(sir.reports_status)) = UPPER('pending') OR UPPER(TRIM(sir.reports_status)) = UPPER('pending_review'))";
+    // Show only no_report (NULL or empty status)
+    $whereConditions[] = "(sir.reports_status IS NULL OR TRIM(sir.reports_status) = '' OR UPPER(TRIM(sir.reports_status)) = UPPER('no_report'))";
 } elseif ($reportStatus === 'draft') {
     // Show only draft reports
     $whereConditions[] = "UPPER(TRIM(sir.reports_status)) = UPPER('draft')";
@@ -322,6 +322,7 @@ function renderStatusGroupHeader($group, $colspan) {
             top: 0;
             z-index: 10;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
         ">
             <i class="fas <?php echo $group['icon']; ?>" style="margin-right: 10px; font-size: 1.1rem;"></i>
             <?php echo htmlspecialchars($group['title']); ?>
@@ -422,17 +423,46 @@ function renderIncidentRow($incident, &$rowIndex) {
                 <?php echo number_format($incident['ml_confidence'], 1); ?>%
             </span>
         </td>
-        <td>
-            <strong><?php echo htmlspecialchars($incident['building_name'] ?? 'Unknown'); ?></strong>
-            <?php if (!empty($incident['building_address'])): ?>
-                <br><small class="text-muted"><?php echo htmlspecialchars(shortenAddress($incident['building_address'])); ?></small>
-            <?php endif; ?>
-        </td>
         <td style="display: none;">
             <span class="badge badge-info"><?php echo htmlspecialchars($incident['building_type'] ?? 'Unknown'); ?></span>
         </td>
         <td>
             <strong><?php echo htmlspecialchars($incident['barangay_name'] ?? 'Unknown Location'); ?></strong>
+        </td>
+        <td>
+            <?php 
+            $fireDataStatus = $incident['status'] ?? 'Unknown';
+            $fireDataStatusLower = strtolower($fireDataStatus);
+            $fireStatusClass = '';
+            $fireStatusColor = '';
+            
+            switch($fireDataStatusLower) {
+                case 'acknowledged':
+                    $fireStatusClass = 'badge-info';
+                    $fireStatusColor = '#17a2b8';
+                    break;
+                case 'pending':
+                    $fireStatusClass = 'badge-warning';
+                    $fireStatusColor = '#ffc107';
+                    break;
+                case 'resolved':
+                case 'completed':
+                    $fireStatusClass = 'badge-success';
+                    $fireStatusColor = '#28a745';
+                    break;
+                case 'cancelled':
+                case 'rejected':
+                    $fireStatusClass = 'badge-danger';
+                    $fireStatusColor = '#dc3545';
+                    break;
+                default:
+                    $fireStatusClass = 'badge-secondary';
+                    $fireStatusColor = '#6c757d';
+            }
+            ?>
+            <span class="badge <?php echo $fireStatusClass; ?>" style="background-color: <?php echo $fireStatusColor; ?> !important; color: #ffffff !important; font-weight: 600;">
+                <?php echo htmlspecialchars(strtoupper($fireDataStatus)); ?>
+            </span>
         </td>
         <td>
             <strong><?php echo htmlspecialchars($incident['device_name'] ?? 'Unknown Device'); ?></strong>
@@ -505,48 +535,55 @@ function renderIncidentRow($incident, &$rowIndex) {
   <?php include '../../components/header.php'; ?>
   <style>
     /* Burger Menu Toggle Button Styles */
-    .filter-toggle-btn {
-        display: flex !important;
-        flex-direction: column;
-        justify-content: space-around;
-        align-items: center;
-        width: 35px;
-        height: 35px;
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        padding: 8px 5px;
-        margin: 0;
-        transition: all 0.3s ease;
-        visibility: visible !important;
-        opacity: 1 !important;
-    }
+.filter-toggle-btn {
+    display: flex !important;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+    width: 35px;
+    height: 35px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 8px 5px;
+    margin: 0;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
     
-    .filter-toggle-btn:hover {
-        opacity: 0.7;
-    }
+.filter-toggle-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.35);
+}
     
-    .filter-toggle-btn.active {
-        transform: rotate(90deg);
-    }
+.filter-toggle-btn:active {
+    transform: translateY(0) scale(0.98);
+}
+    
+.filter-toggle-btn.active {
+    transform: rotate(90deg) scale(1.05);
+    box-shadow: 0 6px 16px rgba(40, 167, 69, 0.35);
+}
     
     .burger-line {
-        width: 25px;
-        height: 3px;
-        background-color: #C5C7CB;
-        border-radius: 3px;
-        transition: all 0.3s ease;
-        display: block;
-        margin: 2px 0;
+    width: 25px;
+    height: 3px;
+    background-color: #28a745;
+    border-radius: 3px;
+    transition: all 0.3s ease;
+    display: block;
+    margin: 2px 0;
     }
     
     .filter-toggle-btn:hover .burger-line {
-        background-color: #26B99A;
+    background-color: #34c759;
     }
     
     .filter-toggle-btn.active .burger-line:nth-child(1) {
         transform: rotate(45deg) translate(7px, 7px);
-        background-color: #26B99A;
+    background-color: #28a745;
     }
     
     .filter-toggle-btn.active .burger-line:nth-child(2) {
@@ -555,7 +592,7 @@ function renderIncidentRow($incident, &$rowIndex) {
     
     .filter-toggle-btn.active .burger-line:nth-child(3) {
         transform: rotate(-45deg) translate(7px, -7px);
-        background-color: #26B99A;
+    background-color: #28a745;
     }
     
     /* Filter Overlay */
@@ -683,13 +720,13 @@ function renderIncidentRow($incident, &$rowIndex) {
     
     /* Make sure the burger lines are visible */
     #filterToggleBtn .burger-line {
-        background-color: #C5C7CB !important;
+    background-color: #28a745 !important;
         display: block !important;
         visibility: visible !important;
     }
     
     #filterToggleBtn:hover .burger-line {
-        background-color: #26B99A !important;
+    background-color: #34c759 !important;
     }
     
     /* Responsive and Wide Table Styles */
@@ -791,10 +828,50 @@ function renderIncidentRow($incident, &$rowIndex) {
     .dataTables_wrapper .dataTables_filter input {
         margin: 0 5px;
         padding: 5px 10px;
+        padding-right: 25px;
         border: 1px solid #ddd;
         border-radius: 4px;
         display: inline-block;
         width: auto;
+    }
+    
+    .dataTables_wrapper .dataTables_length select {
+        padding-right: 30px;
+        transition: all 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        position: relative;
+        cursor: pointer;
+    }
+    
+    .dataTables_wrapper .dataTables_length select:hover {
+        border-color: #26B99A;
+        transform: translateY(-1px);
+    }
+    
+    .dataTables_wrapper .dataTables_length select:focus {
+        border-color: #26B99A;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(38, 185, 154, 0.2);
+    }
+    
+    /* Add transition effect to the select dropdown arrow area */
+    .dataTables_wrapper .dataTables_length select {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        background-size: 12px;
+        transition: all 0.3s ease, background-position 0.3s ease;
+    }
+    
+    .dataTables_wrapper .dataTables_length select:hover {
+        background-position: right 8px center;
+    }
+    
+    .dataTables_wrapper .dataTables_length select:active,
+    .dataTables_wrapper .dataTables_length select:focus {
+        background-position: right 7px center;
     }
     
     .dataTables_wrapper .dataTables_filter input {
@@ -840,9 +917,9 @@ function renderIncidentRow($incident, &$rowIndex) {
     }
     
     /* Specific column widths for better layout */
-    #incidentsTable td:nth-child(7),
-    #incidentsTable th:nth-child(7) {
-        min-width: 150px;
+    #incidentsTable td:nth-child(8),
+    #incidentsTable th:nth-child(8) {
+        min-width: 130px;
     }
     
     #incidentsTable td:nth-child(9),
@@ -850,8 +927,8 @@ function renderIncidentRow($incident, &$rowIndex) {
         min-width: 130px;
     }
     
-    #incidentsTable td:nth-child(11),
-    #incidentsTable th:nth-child(11) {
+    #incidentsTable td:nth-child(12),
+    #incidentsTable th:nth-child(12) {
         min-width: 120px;
     }
     
@@ -883,12 +960,17 @@ function renderIncidentRow($incident, &$rowIndex) {
         font-size: 0.8rem;
     }
     
-    /* Compact building name column */
+    /* Compact barangay column */
     #incidentsTable td:nth-child(7) {
-        max-width: 180px;
+        max-width: 150px;
     }
     
-    /* Compact barangay column */
+    /* Compact fire data status column */
+    #incidentsTable td:nth-child(8) {
+        max-width: 140px;
+    }
+    
+    /* Compact device name column */
     #incidentsTable td:nth-child(9) {
         max-width: 150px;
     }
@@ -930,6 +1012,32 @@ function renderIncidentRow($incident, &$rowIndex) {
             text-align: center;
             width: 100%;
         }
+    }
+    
+    /* Pagination Arrow Spacing */
+    .dataTables_wrapper .dataTables_paginate {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+    }
+    
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+        margin: 0 2px;
+    }
+    
+    .dataTables_wrapper .dataTables_paginate .paginate_button.previous {
+        margin-right: 10px;
+    }
+    
+    .dataTables_wrapper .dataTables_paginate .paginate_button.next {
+        margin-left: 10px;
+    }
+    
+    .dataTables_wrapper .dataTables_paginate .paginate_button.first,
+    .dataTables_wrapper .dataTables_paginate .paginate_button.last {
+        margin-left: 5px;
+        margin-right: 5px;
     }
     
     /* Action Button Colors - Edit and Create Reports */
@@ -1147,6 +1255,114 @@ function renderIncidentRow($incident, &$rowIndex) {
     .status-group-header-cell:hover {
         box-shadow: 0 4px 8px rgba(0,0,0,0.15) !important;
     }
+    
+    /* Table Navigation Styles - Modern & Compact */
+    .table-navigation {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 20px;
+        padding: 0;
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .table-nav-btn {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border: none;
+        background: transparent;
+        color: #6c757d;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+        min-width: 0;
+    }
+    
+    .table-nav-btn i {
+        font-size: 0.9rem;
+        opacity: 0.7;
+    }
+    
+    .table-nav-btn .nav-label {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .table-nav-btn .nav-badge {
+        background: rgba(108, 117, 125, 0.15);
+        color: #6c757d;
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        min-width: 20px;
+        text-align: center;
+    }
+    
+    .table-nav-btn:hover {
+        background: rgba(0,0,0,0.05);
+        color: #495057;
+    }
+    
+    .table-nav-btn:hover i {
+        opacity: 1;
+    }
+    
+    .table-nav-btn.active {
+        background: #ffffff;
+        color: #26B99A;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .table-nav-btn.active i {
+        opacity: 1;
+        color: #26B99A;
+    }
+    
+    .table-nav-btn.active .nav-badge {
+        background: #26B99A;
+        color: #ffffff;
+    }
+    
+    @media (max-width: 768px) {
+        .table-navigation {
+            flex-wrap: wrap;
+        }
+        
+        .table-nav-btn {
+            flex: 1 1 calc(50% - 4px);
+            min-width: calc(50% - 4px);
+        }
+        
+        .table-nav-btn .nav-label {
+            display: none;
+        }
+    }
+    
+    .table-container {
+        animation: fadeIn 0.3s ease-in;
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
   </style>
   <script>
     // Filter Panel Toggle Function - Must be defined globally for onclick handlers
@@ -1196,6 +1412,7 @@ function renderIncidentRow($incident, &$rowIndex) {
                         <label>Report Status</label>
                                     <select id="filterReportStatus" name="report_status" class="form-control">
                                         <option value="">All Reports</option>
+                                        <option value="no_report" <?php echo $reportStatus === 'no_report' ? 'selected' : ''; ?>>No Reports</option>
                                         <option value="draft" <?php echo $reportStatus === 'draft' ? 'selected' : ''; ?>>Draft</option>
                                         <option value="pending_review" <?php echo $reportStatus === 'pending_review' ? 'selected' : ''; ?>>Pending Review</option>
                                     </select>
@@ -1218,7 +1435,7 @@ function renderIncidentRow($incident, &$rowIndex) {
                     </div>
                     <div class="filter-group">
                         <span id="filterResultCount" style="color: #73879C; font-size: 0.9rem;">
-                                Showing <?php echo count($fireData); ?> incident(s)
+                                Showing <span id="filterCount"><?php echo count($fireData); ?></span> incident(s)
                             </span>
                     </div>
                 </form>
@@ -1251,61 +1468,208 @@ function renderIncidentRow($incident, &$rowIndex) {
                                 <p style="color: #73879C;">There are currently no fire incidents with ACKNOWLEDGED status.</p>
                 </div>
             <?php else: 
-                            // Group incidents by status
-                            $groupedIncidents = groupIncidentsByStatus($fireData);
-                            $rowIndex = 0;
+                            // Prepare data for each table
+                            $allReports = $fireData; // All reports
+                            $noReports = array_filter($fireData, function($incident) {
+                                $status = strtolower(empty($incident['reports_status']) ? '' : $incident['reports_status']);
+                                return empty($status) || $status === 'no_report';
+                            });
+                            $draftReports = array_filter($fireData, function($incident) {
+                                $status = strtolower(empty($incident['reports_status']) ? '' : $incident['reports_status']);
+                                return $status === 'draft';
+                            });
+                            $pendingReports = array_filter($fireData, function($incident) {
+                                $status = strtolower(empty($incident['reports_status']) ? '' : $incident['reports_status']);
+                                return $status === 'pending' || $status === 'pending_review';
+                            });
+                            
                             $totalColumns = 15; // Total number of columns in the table
             ?>
-                            <div class="card-box table-responsive">
-                                <table id="incidentsTable" class="table table-striped table-bordered" style="width:100%">
-                        <thead>
-                            <tr>
-                                <th style="display: none;">Incident ID</th>
-                                <th style="display: none;">Smoke Level</th>
-                                <th style="display: none;">Temperature</th>
-                                <th style="display: none;">Heat Level</th>
-                                <th style="display: none;">Flame Detected</th>
-                                <th style="display: none;">ML Confidence</th>
-                                <th>Building Name</th>
-                                <th style="display: none;">Building Type</th>
-                                <th>Barangay</th>
-                                <th>Device Name</th>
-                                <th>User Fullname</th>
-                                <th style="display: none;">Contact Info</th>
-                                  <th>Report Status</th>
-                                  <th>Timestamp</th>
-                                  <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php 
-                            // Render No Reports group
-                            if (!empty($groupedIncidents['no_report']['items'])) {
-                                echo renderStatusGroupHeader($groupedIncidents['no_report'], $totalColumns);
-                                foreach ($groupedIncidents['no_report']['items'] as $incident) {
-                                    echo renderIncidentRow($incident, $rowIndex);
-                                }
-                            }
+                            <!-- Navigation Buttons -->
+                            <div class="table-navigation">
+                                <button class="table-nav-btn active" data-table="all">
+                                    <i class="fa fa-list"></i>
+                                    <span class="nav-label">All</span>
+                                    <span class="nav-badge"><?php echo count($allReports); ?></span>
+                                </button>
+                                <button class="table-nav-btn" data-table="no-report">
+                                    <i class="fa fa-file-plus"></i>
+                                    <span class="nav-label">No Report</span>
+                                    <span class="nav-badge"><?php echo count($noReports); ?></span>
+                                </button>
+                                <button class="table-nav-btn" data-table="draft">
+                                    <i class="fa fa-file-edit"></i>
+                                    <span class="nav-label">Draft</span>
+                                    <span class="nav-badge"><?php echo count($draftReports); ?></span>
+                                </button>
+                                <button class="table-nav-btn" data-table="pending">
+                                    <i class="fa fa-clock"></i>
+                                    <span class="nav-label">Pending</span>
+                                    <span class="nav-badge"><?php echo count($pendingReports); ?></span>
+                                </button>
+                            </div>
                             
-                            // Render Draft Reports group
-                            if (!empty($groupedIncidents['draft']['items'])) {
-                                echo renderStatusGroupHeader($groupedIncidents['draft'], $totalColumns);
-                                foreach ($groupedIncidents['draft']['items'] as $incident) {
-                                    echo renderIncidentRow($incident, $rowIndex);
-                                }
-                            }
+                            <!-- All Reports Table -->
+                            <div class="table-container" id="table-all" style="display: block;">
+                                <div class="card-box table-responsive">
+                                    <table id="incidentsTableAll" class="table table-striped table-bordered" style="width:100%">
+                                        <thead>
+                                            <tr>
+                                                <th style="display: none;">Incident ID</th>
+                                                <th style="display: none;">Smoke Level</th>
+                                                <th style="display: none;">Temperature</th>
+                                                <th style="display: none;">Heat Level</th>
+                                                <th style="display: none;">Flame Detected</th>
+                                                <th style="display: none;">ML Confidence</th>
+                                                <th style="display: none;">Building Type</th>
+                                                <th>Barangay</th>
+                                                <th>Fire Data Status</th>
+                                                <th>Device Name</th>
+                                                <th>User Fullname</th>
+                                                <th style="display: none;">Contact Info</th>
+                                                <th>Report Status</th>
+                                                <th>Timestamp</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php 
+                                            $rowIndex = 0;
+                                            $groupedIncidents = groupIncidentsByStatus($allReports);
+                                            
+                                            // Render No Reports group
+                                            if (!empty($groupedIncidents['no_report']['items'])) {
+                                                echo renderStatusGroupHeader($groupedIncidents['no_report'], $totalColumns);
+                                                foreach ($groupedIncidents['no_report']['items'] as $incident) {
+                                                    echo renderIncidentRow($incident, $rowIndex);
+                                                }
+                                            }
+                                            
+                                            // Render Draft Reports group
+                                            if (!empty($groupedIncidents['draft']['items'])) {
+                                                echo renderStatusGroupHeader($groupedIncidents['draft'], $totalColumns);
+                                                foreach ($groupedIncidents['draft']['items'] as $incident) {
+                                                    echo renderIncidentRow($incident, $rowIndex);
+                                                }
+                                            }
+                                            
+                                            // Render Pending Review group
+                                            if (!empty($groupedIncidents['pending']['items'])) {
+                                                echo renderStatusGroupHeader($groupedIncidents['pending'], $totalColumns);
+                                                foreach ($groupedIncidents['pending']['items'] as $incident) {
+                                                    echo renderIncidentRow($incident, $rowIndex);
+                                                }
+                                            }
+                                            ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                             
-                            // Render Pending Review group
-                            if (!empty($groupedIncidents['pending']['items'])) {
-                                echo renderStatusGroupHeader($groupedIncidents['pending'], $totalColumns);
-                                foreach ($groupedIncidents['pending']['items'] as $incident) {
-                                    echo renderIncidentRow($incident, $rowIndex);
-                                }
-                            }
-                            ?>
-                        </tbody>
-                    </table>
-                </div>
+                            <!-- No Reports Table -->
+                            <div class="table-container" id="table-no-report" style="display: none;">
+                                <div class="card-box table-responsive">
+                                    <table id="incidentsTableNoReport" class="table table-striped table-bordered" style="width:100%">
+                                        <thead>
+                                            <tr>
+                                                <th style="display: none;">Incident ID</th>
+                                                <th style="display: none;">Smoke Level</th>
+                                                <th style="display: none;">Temperature</th>
+                                                <th style="display: none;">Heat Level</th>
+                                                <th style="display: none;">Flame Detected</th>
+                                                <th style="display: none;">ML Confidence</th>
+                                                <th style="display: none;">Building Type</th>
+                                                <th>Barangay</th>
+                                                <th>Fire Data Status</th>
+                                                <th>Device Name</th>
+                                                <th>User Fullname</th>
+                                                <th style="display: none;">Contact Info</th>
+                                                <th>Report Status</th>
+                                                <th>Timestamp</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php 
+                                            $rowIndex = 0;
+                                            foreach ($noReports as $incident) {
+                                                echo renderIncidentRow($incident, $rowIndex);
+                                            }
+                                            ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <!-- Draft Reports Table -->
+                            <div class="table-container" id="table-draft" style="display: none;">
+                                <div class="card-box table-responsive">
+                                    <table id="incidentsTableDraft" class="table table-striped table-bordered" style="width:100%">
+                                        <thead>
+                                            <tr>
+                                                <th style="display: none;">Incident ID</th>
+                                                <th style="display: none;">Smoke Level</th>
+                                                <th style="display: none;">Temperature</th>
+                                                <th style="display: none;">Heat Level</th>
+                                                <th style="display: none;">Flame Detected</th>
+                                                <th style="display: none;">ML Confidence</th>
+                                                <th style="display: none;">Building Type</th>
+                                                <th>Barangay</th>
+                                                <th>Fire Data Status</th>
+                                                <th>Device Name</th>
+                                                <th>User Fullname</th>
+                                                <th style="display: none;">Contact Info</th>
+                                                <th>Report Status</th>
+                                                <th>Timestamp</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php 
+                                            $rowIndex = 0;
+                                            foreach ($draftReports as $incident) {
+                                                echo renderIncidentRow($incident, $rowIndex);
+                                            }
+                                            ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <!-- Pending Review Table -->
+                            <div class="table-container" id="table-pending" style="display: none;">
+                                <div class="card-box table-responsive">
+                                    <table id="incidentsTablePending" class="table table-striped table-bordered" style="width:100%">
+                                        <thead>
+                                            <tr>
+                                                <th style="display: none;">Incident ID</th>
+                                                <th style="display: none;">Smoke Level</th>
+                                                <th style="display: none;">Temperature</th>
+                                                <th style="display: none;">Heat Level</th>
+                                                <th style="display: none;">Flame Detected</th>
+                                                <th style="display: none;">ML Confidence</th>
+                                                <th style="display: none;">Building Type</th>
+                                                <th>Barangay</th>
+                                                <th>Fire Data Status</th>
+                                                <th>Device Name</th>
+                                                <th>User Fullname</th>
+                                                <th style="display: none;">Contact Info</th>
+                                                <th>Report Status</th>
+                                                <th>Timestamp</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php 
+                                            $rowIndex = 0;
+                                            foreach ($pendingReports as $incident) {
+                                                echo renderIncidentRow($incident, $rowIndex);
+                                            }
+                                            ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
             <?php endif; ?>
                     </div>
                 </div>
@@ -1315,6 +1679,14 @@ function renderIncidentRow($incident, &$rowIndex) {
   
 
     <script>
+        // Global variables for DataTables
+        var tableAll = null;
+        var tableNoReport = null;
+        var tableDraft = null;
+        var tablePending = null;
+        var currentTable = null;
+        var currentTableType = 'all';
+        
         // Initialize DataTable
         $(document).ready(function() {
             // Check if any filters are active on page load
@@ -1346,6 +1718,12 @@ function renderIncidentRow($incident, &$rowIndex) {
                     filterToggleBtn && !filterToggleBtn.contains(event.target)) {
                     toggleFilterPanel();
                 }
+            });
+            
+            // Table Navigation Button Handlers
+            $('.table-nav-btn').on('click', function() {
+                const tableType = $(this).data('table');
+                switchTable(tableType);
             });
             
             // Check for report saved notification
@@ -1409,178 +1787,213 @@ function renderIncidentRow($incident, &$rowIndex) {
                 });
             };
             
-            // Initialize DataTable only if table exists and has correct structure
-            var table;
-            var $table = $('#incidentsTable');
-            if ($table.length > 0) {
-                // Store group headers and their positions before removing them
-                var groupHeadersData = [];
-                $table.find('tbody tr.status-group-header').each(function() {
-                    var $header = $(this);
-                    var groupTitle = $header.attr('data-group') || '';
-                    var groupKey = '';
-                    
-                    // Map group title to status key
-                    if (groupTitle === 'No Reports') {
-                        groupKey = 'no_report';
-                    } else if (groupTitle === 'Draft Reports') {
-                        groupKey = 'draft';
-                    } else if (groupTitle === 'Pending Review') {
-                        groupKey = 'pending';
+            // Function to switch between tables
+            function switchTable(tableType) {
+                // Update button states
+                $('.table-nav-btn').removeClass('active');
+                $('.table-nav-btn[data-table="' + tableType + '"]').addClass('active');
+                
+                // Hide all tables
+                $('.table-container').hide();
+                
+                // Show selected table
+                $('#table-' + tableType).show();
+                
+                // Update current table type
+                currentTableType = tableType;
+                
+                // Initialize DataTable for the selected table if not already initialized
+                switch(tableType) {
+                    case 'all':
+                        if (!tableAll) {
+                            tableAll = initializeDataTable('#incidentsTableAll', true);
+                        }
+                        currentTable = tableAll;
+                        break;
+                    case 'no-report':
+                        if (!tableNoReport) {
+                            tableNoReport = initializeDataTable('#incidentsTableNoReport', false);
+                        }
+                        currentTable = tableNoReport;
+                        break;
+                    case 'draft':
+                        if (!tableDraft) {
+                            tableDraft = initializeDataTable('#incidentsTableDraft', false);
+                        }
+                        currentTable = tableDraft;
+                        break;
+                    case 'pending':
+                        if (!tablePending) {
+                            tablePending = initializeDataTable('#incidentsTablePending', false);
+                        }
+                        currentTable = tablePending;
+                        break;
+                }
+                
+                // Update filter count for the active table
+                if (currentTable) {
+                    setTimeout(function() {
+                        var visibleRows = 0;
+                        currentTable.rows({search: 'applied'}).every(function() {
+                            var row = this.node();
+                            if (!$(row).hasClass('status-group-header')) {
+                                visibleRows++;
+                            }
+                        });
+                        $('#filterCount').text(visibleRows);
+                    }, 100);
+                } else {
+                    // If table not initialized yet, show total count
+                    var totalCount = 0;
+                    switch(tableType) {
+                        case 'all':
+                            totalCount = <?php echo count($allReports); ?>;
+                            break;
+                        case 'no-report':
+                            totalCount = <?php echo count($noReports); ?>;
+                            break;
+                        case 'draft':
+                            totalCount = <?php echo count($draftReports); ?>;
+                            break;
+                        case 'pending':
+                            totalCount = <?php echo count($pendingReports); ?>;
+                            break;
                     }
-                    
-                    groupHeadersData.push({
-                        element: $header.clone(true),
-                        groupKey: groupKey,
-                        groupTitle: groupTitle
+                    $('#filterCount').text(totalCount);
+                }
+                
+                // Apply filters to the active table
+                if (currentTable) {
+                    applyRealTimeFilters();
+                }
+            }
+            
+            // Function to initialize DataTable
+            function initializeDataTable(tableId, showGroups) {
+                var $table = $(tableId);
+                if ($table.length === 0) return null;
+                
+                // Store group headers if showing groups
+                var groupHeadersData = [];
+                if (showGroups) {
+                    $table.find('tbody tr.status-group-header').each(function() {
+                        var $header = $(this);
+                        var groupTitle = $header.attr('data-group') || '';
+                        var groupKey = '';
+                        
+                        if (groupTitle === 'No Reports') {
+                            groupKey = 'no_report';
+                        } else if (groupTitle === 'Draft Reports') {
+                            groupKey = 'draft';
+                        } else if (groupTitle === 'Pending Review') {
+                            groupKey = 'pending';
+                        }
+                        
+                        groupHeadersData.push({
+                            element: $header.clone(true),
+                            groupKey: groupKey,
+                            groupTitle: groupTitle
+                        });
                     });
-                });
+                    
+                    // Remove group headers temporarily
+                    $table.find('tbody tr.status-group-header').remove();
+                }
                 
-                // Remove group headers temporarily to avoid column count issues
-                $table.find('tbody tr.status-group-header').remove();
-                
-                // Verify column count matches before initializing
+                // Verify column count
                 var headerCols = $table.find('thead tr:first th').length;
                 var firstDataRow = $table.find('tbody tr.status-group-row:first');
                 var firstRowCols = firstDataRow.length > 0 ? firstDataRow.find('td').length : 0;
                 
-                // If no data rows found, check any non-header row
                 if (firstRowCols === 0) {
                     $table.find('tbody tr').each(function() {
                         if (!$(this).hasClass('status-group-header')) {
                             var tdCount = $(this).find('td').length;
                             if (tdCount > 0) {
                                 firstRowCols = tdCount;
-                                return false; // break
+                                return false;
                             }
                         }
                     });
                 }
                 
-                // Only initialize if column counts match
                 if (headerCols === firstRowCols || firstRowCols === 0 || headerCols === 15) {
-                    // Explicitly define columns to avoid DataTables column count warning
                     var columnDefs = [
-                        { "visible": false, "targets": [0, 1, 2, 3, 4, 5, 7, 11] },
+                        { "visible": false, "targets": [0, 1, 2, 3, 4, 5, 6, 10] },
                         { "orderable": false, "targets": 14 },
-                        { "type": "report-status-priority", "targets": 12 } // Apply custom sorting to report status column
+                        { "type": "report-status-priority", "targets": 12 }
                     ];
                     
-                    table = $table.DataTable({
+                    var table = $table.DataTable({
                         "pageLength": 25,
-                        "order": [], // Disable default sorting to preserve group order
+                        "order": [],
                         "columnDefs": columnDefs,
                         "columns": [
-                            null, // 0: Incident ID
-                            null, // 1: Smoke Level
-                            null, // 2: Temperature
-                            null, // 3: Heat Level
-                            null, // 4: Flame Detected
-                            null, // 5: ML Confidence
-                            null, // 6: Building Name
-                            null, // 7: Building Type
-                            null, // 8: Barangay
-                            null, // 9: Device Name
-                            null, // 10: User Fullname
-                            null, // 11: Contact Info
-                            null, // 12: Report Status
-                            null, // 13: Timestamp
-                            null  // 14: Actions
+                            null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
                         ],
                         "responsive": true,
                         "scrollX": true,
                         "scrollCollapse": true,
                         "autoWidth": false,
                         "drawCallback": function(settings) {
-                            // Remove any existing group headers first (in case of redraw)
-                            $table.find('tbody tr.status-group-header').remove();
-                            
-                            // Re-insert group headers in their correct positions
-                            var tbody = $table.find('tbody');
-                            var insertedGroups = {};
-                            var currentGroup = null;
-                            
-                            tbody.find('tr').each(function() {
-                                var $row = $(this);
-                                var rowStatus = ($row.attr('data-report-status') || '').toLowerCase();
+                            if (showGroups && groupHeadersData.length > 0) {
+                                $table.find('tbody tr.status-group-header').remove();
                                 
-                                // Determine which group this row belongs to
-                                var groupKey = '';
-                                if (rowStatus === 'no_report' || rowStatus === '') {
-                                    groupKey = 'no_report';
-                                } else if (rowStatus === 'draft') {
-                                    groupKey = 'draft';
-                                } else if (rowStatus === 'pending' || rowStatus === 'pending_review') {
-                                    groupKey = 'pending';
-                                }
+                                var tbody = $table.find('tbody');
+                                var insertedGroups = {};
+                                var currentGroup = null;
                                 
-                                // If we've moved to a new group, insert the header
-                                if (groupKey && groupKey !== currentGroup && !insertedGroups[groupKey]) {
-                                    // Find the matching header
-                                    var headerData = groupHeadersData.find(function(h) {
-                                        return h.groupKey === groupKey;
-                                    });
+                                tbody.find('tr').each(function() {
+                                    var $row = $(this);
+                                    var rowStatus = ($row.attr('data-report-status') || '').toLowerCase();
                                     
-                                    if (headerData) {
-                                        headerData.element.clone(true).insertBefore($row);
-                                        insertedGroups[groupKey] = true;
-                                        currentGroup = groupKey;
+                                    var groupKey = '';
+                                    if (rowStatus === 'no_report' || rowStatus === '') {
+                                        groupKey = 'no_report';
+                                    } else if (rowStatus === 'draft') {
+                                        groupKey = 'draft';
+                                    } else if (rowStatus === 'pending' || rowStatus === 'pending_review') {
+                                        groupKey = 'pending';
                                     }
-                                }
-                            });
-                            
-                            // Ensure group headers maintain their styling
-                            tbody.find('tr.status-group-header').each(function() {
-                                $(this).css({
-                                    'display': 'table-row',
-                                    'background-color': 'transparent'
+                                    
+                                    if (groupKey && groupKey !== currentGroup && !insertedGroups[groupKey]) {
+                                        var headerData = groupHeadersData.find(function(h) {
+                                            return h.groupKey === groupKey;
+                                        });
+                                        
+                                        if (headerData) {
+                                            headerData.element.clone(true).insertBefore($row);
+                                            insertedGroups[groupKey] = true;
+                                            currentGroup = groupKey;
+                                        }
+                                    }
                                 });
-                            });
-                        },
-                        "initComplete": function(settings, json) {
-                            // Group headers will be inserted by drawCallback
-                            // drawCallback is automatically called after initComplete, so headers will be inserted
-                            // No action needed here
-                        }
-                    });
-                } else {
-                    // Re-insert group headers if initialization failed
-                    // Insert them in the correct order: no_report, draft, pending
-                    var order = ['no_report', 'draft', 'pending'];
-                    var tbody = $table.find('tbody');
-                    var inserted = {};
-                    
-                    tbody.find('tr').each(function() {
-                        var $row = $(this);
-                        var rowStatus = ($row.attr('data-report-status') || '').toLowerCase();
-                        var groupKey = '';
-                        
-                        if (rowStatus === 'no_report' || rowStatus === '') {
-                            groupKey = 'no_report';
-                        } else if (rowStatus === 'draft') {
-                            groupKey = 'draft';
-                        } else if (rowStatus === 'pending' || rowStatus === 'pending_review') {
-                            groupKey = 'pending';
-                        }
-                        
-                        if (groupKey && !inserted[groupKey]) {
-                            var headerData = groupHeadersData.find(function(h) {
-                                return h.groupKey === groupKey;
-                            });
-                            if (headerData) {
-                                headerData.element.clone(true).insertBefore($row);
-                                inserted[groupKey] = true;
+                                
+                                tbody.find('tr.status-group-header').each(function() {
+                                    $(this).css({
+                                        'display': 'table-row',
+                                        'background-color': 'transparent'
+                                    });
+                                });
                             }
                         }
                     });
                     
-                    console.warn('Column count mismatch: Header has ' + headerCols + ' columns, first row has ' + firstRowCols + ' columns');
+                    return table;
                 }
+                
+                return null;
+            }
+            
+            // Initialize the first table (All Reports) on page load
+            if ($('#incidentsTableAll').length > 0) {
+                tableAll = initializeDataTable('#incidentsTableAll', true);
+                currentTable = tableAll;
             }
 
             // Real-time filtering function
             function applyRealTimeFilters() {
-                if (!table) return; // Exit if table is not initialized
+                if (!currentTable) return; // Exit if table is not initialized
                 
                 var startDate = $('#filterStartDate').val();
                 var endDate = $('#filterEndDate').val();
@@ -1592,7 +2005,7 @@ function renderIncidentRow($incident, &$rowIndex) {
 
                 // Custom search function for filtering
                 $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
-                    var row = table.row(dataIndex).node();
+                    var row = currentTable.row(dataIndex).node();
                     
                     // Skip group header rows
                     if ($(row).hasClass('status-group-header')) {
@@ -1615,16 +2028,13 @@ function renderIncidentRow($incident, &$rowIndex) {
                         }
                     }
 
-                    // Report status filter
-                    if (reportStatus) {
+                    // Report status filter - only apply if not viewing a specific table
+                    if (reportStatus && currentTableType === 'all') {
                         if (reportStatus === 'no_report') {
-                            // Show rows with no report (NULL), draft, or pending/pending_review status
+                            // Show ONLY rows with no report (NULL or empty status)
                             if (rowReportStatus && 
                                 rowReportStatus !== 'no_report' && 
-                                rowReportStatus !== '' && 
-                                rowReportStatus.toLowerCase() !== 'draft' &&
-                                rowReportStatus.toLowerCase() !== 'pending' &&
-                                rowReportStatus.toLowerCase() !== 'pending_review') {
+                                rowReportStatus !== '') {
                                 return false;
                             }
                         } else if (reportStatus === 'draft') {
@@ -1661,22 +2071,20 @@ function renderIncidentRow($incident, &$rowIndex) {
                 });
 
                 // Apply filters and redraw table
-                table.draw();
+                currentTable.draw();
 
                 // Update result count (excluding group header rows)
                 setTimeout(function() {
                     var visibleRows = 0;
-                    table.rows({search: 'applied'}).every(function() {
+                    currentTable.rows({search: 'applied'}).every(function() {
                         var row = this.node();
                         if (!$(row).hasClass('status-group-header')) {
                             visibleRows++;
                         }
                     });
-                    $('#filterResultCount').text('Showing ' + visibleRows + ' incident(s)');
+                    $('#filterCount').text(visibleRows);
                 }, 100);
             }
-
-            // No default filter - show all reports by default
 
             // Real-time event listeners for instant filtering
             $('#filterStartDate, #filterEndDate, #filterReportStatus, #filterBarangayId').on('change', function() {
@@ -1689,8 +2097,19 @@ function renderIncidentRow($incident, &$rowIndex) {
                 applyRealTimeFilters();
             });
 
-            // Apply default filter on page load
-            applyRealTimeFilters();
+            // Update filter result count on page load
+            if (currentTable) {
+                setTimeout(function() {
+                    var visibleRows = 0;
+                    currentTable.rows({search: 'applied'}).every(function() {
+                        var row = this.node();
+                        if (!$(row).hasClass('status-group-header')) {
+                            visibleRows++;
+                        }
+                    });
+                    $('#filterCount').text(visibleRows);
+                }, 500);
+            }
         });
 
         function createSpotReport(fireDataId) {

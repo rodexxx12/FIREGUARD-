@@ -18,12 +18,12 @@ $query = "
         r.responded_by,
         r.timestamp,
         r.firefighter_id,
-        r.building_id,
         f.name as firefighter_name,
-        bd.building_name
+        br.barangay_name
     FROM responses r
     LEFT JOIN firefighters f ON r.firefighter_id = f.id
-    LEFT JOIN buildings bd ON r.building_id = bd.id
+    LEFT JOIN fire_data fd ON r.fire_data_id = fd.id
+    LEFT JOIN barangay br ON fd.barangay_id = br.id
     ORDER BY r.timestamp DESC
 ";
 
@@ -37,26 +37,11 @@ try {
 }
 ?>
 
-<?php include('../../components/header.php'); ?>
-    <!-- jQuery (must be loaded first) -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Custom CSS for response table -->
     <link rel="stylesheet" href="../css/response_table.css">
     
-    <!-- DataTables CSS -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css">
-    
-    <!-- SweetAlert2 CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-</head>
+  
 <?php include('../../components/header.php'); ?>
 <body class="nav-md">
     <div class="container body">
@@ -67,8 +52,61 @@ try {
         </div>
         <?php include('../../components/navigation.php')?>
         <div class="right_col" role="main"> 
-   
-  
+            <!-- Filter Overlay + Side Panel -->
+            <div class="filter-overlay" id="filterOverlay" onclick="toggleFilterPanel()"></div>
+            <div class="filter-panel" id="filterPanel">
+                <div class="filter-panel-header">
+                    <h3><i class="fa fa-filter" style="margin-right: 8px;"></i> Filters</h3>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="toggleFilterPanel()" title="Close Filters">
+                        <i class="fa fa-times"></i>
+                    </button>
+                </div>
+                <div class="filter-panel-body">
+                    <div class="filter-group">
+                        <label for="filterFirefighter" class="form-label">Firefighter:</label>
+                        <select id="filterFirefighter" class="form-select form-select-sm">
+                            <option value="">All Firefighters</option>
+                            <option value="N/A">No Firefighter Assigned</option>
+                            <?php
+                            $firefighterQuery = "
+                                SELECT DISTINCT f.name 
+                                FROM responses r 
+                                LEFT JOIN firefighters f ON r.firefighter_id = f.id 
+                                WHERE f.name IS NOT NULL 
+                                ORDER BY f.name
+                            ";
+                            $firefighterStmt = $conn->prepare($firefighterQuery);
+                            $firefighterStmt->execute();
+                            $firefighters = $firefighterStmt->fetchAll();
+                            foreach ($firefighters as $firefighter) {
+                                echo "<option value='{$firefighter['name']}'>{$firefighter['name']}</option>";
+                            }
+                            ?>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filterStartDate" class="form-label">Start Date:</label>
+                        <input type="date" id="filterStartDate" class="form-control form-control-sm" placeholder="mm/dd/yyyy">
+                    </div>
+                    <div class="filter-group">
+                        <label for="filterEndDate" class="form-label">End Date:</label>
+                        <input type="date" id="filterEndDate" class="form-control form-control-sm" placeholder="mm/dd/yyyy">
+                    </div>
+                    <div class="filter-group">
+                        <div id="filterStatus" class="text-muted">
+                            <span class="badge badge-secondary">No filters active</span>
+                        </div>
+                    </div>
+                    <div class="filter-group">
+                        <button type="button" id="clearAllFilters" class="btn btn-outline-secondary btn-sm" style="width: 100%; margin-bottom: 10px;">
+                            <i class="fas fa-times"></i> Clear All
+                        </button>
+                        <button type="button" id="exportCSV" class="btn btn-success btn-sm" style="width: 100%;">
+                            <i class="fas fa-file-csv"></i> Export to CSV
+                        </button>
+                    </div>
+                </div>
+            </div>
 
         <!-- Main Content -->
         <div class="row">
@@ -76,72 +114,40 @@ try {
                 <div class="x_panel">
                     <div class="x_title">
                         <h2><i class="fas fa-list-alt"></i> Response Records</h2>
+                        <ul class="nav navbar-right panel_toolbox">
+                            <li>
+                                <a class="filter-toggle-btn" id="filterToggleBtn" title="Toggle Filters">
+                                    <span class="burger-line"></span>
+                                    <span class="burger-line"></span>
+                                    <span class="burger-line"></span>
+                                </a>
+                            </li>
+                        </ul>
                         <div class="clearfix"></div>
                     </div>
                             <div class="x_content">
-                                <!-- Advanced Filters Panel -->
-                                <div class="row mb-4">
-                                    <div class="col-md-12">
-                                        <div class="card">
-                                           
-                                            <div class="card-body">
-                                                <div class="row">
-                                                    <div class="col-md-4">
-                                                        <label for="filterFirefighter" class="form-label">Firefighter:</label>
-                                                        <select id="filterFirefighter" class="form-select form-select-sm">
-                                                            <option value="">All Firefighters</option>
-                                                            <option value="N/A">No Firefighter Assigned</option>
-                                                            <?php
-                                                            $firefighterQuery = "
-                                                                SELECT DISTINCT f.name 
-                                                                FROM responses r 
-                                                                LEFT JOIN firefighters f ON r.firefighter_id = f.id 
-                                                                WHERE f.name IS NOT NULL 
-                                                                ORDER BY f.name
-                                                            ";
-                                                            $firefighterStmt = $conn->prepare($firefighterQuery);
-                                                            $firefighterStmt->execute();
-                                                            $firefighters = $firefighterStmt->fetchAll();
-                                                            foreach ($firefighters as $firefighter) {
-                                                                echo "<option value='{$firefighter['name']}'>{$firefighter['name']}</option>";
-                                                            }
-                                                            ?>
-                                                        </select>
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <label for="filterStartDate" class="form-label">Start Date:</label>
-                                                        <input type="date" id="filterStartDate" class="form-control form-control-sm" placeholder="Start Date">
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <label for="filterEndDate" class="form-label">End Date:</label>
-                                                        <input type="date" id="filterEndDate" class="form-control form-control-sm" placeholder="End Date">
-                                                    </div>
-                                                </div>
-                                                <div class="row mt-3">
-                                                    <div class="col-md-8">
-                                                        <div id="filterStatus" class="text-muted">
-                                                            <span class="badge badge-secondary">No filters active</span>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-4 text-end">
-                                                        <button type="button" id="clearAllFilters" class="btn btn-outline-secondary btn-sm me-2">
-                                                            <i class="fas fa-times"></i> Clear All
-                                                        </button>
-                                                        <!-- <button type="button" id="applyFilters" class="btn btn-primary btn-sm">
-                                                            <i class="fas fa-search"></i> Apply
-                                                        </button> -->
-                                                        <button type="button" id="exportCSV" class="btn btn-success btn-sm ms-2">
-                                                            <i class="fas fa-file-csv"></i> Export to CSV
-                                                        </button>
-                                                    </div>
-                                                </div>
+                            
+     <div class="x_panel">
+
+                                <div class="row mb-3">
+                                    <div class="col-12">
+                                        <div class="d-flex flex-wrap align-items-center gap-3 justify-content-between" id="tableToolbar">
+                                            <div class="d-flex align-items-center gap-2 simple-length-control">
+                                                <label for="pageLength" class="mb-0">Show</label>
+                                                <select id="pageLength" class="form-select form-select-sm" style="width: 100px;">
+                                                    <option value="10">10</option>
+                                                    <option value="25">25</option>
+                                                    <option value="50">50</option>
+                                                    <option value="100">100</option>
+                                                    <option value="-1">All</option>
+                                                </select>
+                                                <span>records per page</span>
                                             </div>
+                                            <div id="tableSearchHolder" class="flex-grow-1 d-flex justify-content-end"></div>
                                         </div>
                                     </div>
                                 </div>
 
-                                    <!-- Data Table -->
-     <div class="x_panel">
                     <div class="x_content">
                                 <div class="table-responsive">
                                     <table id="responseTable" class="table table-striped table-bordered" style="width:100%">
@@ -153,7 +159,7 @@ try {
                                                 <th>Responded By</th>
                                                 <th>Timestamp</th>
                                                 <th>Firefighter Name</th>
-                                                <th>Building Name</th>
+                                                <th>Barangay</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -169,7 +175,7 @@ try {
                                                 <td><?php echo htmlspecialchars($response['responded_by']); ?></td>
                                                 <td><?php echo date('M d, Y H:i', strtotime($response['timestamp'])); ?></td>
                                                 <td><?php echo $response['firefighter_name'] ? htmlspecialchars($response['firefighter_name']) : 'N/A'; ?></td>
-                                                <td><?php echo $response['building_name'] ? htmlspecialchars($response['building_name']) : 'N/A'; ?></td>
+                                                <td><?php echo $response['barangay_name'] ? htmlspecialchars($response['barangay_name']) : 'N/A'; ?></td>
                                             </tr>
                                             <?php endforeach; ?>
                                         </tbody>
@@ -177,34 +183,50 @@ try {
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    </div>
-    </div>
-
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- DataTables JavaScript -->
-    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
-    
-    <!-- SweetAlert2 JavaScript -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+                 
+ 
     
     <!-- Custom JavaScript -->
     <script>
+        // Toggle filter side panel and overlay
+        function toggleFilterPanel() {
+            const filterPanel = document.getElementById('filterPanel');
+            const filterOverlay = document.getElementById('filterOverlay');
+            const filterToggleBtn = document.getElementById('filterToggleBtn');
+            
+            if (filterPanel && filterOverlay && filterToggleBtn) {
+                filterPanel.classList.toggle('active');
+                filterOverlay.classList.toggle('active');
+                filterToggleBtn.classList.toggle('active');
+            }
+        }
+        
         $(document).ready(function() {
+            // Cache selectors once for better performance
+            const $filterPanel = $('#filterPanel');
+            const $filterOverlay = $('#filterOverlay');
+            const $filterToggleBtn = $('#filterToggleBtn');
+            const $filterFirefighter = $('#filterFirefighter');
+            const $filterStartDate = $('#filterStartDate');
+            const $filterEndDate = $('#filterEndDate');
+            const $filterStatus = $('#filterStatus');
+
+            // Burger toggle open/close for side panel
+            $filterToggleBtn.on('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleFilterPanel();
+            });
+            
+            // Close when clicking overlay or outside the panel
+            document.addEventListener('click', function(event) {
+                if ($filterOverlay.hasClass('active') &&
+                    !$filterPanel[0].contains(event.target) &&
+                    !$filterToggleBtn[0].contains(event.target)) {
+                    toggleFilterPanel();
+                }
+            });
+            
             // Initialize DataTable with enhanced filtering capabilities
             var table = $('#responseTable').DataTable({
                 "pageLength": 25,
@@ -248,7 +270,7 @@ try {
                         }
                     },
                     {
-                        "targets": [5, 6], // Firefighter Name and Building Name columns
+                        "targets": [5, 6], // Firefighter Name and Barangay columns
                         "render": function(data, type, row) {
                             if (type === 'display') {
                                 return data || 'N/A';
@@ -286,58 +308,84 @@ try {
                     }
                 ]
             });
+            
+            // Move DataTables search into the toolbar row so it sits beside the length selector
+            var $dtFilter = $('#responseTable_filter');
+            $dtFilter.appendTo('#tableSearchHolder');
+            // Tidy default markup for inline fit
+            $dtFilter.addClass('mb-0');
+            $dtFilter.find('label').addClass('mb-0 d-flex align-items-center gap-2 justify-content-end w-100');
+            $dtFilter.find('input').addClass('form-control form-control-sm ms-2').css('width', '220px');
+
+            // Page length control
+            $('#pageLength').val('25');
+            table.page.len(25).draw();
+            $('#pageLength').on('change', function() {
+                var len = parseInt($(this).val(), 10);
+                table.page.len(len).draw();
+            });
 
             // DataTables-only functionality - no custom search boxes
 
             // Advanced Filter Functions
+            let dateRangeFilterRef = null; // keep single filter function instance
             function applyAdvancedFilters() {
-                // Clear all existing filters first
-                table.search('').columns().search('').draw();
-                
+                // Reset global search quickly
+                table.search('').columns().search('');
+
                 // Apply Firefighter filter
-                var firefighter = $('#filterFirefighter').val();
+                var firefighter = $filterFirefighter.val();
                 if (firefighter) {
                     table.column(5).search(firefighter, false, false);
                 }
                 
-                // Apply Date Range filter
-                var startDate = $('#filterStartDate').val();
-                var endDate = $('#filterEndDate').val();
-                
+                // Apply Date Range filter (ensure only one filter is registered)
+                var startDate = $filterStartDate.val();
+                var endDate = $filterEndDate.val();
+
+                if (dateRangeFilterRef) {
+                    const idx = $.fn.dataTable.ext.search.indexOf(dateRangeFilterRef);
+                    if (idx !== -1) $.fn.dataTable.ext.search.splice(idx, 1);
+                }
+
                 if (startDate || endDate) {
-                    // Custom date filter function
-                    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                    dateRangeFilterRef = function(settings, data) {
                         var timestamp = new Date(data[4]); // Column 4 is timestamp
                         var timestampDate = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate());
                         
                         var start = startDate ? new Date(startDate) : null;
                         var end = endDate ? new Date(endDate) : null;
                         
-                        if (start && end) {
-                            return timestampDate >= start && timestampDate <= end;
-                        } else if (start) {
-                            return timestampDate >= start;
-                        } else if (end) {
-                            return timestampDate <= end;
-                        }
+                        if (start && end) return timestampDate >= start && timestampDate <= end;
+                        if (start) return timestampDate >= start;
+                        if (end) return timestampDate <= end;
                         return true;
-                    });
+                    };
+                    $.fn.dataTable.ext.search.push(dateRangeFilterRef);
+                } else {
+                    dateRangeFilterRef = null;
                 }
                 
                 // Redraw the table with all filters applied
-                table.draw();
+                table.draw(false);
             }
             
             function clearAllAdvancedFilters() {
                 // Clear dropdown filters
-                $('#filterFirefighter, #filterStartDate, #filterEndDate').val('');
+                $filterFirefighter.val('');
+                $filterStartDate.val('');
+                $filterEndDate.val('');
                 
                 // Clear DataTables filters
-                table.search('').columns().search('').draw();
+                table.search('').columns().search('');
                 
                 // Remove custom date filter
-                $.fn.dataTable.ext.search.pop();
-                table.draw();
+                if (dateRangeFilterRef) {
+                    const idx = $.fn.dataTable.ext.search.indexOf(dateRangeFilterRef);
+                    if (idx !== -1) $.fn.dataTable.ext.search.splice(idx, 1);
+                    dateRangeFilterRef = null;
+                }
+                table.draw(false);
             }
             
             // Event handlers for advanced filters
@@ -359,22 +407,22 @@ try {
             });
             
             // Auto-apply filters when dropdowns change
-            $('#filterFirefighter, #filterStartDate, #filterEndDate').on('change', function() {
+            $filterFirefighter.add($filterStartDate).add($filterEndDate).on('change', function() {
                 applyAdvancedFilters();
             });
             
             // Add filter status indicator
             function updateFilterStatus() {
                 var activeFilters = 0;
-                if ($('#filterFirefighter').val()) activeFilters++;
-                if ($('#filterStartDate').val()) activeFilters++;
-                if ($('#filterEndDate').val()) activeFilters++;
+                if ($filterFirefighter.val()) activeFilters++;
+                if ($filterStartDate.val()) activeFilters++;
+                if ($filterEndDate.val()) activeFilters++;
                 
                 var statusText = activeFilters > 0 ? 
                     '<span class="badge badge-info">' + activeFilters + ' filter(s) active</span>' : 
                     '<span class="badge badge-secondary">No filters active</span>';
                 
-                $('#filterStatus').html(statusText);
+                $filterStatus.html(statusText);
             }
             
             // Update filter status on table draw
@@ -396,7 +444,7 @@ try {
                 }
                 
                 // Create CSV content (excluding ID and Fire Data ID columns)
-                var csvContent = "Response Type,Responded By,Timestamp,Firefighter Name,Building Name\n";
+                var csvContent = "Response Type,Responded By,Timestamp,Firefighter Name,Barangay\n";
                 
                 filteredData.forEach(function(row) {
                     // Skip the first two columns (ID and Fire Data ID) and clean the data for CSV (remove HTML tags and escape commas)

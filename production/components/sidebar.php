@@ -20,22 +20,22 @@
     <ul class="nav side-menu">
       <li><a><i class="fa fa-home"></i> Home <span class="fa fa-chevron-down"></span></a>
         <ul class="nav child_menu">
-          <li><a href="../../mapping/php/map.php">Locate Fire Incident</a></li>
+          <li><a href="../../mapping/php/map.php">Locate Fire</a></li>
           <li><a href="../../sensordata/php/fire_data_list.php">Sensor Data List</a></li>
           <li><a href="../../fireincidents/php/main.php">Fire Incidents</a></li>
-          <li><a href="../../statistics/php/index.php">Statistics Dashboard</a></li>
+          <li><a href="../../statistics/php/index.php">Statistics</a></li>
         </ul>
       </li>
       <li><a><i class="fa fa-file"></i> Reports <span class="fa fa-chevron-down"></span></a>
         <ul class="nav child_menu">
-          <li><a href="../../barangay_reports/php/reports.php">Barangay Reports Dashboard</a></li>
+          <li><a href="../../barangay_reports/php/reports.php">Barangay Reports</a></li>
           <li><a href="../../spot/php/index.php">Create Reports</a></li>
         </ul>
       </li>
       <li><a><i class="fa fa-table"></i> Tables <span class="fa fa-chevron-down"></span></a>
         <ul class="nav child_menu">
           <li><a href="../../buildingtable/php/main.php">Buildings</a></li>
-          <li><a href="../../alarmtables/php/main.php">Alarms</a></li>
+          <li><a href="../../alarmtable/php/index.php">Alarms</a></li>
           <li><a href="../../response/php/index.php">Responses</a></li>
           <li><a href="../../usertable/php/index.php">Users</a></li>
           <li><a href="../../firefightertable/php/index.php">Firefighters</a></li>

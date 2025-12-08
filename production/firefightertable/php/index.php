@@ -331,6 +331,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     
     <!-- Include header with all necessary libraries -->
     <?php include '../../components/header.php'; ?>
+    <link rel="stylesheet" href="../css/firefighter_table.css">
     
     <!-- DataTables Buttons CSS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css">
@@ -350,70 +351,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
    <!-- Main Content -->
  <div class="row">
             <div class="col-12">
+                <div class="filter-overlay" id="firefighterFilterOverlay"></div>
+                <div class="filter-panel" id="firefighterFilterPanel">
+                    <div class="filter-panel-header">
+                        <h3><i class="fa fa-filter" style="margin-right: 8px;"></i> Filters</h3>
+                        <button class="btn btn-sm btn-outline-secondary" id="closeFirefighterFilters" title="Close Filters">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="filter-panel-body">
+                        <div class="filter-group">
+                            <label for="customSearch" class="form-label mb-1">Search Firefighters</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control form-control-sm" id="customSearch" placeholder="Search by name, email, username, phone, badge number...">
+                                <span class="input-group-text">
+                                    <i class="fas fa-search"></i>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="filter-group">
+                            <label for="availabilityFilter" class="form-label mb-1">Availability Status</label>
+                            <select id="availabilityFilter" class="form-select form-select-sm">
+                                <option value="">All Status</option>
+                                <option value="1">Available</option>
+                                <option value="0">Unavailable</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="rankFilter" class="form-label mb-1">Rank</label>
+                            <select id="rankFilter" class="form-select form-select-sm">
+                                <option value="">All Ranks</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="specializationFilter" class="form-label mb-1">Specialization</label>
+                            <select id="specializationFilter" class="form-select form-select-sm">
+                                <option value="">All Specializations</option>
+                            </select>
+                        </div>
+                        <div class="filter-group d-flex gap-2">
+                            <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="clearFilters">
+                                <i class="fas fa-times"></i> Clear Filters
+                            </button>
+                            <button type="button" class="btn btn-outline-success btn-sm w-100" id="exportData">
+                                <i class="fas fa-download"></i> Export
+                            </button>
+                        </div>
+                    </div>
+                    <div class="filter-status-bar">
+                        <small id="filterStatusText">Active filters: <span id="activeFiltersCount">0</span></small>
+                    </div>
+                </div>
                 <div class="x_panel">
-                    <div class="x_title">
-                        <h2><i class="fas fa-list-alt"></i> Firefighters Records</h2>
-                        <div class="clearfix"></div>
-                    </div>
-        <!-- Filter Panel -->
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5><i class="fas fa-filter"></i> Advanced Filters & Search</h5>
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-outline-secondary btn-sm" id="clearFilters">
-                        <i class="fas fa-times"></i> Clear Filters
-                    </button>
-                    <button type="button" class="btn btn-outline-success btn-sm" id="exportData">
-                        <i class="fas fa-download"></i> Export
-                    </button>
-                    <button type="button" class="btn btn-primary btn-sm" id="addFirefighterBtn">
-                        <i class="fas fa-plus"></i> Add New Firefighter
-                    </button>
-                </div>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <label for="customSearch" class="form-label">Search Firefighters</label>
-                        <div class="input-group">
-                            <input type="text" class="form-control form-control-sm" id="customSearch" placeholder="Search by name, email, username, phone, badge number...">
-                            <span class="input-group-text">
-                                <i class="fas fa-search"></i>
-                            </span>
+                    <div class="x_title d-flex align-items-center">
+                        <h2 class="mb-0"><i class="fas fa-list-alt"></i> Firefighters Records</h2>
+                        <div class="panel-actions ms-auto">
+                            <a class="filter-toggle-btn" id="firefighterFilterToggleBtn" title="Toggle Filters">
+                                <span class="burger-line"></span>
+                                <span class="burger-line"></span>
+                                <span class="burger-line"></span>
+                            </a>
+                            <button type="button" class="btn btn-primary btn-sm" id="addFirefighterBtn">
+                                <i class="fas fa-plus"></i> Add New Firefighter
+                            </button>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <label for="availabilityFilter" class="form-label">Availability Status</label>
-                        <select id="availabilityFilter" class="form-select form-select-sm">
-                            <option value="">All Status</option>
-                            <option value="1">Available</option>
-                            <option value="0">Unavailable</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="row mt-3">
-                    <div class="col-md-6">
-                        <label for="rankFilter" class="form-label">Rank</label>
-                        <select id="rankFilter" class="form-select form-select-sm">
-                            <option value="">All Ranks</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="specializationFilter" class="form-label">Specialization</label>
-                        <select id="specializationFilter" class="form-select form-select-sm">
-                            <option value="">All Specializations</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="row mt-2">
-                    <div class="col-12">
-                        <div id="filterStatus" class="text-muted">
-                            <small>Active filters: <span id="activeFiltersCount">0</span></small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <!-- Main Table Panel -->
         <div class="x_panel">
@@ -701,6 +703,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         jQuery(document).ready(function($) {
             let firefightersTable;
             let filterOptions = { ranks: [], specializations: [] };
+            const $filterPanel = $('#firefighterFilterPanel');
+            const $filterOverlay = $('#firefighterFilterOverlay');
+            const $filterToggleBtn = $('#firefighterFilterToggleBtn');
+            const $filterStatusText = $('#filterStatusText');
+            
+            function toggleFirefighterFilters(forceState) {
+                const shouldOpen = typeof forceState === 'boolean' ? forceState : !$filterPanel.hasClass('active');
+                
+                $filterPanel.toggleClass('active', shouldOpen);
+                $filterOverlay.toggleClass('active', shouldOpen);
+                $filterToggleBtn.toggleClass('active', shouldOpen);
+            }
             
             // Initialize DataTable
             function initializeTable() {
@@ -940,6 +954,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
         
         // Filter change handlers
+        $filterToggleBtn.on('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleFirefighterFilters();
+        });
+
+        $('#closeFirefighterFilters, #firefighterFilterOverlay').on('click', function() {
+            if ($filterPanel.hasClass('active')) {
+                toggleFirefighterFilters(false);
+            }
+        });
+
         $('#availabilityFilter, #rankFilter, #specializationFilter').on('change', function() {
             updateFilterStatus();
             firefightersTable.ajax.reload();
@@ -998,7 +1024,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             if ($('#rankFilter').val()) activeCount++;
             if ($('#specializationFilter').val()) activeCount++;
             
-            $('#activeFiltersCount').text(activeCount);
+            const label = activeCount === 1 ? 'Active filter' : 'Active filters';
+            $filterStatusText.html(`${label}: <span id="activeFiltersCount">${activeCount}</span>`);
         }
         
         // Edit button handler

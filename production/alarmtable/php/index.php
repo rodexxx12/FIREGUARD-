@@ -238,6 +238,434 @@ try {
             border-color: #047857;
         }
         
+        /* Burger Menu Toggle Button Styles - Green with Animations */
+        .filter-toggle-btn {
+            display: flex !important;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: auto;
+            height: auto;
+            background: rgba(38, 185, 154, 0.08);
+            border: 1px solid rgba(38, 185, 154, 0.2);
+            cursor: pointer;
+            padding: 6px 8px;
+            margin: 0;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            visibility: visible !important;
+            opacity: 1 !important;
+            border-radius: 6px;
+            position: relative;
+            line-height: 1;
+            box-shadow: 0 2px 4px rgba(38, 185, 154, 0.15);
+        }
+        
+        .filter-toggle-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(38, 185, 154, 0.15);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.4s ease;
+        }
+        
+        .filter-toggle-btn:hover {
+            transform: scale(1.1);
+            background: rgba(38, 185, 154, 0.15);
+            border-color: rgba(38, 185, 154, 0.4);
+            box-shadow: 0 3px 8px rgba(38, 185, 154, 0.25);
+        }
+        
+        .filter-toggle-btn:hover::before {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .filter-toggle-btn.active {
+            transform: scale(1.1) rotate(90deg);
+            background: rgba(38, 185, 154, 0.2);
+            border-color: rgba(38, 185, 154, 0.5);
+            box-shadow: 0 3px 10px rgba(38, 185, 154, 0.3);
+        }
+        
+        .filter-toggle-btn.active::before {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .burger-line {
+            width: 22px;
+            height: 3px;
+            background-color: #26B99A;
+            border-radius: 3px;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            display: block;
+            margin: 2.5px 0;
+            position: relative;
+            box-shadow: 0 2px 4px rgba(38, 185, 154, 0.4);
+        }
+        
+        .filter-toggle-btn:hover .burger-line {
+            background-color: #1e9d82;
+            box-shadow: 0 3px 6px rgba(38, 185, 154, 0.5);
+            transform: scaleX(1.1);
+        }
+        
+        .filter-toggle-btn.active .burger-line {
+            background-color: #26B99A;
+            box-shadow: 0 3px 6px rgba(38, 185, 154, 0.6);
+        }
+        
+        .filter-toggle-btn.active .burger-line:nth-child(1) {
+            transform: rotate(45deg) translate(6px, 6px);
+            background-color: #26B99A;
+            width: 22px;
+        }
+        
+        .filter-toggle-btn.active .burger-line:nth-child(2) {
+            opacity: 0;
+            transform: scaleX(0);
+        }
+        
+        .filter-toggle-btn.active .burger-line:nth-child(3) {
+            transform: rotate(-45deg) translate(6px, -6px);
+            background-color: #26B99A;
+            width: 22px;
+        }
+        
+        /* Pulse animation when active */
+        @keyframes pulse-green {
+            0% {
+                box-shadow: 0 0 0 0 rgba(38, 185, 154, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 0 8px rgba(38, 185, 154, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(38, 185, 154, 0);
+            }
+        }
+        
+        .filter-toggle-btn.active {
+            animation: pulse-green 2s infinite;
+        }
+        
+        /* Filter Overlay with Animation */
+        .filter-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .filter-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        /* Filter Panel - Side Panel Style with Enhanced Animations */
+        .filter-panel {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 380px;
+            height: 100%;
+            background-color: #fff;
+            box-shadow: -2px 0 20px rgba(0,0,0,0.3);
+            z-index: 1000;
+            transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-y: auto;
+            padding: 2rem;
+            transform: translateX(0);
+        }
+        
+        .filter-panel.active {
+            right: 0;
+            animation: slideInRight 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        @keyframes slideInRight {
+            0% {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            60% {
+                transform: translateX(-5%);
+            }
+            100% {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        /* Filter Panel Header Animation */
+        .filter-panel-header {
+            animation: fadeInDown 0.5s ease 0.2s both;
+        }
+        
+        @keyframes fadeInDown {
+            0% {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Filter Groups Staggered Animation */
+        .filter-panel.active .filter-group {
+            animation: fadeInUp 0.5s ease both;
+        }
+        
+        .filter-panel.active .filter-group:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+        
+        .filter-panel.active .filter-group:nth-child(2) {
+            animation-delay: 0.15s;
+        }
+        
+        .filter-panel.active .filter-group:nth-child(3) {
+            animation-delay: 0.2s;
+        }
+        
+        .filter-panel.active .filter-group:nth-child(4) {
+            animation-delay: 0.25s;
+        }
+        
+        .filter-panel.active .filter-group:nth-child(5) {
+            animation-delay: 0.3s;
+        }
+        
+        .filter-panel.active .filter-group:nth-child(6) {
+            animation-delay: 0.35s;
+        }
+        
+        .filter-panel.active .filter-group:nth-child(7) {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes fadeInUp {
+            0% {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .filter-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .filter-panel-header h3 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #333;
+        }
+        
+        .filter-panel-body {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        .filter-group label {
+            font-weight: 600;
+            color: #555;
+            font-size: 0.95rem;
+        }
+        
+        .filter-group .form-control,
+        .filter-group .form-select,
+        .filter-group .btn {
+            width: 100%;
+        }
+        
+        @media (max-width: 768px) {
+            .filter-panel {
+                width: 100%;
+                right: -100%;
+            }
+        }
+        
+        .panel_toolbox {
+            float: right;
+            margin: 0;
+            list-style: none;
+            padding: 0;
+            min-width: 70px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .panel_toolbox li {
+            float: left;
+            cursor: pointer;
+            margin-left: 5px;
+            display: flex;
+            align-items: center;
+            min-height: 32px;
+        }
+        
+        .panel_toolbox li a {
+            padding: 5px;
+            color: #C5C7CB;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            height: 100%;
+        }
+        
+        .panel_toolbox li a:hover {
+            color: #26B99A;
+        }
+        
+        /* Ensure burger toggle is always visible and aligned */
+        #filterToggleBtn {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            position: relative;
+            z-index: 10;
+            align-items: center;
+            justify-content: center;
+            min-height: 32px;
+        }
+        
+        .panel_toolbox #filterToggleBtn {
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Make sure the burger lines are visible and green */
+        #filterToggleBtn .burger-line {
+            background-color: #26B99A !important;
+            display: block !important;
+            visibility: visible !important;
+            width: 22px !important;
+            height: 3px !important;
+        }
+        
+        #filterToggleBtn:hover .burger-line {
+            background-color: #1e9d82 !important;
+            transform: scaleX(1.1);
+        }
+        
+        /* Add smooth transitions to filter inputs */
+        .filter-group .form-control,
+        .filter-group .form-select {
+            transition: all 0.3s ease;
+            border: 1px solid #ddd;
+        }
+        
+        .filter-group .form-control:focus,
+        .filter-group .form-select:focus {
+            border-color: #26B99A;
+            box-shadow: 0 0 0 3px rgba(38, 185, 154, 0.1);
+            transform: translateY(-1px);
+        }
+        
+        /* Animate buttons on hover */
+        .filter-group .btn {
+            transition: all 0.3s ease;
+        }
+        
+        .filter-group .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .filter-group .btn:active {
+            transform: translateY(0);
+        }
+        
+        /* Add subtle animation to panel header icon */
+        .filter-panel-header h3 i {
+            animation: rotateIn 0.6s ease 0.3s both;
+        }
+        
+        @keyframes rotateIn {
+            0% {
+                opacity: 0;
+                transform: rotate(-180deg) scale(0);
+            }
+            100% {
+                opacity: 1;
+                transform: rotate(0deg) scale(1);
+            }
+        }
+        
+        /* DataTables Filter Input Styling */
+        .dataTables_wrapper .dataTables_filter input {
+            margin: 0 5px;
+            padding: 5px 10px;
+            padding-right: 25px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: inline-block;
+            width: auto;
+        }
+
+        /* DataTables length (Show N records) styling */
+        .dataTables_wrapper .dataTables_length {
+            margin-bottom: 12px;
+        }
+
+        .dataTables_wrapper .dataTables_length label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            color: #555;
+            margin: 0;
+        }
+
+        .dataTables_wrapper .dataTables_length select {
+            margin: 0 5px;
+            padding: 6px 30px 6px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+            width: auto;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 12px;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+        
         /* Responsive Design */
         @media (max-width: 768px) {
             .filter-grid {
@@ -264,7 +692,103 @@ try {
           </div>
         </div>
         <?php include('../../components/navigation.php')?>
-        <div class="right_col" role="main"> 
+        <div class="right_col" role="main">
+    <!-- Filter Overlay -->
+    <div class="filter-overlay" id="filterOverlay" onclick="toggleFilterPanel()"></div>
+    
+    <!-- Filter Panel - Side Panel -->
+    <div class="filter-panel" id="filterPanel">
+        <div class="filter-panel-header">
+            <h3><i class="fa fa-filter" style="margin-right: 8px;"></i> Filters</h3>
+            <button class="btn btn-sm btn-outline-secondary" onclick="toggleFilterPanel()" title="Close Filters">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+        <div class="filter-panel-body">
+            <!-- Building Type Filter -->
+            <div class="filter-group">
+                <label for="buildingTypeFilter" class="form-label">Building Type:</label>
+                <select id="buildingTypeFilter" class="form-select form-select-sm" onchange="filterColumn(0, this.value)">
+                    <option value="">All Building Types</option>
+                    <?php
+                    // Get unique building types from the data
+                    $building_types = array_unique(array_column($fire_data_records, 'building_type'));
+                    $building_types = array_filter($building_types);
+                    sort($building_types);
+                    foreach ($building_types as $type): ?>
+                        <option value="<?php echo htmlspecialchars($type); ?>"><?php echo htmlspecialchars($type); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            
+            <!-- Device Status Filter -->
+            <div class="filter-group">
+                <label for="deviceStatusFilter" class="form-label">Device Status:</label>
+                <select id="deviceStatusFilter" class="form-select form-select-sm" onchange="filterColumn(3, this.value)">
+                    <option value="">All Device Status</option>
+                    <option value="Online">Online</option>
+                    <option value="Offline">Offline</option>
+                    <option value="Faulty">Faulty</option>
+                    <option value="No Device">No Device</option>
+                </select>
+            </div>
+            
+            <!-- Alarm Status Filter -->
+            <div class="filter-group">
+                <label for="alarmStatusFilter" class="form-label">Alarm Status:</label>
+                <select id="alarmStatusFilter" class="form-select form-select-sm" onchange="filterColumn(4, this.value)">
+                    <option value="">All Alarm Status</option>
+                    <option value="MISSED">Emergency (Missed)</option>
+                    <option value="ACKNOWLEDGED">Acknowledged</option>
+                </select>
+            </div>
+            
+            <!-- User Filter -->
+            <div class="filter-group">
+                <label for="userFilter" class="form-label">User:</label>
+                <select id="userFilter" class="form-select form-select-sm" onchange="filterColumn(1, this.value)">
+                    <option value="">All Users</option>
+                    <?php
+                    // Get unique users from the data
+                    $users = array_unique(array_column($fire_data_records, 'owner_name'));
+                    $users = array_filter($users);
+                    sort($users);
+                    foreach ($users as $user): ?>
+                        <option value="<?php echo htmlspecialchars($user); ?>"><?php echo htmlspecialchars($user); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            
+            <!-- Date Range Filter -->
+            <div class="filter-group">
+                <label for="startDateFilter" class="form-label">Start Date:</label>
+                <input type="date" id="startDateFilter" class="form-control form-control-sm" onchange="applyDateFilter()">
+                <small class="text-muted" style="font-size: 0.75rem; margin-top: 4px; display: block;">mm/dd/yyyy</small>
+            </div>
+
+            <div class="filter-group">
+                <label for="endDateFilter" class="form-label">End Date:</label>
+                <input type="date" id="endDateFilter" class="form-control form-control-sm" onchange="applyDateFilter()">
+                <small class="text-muted" style="font-size: 0.75rem; margin-top: 4px; display: block;">mm/dd/yyyy</small>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="filter-group">
+                <button class="btn btn-outline-secondary btn-sm" onclick="resetAllFilters()" style="width: 100%; margin-top: 10px;">
+                    <i class="fas fa-times"></i> Reset All Filters
+                </button>
+                <button class="btn btn-success btn-sm" onclick="exportToCSV()" style="width: 100%; margin-top: 10px;">
+                    <i class="fas fa-download"></i> Export CSV
+                </button>
+            </div>
+            <div class="filter-group">
+                <small class="text-muted" style="display: block; margin-top: 10px;">
+                    <span id="filterStats">Showing all records</span>
+                </small>
+            </div>
+        </div>
+    </div>
+    
     <div class="main-card">
                 <!-- Main Content -->
                 <div class="row">
@@ -272,101 +796,18 @@ try {
                 <div class="x_panel">
                     <div class="x_title">
                         <h2><i class="fas fa-list-alt"></i> Alarm Records</h2>
+                        <ul class="nav navbar-right panel_toolbox">
+                            <li>
+                                <a class="filter-toggle-btn" id="filterToggleBtn" title="Toggle Filters">
+                                    <span class="burger-line"></span>
+                                    <span class="burger-line"></span>
+                                    <span class="burger-line"></span>
+                                </a>
+                            </li>
+                            <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a></li>
+                        </ul>
                         <div class="clearfix"></div>
                     </div>
-        <!-- Filter Section -->
-        <div class="card">
-            <div class="card-header">
-                <h5><i class="fas fa-filter"></i> Filters</h5>
-                </div>
-            <div class="card-body">
-                <div class="filter-grid">
-                    <div class="row">
-                        <!-- Left Column -->
-                        <div class="col-md-6">
-                            <!-- Building Type Filter -->
-                            <div class="filter-group">
-                                <label class="form-label">Building Type</label>
-                                <select class="form-control" id="buildingTypeFilter" onchange="filterColumn(0, this.value)">
-                                    <option value="">All Building Types</option>
-                                <?php
-                                // Get unique building types from the data
-                                $building_types = array_unique(array_column($fire_data_records, 'building_type'));
-                                $building_types = array_filter($building_types);
-                                sort($building_types);
-                                foreach ($building_types as $type): ?>
-                                    <option value="<?php echo htmlspecialchars($type); ?>"><?php echo htmlspecialchars($type); ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            </div>
-                            
-                            <!-- Device Status Filter -->
-                            <div class="filter-group">
-                                <label class="form-label">Device Status</label>
-                                <select class="form-control" id="deviceStatusFilter" onchange="filterColumn(3, this.value)">
-                                    <option value="">All Device Status</option>
-                                <option value="Online">Online</option>
-                                <option value="Offline">Offline</option>
-                                <option value="Faulty">Faulty</option>
-                                    <option value="No Device">No Device</option>
-                            </select>
-                            </div>
-                            
-                            <!-- Alarm Status Filter -->
-                            <div class="filter-group">
-                                <label class="form-label">Alarm Status</label>
-                                <select class="form-control" id="alarmStatusFilter" onchange="filterColumn(4, this.value)">
-                                    <option value="">All Alarm Status</option>
-                                    <option value="MISSED">Emergency (Missed)</option>
-                                    <option value="ACKNOWLEDGED">Acknowledged</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <!-- Right Column -->
-                        <div class="col-md-6">
-                            <!-- User Filter -->
-                            <div class="filter-group">
-                                <label class="form-label">User</label>
-                                <select class="form-control" id="userFilter" onchange="filterColumn(1, this.value)">
-                                    <option value="">All Users</option>
-                                    <?php
-                                    // Get unique users from the data
-                                    $users = array_unique(array_column($fire_data_records, 'owner_name'));
-                                    $users = array_filter($users);
-                                    sort($users);
-                                    foreach ($users as $user): ?>
-                                        <option value="<?php echo htmlspecialchars($user); ?>"><?php echo htmlspecialchars($user); ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            
-                            <!-- Date Range Filter -->
-                            <div class="filter-group">
-                                <label class="form-label">Start Date</label>
-                                <input type="date" class="form-control" id="startDateFilter" onchange="applyDateFilter()">
-                            </div>
-
-                            <div class="filter-group">
-                                <label class="form-label">End Date</label>
-                                <input type="date" class="form-control" id="endDateFilter" onchange="applyDateFilter()">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Filter Actions -->
-                <div class="filter-actions">
-                    <div class="filter-stats">
-                        <span id="filterStats">Showing all records</span>
-                    </div>
-                    <div class="filter-buttons">
-                        <button class="btn btn-outline-secondary" onclick="resetAllFilters()">🔄 Reset All</button>
-                        <button class="btn btn-success" onclick="exportToCSV()">📊 Export CSV</button>
-                    </div>
-                </div>
-            </div>
-        </div>
         
      <!-- Data Table -->
      <div class="x_panel">
@@ -1066,6 +1507,43 @@ try {
                 }
             }
         }
+        
+        // Filter Panel Toggle Function - Must be defined globally for onclick handlers
+        function toggleFilterPanel() {
+            const filterPanel = document.getElementById('filterPanel');
+            const filterOverlay = document.getElementById('filterOverlay');
+            const filterToggleBtn = document.getElementById('filterToggleBtn');
+            
+            if (filterPanel && filterOverlay && filterToggleBtn) {
+                filterPanel.classList.toggle('active');
+                filterOverlay.classList.toggle('active');
+                filterToggleBtn.classList.toggle('active');
+            }
+        }
+        
+        // Initialize burger toggle on page load
+        $(document).ready(function() {
+            // Burger Menu Toggle Functionality for Side Panel
+            $('#filterToggleBtn').on('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleFilterPanel();
+            });
+            
+            // Close filter panel when clicking overlay
+            document.addEventListener('click', function(event) {
+                const filterPanel = document.getElementById('filterPanel');
+                const filterOverlay = document.getElementById('filterOverlay');
+                const filterToggleBtn = document.getElementById('filterToggleBtn');
+                
+                // If clicking outside the panel and overlay is active, close it
+                if (filterOverlay && filterOverlay.classList.contains('active') && 
+                    filterPanel && !filterPanel.contains(event.target) && 
+                    filterToggleBtn && !filterToggleBtn.contains(event.target)) {
+                    toggleFilterPanel();
+                }
+            });
+        });
     </script>
     <!-- Include header components -->
     <?php include '../../components/scripts.php'; ?>
